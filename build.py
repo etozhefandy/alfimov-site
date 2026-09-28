@@ -4,8 +4,8 @@
     python3 build.py            # собирает сайт в dist/
     python3 build.py --serve    # собирает и поднимает http://localhost:8000
 
-Форма заявок: если заданы переменные окружения TG_BOT_TOKEN и TG_CHAT_ID,
-в dist/api/config.php пишутся эти значения (в CI — из GitHub Secrets).
+Дизайн по design brief: Marketing × Data × Technology — белый, почти чёрный,
+серые и один синий акцент; типографика и сетка вместо декора.
 """
 import hashlib
 import html
@@ -30,7 +30,10 @@ PHONE_DISPLAY = "+7 776 902 66 69"
 PHONE_TEL = "+77769026669"
 WHATSAPP_URL = "https://wa.me/77769026669"
 TELEGRAMS = ["fandylol", "etozhefandy"]
-FONT_URL = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+FONT_URL = (
+    "https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700"
+    "&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+)
 ASSET_VER = hashlib.md5(
     b"".join((STATIC / "assets" / f).read_bytes() for f in ("style.css", "main.js"))
 ).hexdigest()[:8]
@@ -41,39 +44,23 @@ HREFLANG = {"ru": "ru-KZ", "kk": "kk-KZ"}
 e = html.escape
 
 
-# ---------------------------------------------------------------- icons
+# ---------------------------------------------------------------- icons (только функциональные)
 
 ICONS = {
-    "meta": '<path d="M4 15c0-4 2-8 4.5-8 2.2 0 3.6 3 5.5 6s3 4 4.5 4c1.6 0 2.5-1.5 2.5-4s-1.3-6-3.8-6c-2 0-3.5 2.6-5.2 5.4C10.3 15.3 9 17 7 17c-1.8 0-3-1-3-2Z"/>',
-    "tiktok": '<path d="M14 3v11.5a3.5 3.5 0 1 1-3.5-3.5"/><path d="M14 3c.5 2.8 2.4 4.6 5 5"/>',
-    "smm": '<rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17" cy="7" r=".6" fill="currentColor"/>',
-    "context": '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/><path d="M8 10.5h5M10.5 8v5"/>',
-    "seo": '<path d="M3 20h18"/><path d="M6 16v-4M11 16V8M16 16v-6"/><path d="m5 8 5-4 4 3 5-4"/>',
-    "research": '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
-    "complex": '<circle cx="12" cy="12" r="3"/><circle cx="12" cy="4" r="1.6"/><circle cx="20" cy="12" r="1.6"/><circle cx="12" cy="20" r="1.6"/><circle cx="4" cy="12" r="1.6"/><path d="M12 5.6V9M18.4 12H15M12 18.4V15M5.6 12H9"/>',
-    "check": '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
     "arrow": '<path d="M5 12h14M13 6l6 6-6 6"/>',
-    "chevron": '<path d="m9 6 6 6-6 6"/>',
+    "arrow-down": '<path d="M12 5v14M6 13l6 6 6-6"/>',
+    "plus": '<path d="M12 5v14M5 12h14"/>',
     "phone": '<path d="M5 4h3.5l1.5 4.5-2 1.5a11 11 0 0 0 6 6l1.5-2 4.5 1.5V19a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z"/>',
     "whatsapp": '<path d="M4 20l1.2-4A8 8 0 1 1 8 18.8Z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1-1 .8c-1-.5-2-1.5-2.3-2.3l.8-1-1-2-1 .5Z"/>',
     "telegram": '<path d="M21 4 3 11l6 2.2L18 7l-7 7.5V20l3-3.5 4 3Z"/>',
-    "menu": '<path d="M4 7h16M4 12h16M4 17h16"/>',
-    "heart": '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z"/>',
-    "comment": '<path d="M20 12a8 8 0 1 1-3.3-6.5A8 8 0 0 1 20 12Zm0 0v8l-3-2.5"/>',
-    "share": '<path d="M21 3 10 14M21 3l-7 18-4-7-7-4Z"/>',
-    "bookmark": '<path d="M6 3h12v18l-6-4-6 4Z"/>',
-    "target": '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".8" fill="currentColor"/>',
-    "eye": '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
-    "layers": '<path d="m12 3 9 5-9 5-9-5Z"/><path d="m3 13 9 5 9-5"/>',
-    "pin": '<path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/>',
+    "menu": '<path d="M4 8h16M4 16h16"/>',
 }
-WHY_ICONS = ["target", "telegram", "eye", "layers"]
 
 
 def icon(name, cls="ic"):
     return (
         f'<svg class="{cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
-        f'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{ICONS[name]}</svg>'
+        f'stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{ICONS[name]}</svg>'
     )
 
 
@@ -94,13 +81,12 @@ LOGO_WORD_PATHS = (
     '<path d="M890 44H896V80L935 44H944L908 77 946 114H937L896 86V114H890Z"/>'
     '<path d="M979 44H1036V50L988 108H1037V114H978V108L1026 50H979Z"/>'
 )
-LOGO_MARK = f'<svg class="logo-mark" viewBox="52 34 118 84" fill="currentColor" aria-hidden="true">{LOGO_MARK_PATHS}</svg>'
 
 
 def logo(href):
     return (
         f'<a class="logo" href="{href}" aria-label="ALFIMOV.KZ">'
-        f'<svg viewBox="52 34 990 84" fill="currentColor" role="img" aria-hidden="true">{LOGO_MARK_PATHS}{LOGO_WORD_PATHS}</svg></a>'
+        f'<svg viewBox="52 34 990 84" fill="currentColor" aria-hidden="true">{LOGO_MARK_PATHS}{LOGO_WORD_PATHS}</svg></a>'
     )
 
 
@@ -111,6 +97,11 @@ def url(c, slug=""):
     return f"{c.PREFIX}/{slug + '/' if slug else ''}"
 
 
+def link(c, target):
+    """Ссылка из контента: '#якорь' — на главной, иначе slug услуги."""
+    return f"{url(c)}{target}" if target.startswith("#") else url(c, target)
+
+
 def other_lang(c):
     return content_kz if c is content_ru else content_ru
 
@@ -119,7 +110,8 @@ def org_schema():
     return {
         "@type": "ProfessionalService",
         "@id": f"{SITE_URL}/#org",
-        "name": BRAND,
+        "name": "ALFIMOV.KZ",
+        "alternateName": BRAND,
         "url": f"{SITE_URL}/",
         "logo": f"{SITE_URL}/assets/brand/icon-512.png",
         "image": f"{SITE_URL}/assets/og.png",
@@ -151,14 +143,18 @@ def breadcrumbs_schema(trail):
     }
 
 
+def eyebrow(num, text):
+    return f'<p class="eyebrow"><span>{num}</span>{e(text)}</p>'
+
+
 # ---------------------------------------------------------------- partials
 
 def header(c, alt_path):
     ui = c.UI
     nav_services = "".join(
-        f'<li><a href="{url(c, s["slug"])}"><span class="dd-ic">{icon(s["icon"], "ic ic-sm")}</span>{e(s["name"])}</a></li>'
-        for s in c.SERVICES
+        f'<li><a href="{url(c, s["slug"])}">{e(s["name"])}</a></li>' for s in c.SERVICES
     )
+    cases_link = f'<a href="{url(c)}#cases">{e(c.HOME["cases_eyebrow"])}</a>' if c.CASES else ""
     return f"""
 <header class="hdr">
   <div class="wrap hdr-in">
@@ -168,11 +164,12 @@ def header(c, alt_path):
         <a href="{url(c)}#services">{e(ui['nav_services'])}</a>
         <ul class="dd-menu">{nav_services}</ul>
       </div>
-      <a href="{url(c)}#how">{e(ui['nav_how'])}</a>
-      <a href="{url(c)}#faq">{e(ui['nav_faq'])}</a>
+      <a href="{url(c)}#approach">{e(c.HOME['approach_eyebrow'])}</a>
+      {cases_link}
+      <a href="{url(c)}#automation">{e(c.HOME['automation_eyebrow'])}</a>
       <a href="{url(c, 'kontakty')}">{e(ui['nav_contacts'])}</a>
       <a class="lang" href="{alt_path}" hreflang="{other_lang(c).LANG}" aria-label="{e(ui['lang_switch_label'])}">{e(ui['lang_switch'])}</a>
-      <a class="btn btn-sm" href="#lead">{e(ui['cta_short'])}</a>
+      <a class="btn btn-sm" href="#lead">{e(ui['cta'])}</a>
     </nav>
     <button class="burger" type="button" aria-controls="nav" aria-expanded="false" aria-label="Menu">{icon('menu')}</button>
   </div>
@@ -181,54 +178,40 @@ def header(c, alt_path):
 
 def contact_links():
     tg = "".join(
-        f'<a class="chip" href="https://t.me/{t}" target="_blank" rel="noopener">{icon("telegram")}@{t}</a>'
+        f'<a class="clink" href="https://t.me/{t}" target="_blank" rel="noopener">{icon("telegram")}@{t}</a>'
         for t in TELEGRAMS
     )
     return (
-        f'<a class="chip" href="tel:{PHONE_TEL}">{icon("phone")}{PHONE_DISPLAY}</a>'
-        f'<a class="chip" href="{WHATSAPP_URL}" target="_blank" rel="noopener">{icon("whatsapp")}WhatsApp</a>'
+        f'<a class="clink" href="tel:{PHONE_TEL}">{icon("phone")}{PHONE_DISPLAY}</a>'
+        f'<a class="clink" href="{WHATSAPP_URL}" target="_blank" rel="noopener">{icon("whatsapp")}WhatsApp</a>'
         + tg
     )
 
 
-def stories(c, current=None):
-    """Ряд услуг в виде «кружков сторис» Instagram."""
-    items = "".join(
-        f'<a class="story{" is-current" if s["slug"] == current else ""}" href="{url(c, s["slug"])}">'
-        f'<span class="ring"><span class="story-ic">{icon(s["icon"])}</span></span>'
-        f'<span class="story-name">{e(s["story"])}</span></a>'
-        for s in c.SERVICES
-    )
-    return f'<nav class="stories" aria-label="{e(c.UI["nav_services"])}">{items}</nav>'
-
-
-def lead_form(c, source):
+def lead_form(c, source, title=None, lead=None, num="→"):
     ui = c.UI
+    title = title or c.HOME["final_title"]
+    lead = lead or c.HOME["final_lead"]
     return f"""
-<section class="lead" id="lead">
-  <div class="wrap lead-in">
-    <div class="lead-copy">
-      <h2>{e(ui['form_title'])}</h2>
-      <p>{e(ui['form_lead'])}</p>
-      <p class="muted">{e(ui['or_write'])}</p>
-      <div class="chips">{contact_links()}</div>
+<section class="final" id="lead">
+  <div class="wrap final-in">
+    <div class="final-copy rv">
+      <h2>{e(title)}</h2>
+      <p>{e(lead)}</p>
+      <div class="clinks">{contact_links()}</div>
     </div>
-    <div class="login-box">
-      <form class="form" action="/api/send.php" method="post" data-ok="{e(ui['form_ok'])}" data-err="{e(ui['form_err'])}" data-sending="{e(ui['form_sending'])}">
-        <input type="hidden" name="source" value="{e(source)}">
-        <input type="hidden" name="lang" value="{c.LANG}">
-        <input type="hidden" name="ts" value="">
-        <div class="hp" aria-hidden="true"><label>Company<input type="text" name="company" tabindex="-1" autocomplete="off"></label></div>
-        <input class="inp" type="text" name="name" required maxlength="80" autocomplete="name" placeholder="{e(ui['form_name'])}" aria-label="{e(ui['form_name'])}">
-        <input class="inp" type="text" name="contact" required maxlength="80" autocomplete="tel" inputmode="tel" placeholder="{e(ui['form_phone'])}" aria-label="{e(ui['form_phone'])}">
-        <textarea class="inp" name="message" rows="3" maxlength="1000" placeholder="{e(ui['form_message'])}" aria-label="{e(ui['form_message'])}"></textarea>
-        <button class="btn btn-block" type="submit">{e(ui['form_submit'])}</button>
-        <p class="form-status" role="status" aria-live="polite"></p>
-        <p class="consent">{e(ui['form_consent'])}</p>
-      </form>
-      <div class="or"><span>{e(ui['or'])}</span></div>
-      <a class="btn btn-green" href="{WHATSAPP_URL}" target="_blank" rel="noopener">{icon('whatsapp')}{e(ui['wa_btn'])}</a>
-    </div>
+    <form class="form rv" action="/api/send.php" method="post" data-ok="{e(ui['form_ok'])}" data-err="{e(ui['form_err'])}" data-sending="{e(ui['form_sending'])}">
+      <input type="hidden" name="source" value="{e(source)}">
+      <input type="hidden" name="lang" value="{c.LANG}">
+      <input type="hidden" name="ts" value="">
+      <div class="hp" aria-hidden="true"><label>Company<input type="text" name="company" tabindex="-1" autocomplete="off"></label></div>
+      <label class="fld"><span>{e(ui['form_name'])}</span><input type="text" name="name" required maxlength="80" autocomplete="name"></label>
+      <label class="fld"><span>{e(ui['form_phone'])}</span><input type="text" name="contact" required maxlength="80" autocomplete="tel" inputmode="tel"></label>
+      <label class="fld"><span>{e(ui['form_message'])}</span><textarea name="message" rows="2" maxlength="1000"></textarea></label>
+      <button class="btn btn-lg" type="submit">{e(ui['form_submit'])} {icon('arrow', 'ic ic-sm')}</button>
+      <p class="form-status" role="status" aria-live="polite"></p>
+      <p class="consent">{e(ui['form_consent'])}</p>
+    </form>
   </div>
 </section>"""
 
@@ -240,9 +223,9 @@ def footer(c):
     return f"""
 <footer class="ftr">
   <div class="wrap ftr-in">
-    <div>
+    <div class="ftr-brand">
       {logo(url(c))}
-      <p class="muted">{e(ui['footer_about'])}</p>
+      <p>{e(ui['footer_about'])}</p>
     </div>
     <div>
       <h3>{e(ui['footer_services'])}</h3>
@@ -257,7 +240,7 @@ def footer(c):
       </ul>
     </div>
   </div>
-  <div class="wrap ftr-bottom muted">ALFIMOV.KZ © {date.today().year} · {e(ui['rights'])}</div>
+  <div class="wrap ftr-bottom"><span>© {date.today().year} ALFIMOV.KZ</span><span>{e(ui['rights'])}</span></div>
 </footer>"""
 
 
@@ -300,6 +283,7 @@ def page(c, *, path, title, desc, body, schema, alt_path, noindex=False):
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="{FONT_URL}">
 <link rel="stylesheet" href="/assets/style.css?v={ASSET_VER}">
+<script>document.documentElement.classList.add('js')</script>
 <script type="application/ld+json">{json.dumps(graph, ensure_ascii=False)}</script>
 </head>
 <body>
@@ -314,101 +298,152 @@ def page(c, *, path, title, desc, body, schema, alt_path, noindex=False):
 """
 
 
-def faq_block(c, items, anchor="faq"):
+def faq_block(c, items, num):
     qs = "".join(
-        f'<details class="qa"><summary>{e(q)}{icon("chevron", "ic ic-sm qa-ic")}</summary><p>{e(a)}</p></details>'
+        f'<details class="qa"><summary>{e(q)}{icon("plus", "ic qa-ic")}</summary><p>{e(a)}</p></details>'
         for q, a in items
     )
-    return f'<section class="sec" id="{anchor}"><div class="wrap narrow"><h2>{e(c.UI["faq_title"])}</h2><div class="panel faq">{qs}</div></div></section>'
+    return f"""
+<section class="sec" id="faq">
+  <div class="wrap split">
+    <div class="split-head rv">{eyebrow(num, c.HOME['faq_eyebrow'])}<h2>{e(c.UI['faq_title'])}</h2></div>
+    <div class="faq rv">{qs}</div>
+  </div>
+</section>"""
 
 
-def steps_block(title, steps, anchor=""):
+def flow(steps, loop_text=None):
+    """Схема пути: горизонтальная на десктопе, вертикальная на мобиле."""
     items = "".join(
-        f'<li><span class="num">{i}</span><h3>{e(t)}</h3><p>{e(d)}</p></li>'
-        for i, (t, d) in enumerate(steps, 1)
+        f'<li style="--i:{i}"><span class="flow-n">{i + 1:02d}</span><h3>{e(t)}</h3><p>{e(d)}</p></li>'
+        for i, (t, d) in enumerate(steps)
     )
-    aid = f' id="{anchor}"' if anchor else ""
-    return f'<section class="sec"{aid}><div class="wrap"><h2>{e(title)}</h2><ol class="steps">{items}</ol></div></section>'
+    loop = f'<p class="flow-loop">↺ {e(loop_text)}</p>' if loop_text else ""
+    return f'<div class="flow rv" style="--n:{len(steps)}"><ol>{items}</ol>{loop}</div>'
 
 
-def service_cards(c, exclude=None):
-    cards = []
+def service_rows(c, exclude=None):
+    rows = []
+    n = 0
     for s in c.SERVICES:
         if s["slug"] == exclude:
             continue
-        cards.append(
-            f'<a class="card" href="{url(c, s["slug"])}">'
-            f'<span class="card-ic">{icon(s["icon"])}</span>'
-            f'<h3>{e(s["name"])}</h3><p>{e(s["short"])}</p>'
-            f'<span class="more">{e(c.UI["more"])} {icon("arrow", "ic ic-sm")}</span></a>'
+        n += 1
+        rows.append(
+            f'<a class="row-link" href="{url(c, s["slug"])}"><span class="row-n">{n:02d}</span>'
+            f'<span class="row-t">{e(s["name"])}</span><span class="row-d">{e(s["short"])}</span>'
+            f'{icon("arrow", "ic row-arrow")}</a>'
         )
-    return f'<div class="cards">{"".join(cards)}</div>'
+    return f'<div class="rows rv">{"".join(rows)}</div>'
 
 
-def post_mock(c):
-    """Макет рекламного поста Instagram — декоративный, для первого экрана."""
+def clients_strip(c):
+    if not c.CLIENTS:
+        return ""
+    names = "".join(f"<li>{e(n)}</li>" for n in c.CLIENTS)
+    return f'<section class="clients"><div class="wrap clients-in"><p>{e(c.HOME["clients_title"])}</p><ul>{names}</ul></div></section>'
+
+
+def cases_block(c, num):
+    if not c.CASES:
+        return ""
+    cards = []
+    for k in c.CASES:
+        metrics = "".join(
+            f'<div class="m"><dt>{e(label)}</dt><dd><span class="m-before">{e(before)}</span>'
+            f'{icon("arrow", "ic ic-sm")}<span class="m-after">{e(after)}</span></dd></div>'
+            for label, before, after in k["metrics"]
+        )
+        cards.append(
+            f'<article class="case rv"><header><h3>{e(k["name"])}</h3><p class="case-niche">{e(k["niche"])}'
+            f'{" · " + e(k["period"]) if k.get("period") else ""}</p></header>'
+            f'<dl class="case-metrics">{metrics}</dl>'
+            f'<div class="case-text"><p><b>{e(c.UI.get("case_task", "Задача"))}.</b> {e(k["task"])}</p>'
+            f'<p><b>{e(c.UI.get("case_solution", "Решение"))}.</b> {e(k["solution"])}</p></div></article>'
+        )
     h = c.HOME
-    tags = "".join(f"<span>{e(t)}</span>" for t in h["post_tags"])
     return f"""
-<div class="post" aria-hidden="true">
-  <div class="post-hd">
-    <span class="avatar"><span>{LOGO_MARK}</span></span>
-    <div class="post-who"><b>alfimov.kz</b><small>{e(h['post_label'])}</small></div>
-    <span class="post-dots">•••</span>
+<section class="sec" id="cases">
+  <div class="wrap">
+    <div class="sec-head rv">{eyebrow(num, h['cases_eyebrow'])}<h2>{e(h['cases_title'])}</h2></div>
+    <div class="cases">{"".join(cards)}</div>
   </div>
-  <div class="post-media">
-    <p class="post-title">{e(h['post_title'])}</p>
-    <div class="post-tags">{tags}</div>
-  </div>
-  <div class="post-cta">{e(h['post_cta'])}{icon('chevron', 'ic ic-sm')}</div>
-  <div class="post-actions">{icon('heart')}{icon('comment')}{icon('share')}<span class="sp"></span>{icon('bookmark')}</div>
-  <p class="post-cap"><b>alfimov.kz</b> {e(h['post_caption'])}</p>
-</div>"""
+</section>"""
 
 
 # ---------------------------------------------------------------- pages
 
 def build_home(c):
     h, ui = c.HOME, c.UI
-    points = "".join(f"<li>{icon('check', 'ic ic-sm')}{e(p)}</li>" for p in h["hero_points"])
-    why = "".join(
-        f'<div class="why"><span class="why-ic">{icon(WHY_ICONS[i % len(WHY_ICONS)])}</span><h3>{e(t)}</h3><p>{e(d)}</p></div>'
-        for i, (t, d) in enumerate(h["why"])
+    title_post = f" {e(h['hero_title_post'])}" if h.get("hero_title_post") else ""
+    facts = "".join(f'<li><b>{e(a)}</b><span>{e(b)}</span></li>' for a, b in h["hero_facts"])
+
+    directions = []
+    for i, (name, desc, links) in enumerate(h["directions"], 1):
+        ls = "".join(f'<a href="{link(c, t)}">{e(label)} {icon("arrow", "ic ic-sm")}</a>' for label, t in links)
+        directions.append(
+            f'<li class="dir rv"><span class="dir-n">{i:02d}</span><h3>{e(name)}</h3>'
+            f'<p>{e(desc)}</p><div class="dir-links">{ls}</div></li>'
+        )
+    all_q, all_label, all_slug = h["directions_all"]
+
+    sources = "".join(f"<li>{e(s)}</li>" for s in h["analytics_sources"])
+    result = "".join(f"<li>{e(r)}</li>" for r in h["analytics_result"])
+    pipeline = '<span class="pipe-arrow">→</span>'.join(f"<span>{e(p)}</span>" for p in h["automation_pipeline"])
+    auto = "".join(
+        f'<li class="rv"><span class="auto-n">{i:02d}</span><h3>{e(t)}</h3><p>{e(d)}</p></li>'
+        for i, (t, d) in enumerate(h["automation"], 1)
     )
+
+    n = iter(f"{i:02d}" for i in range(1, 20))
     body = f"""
 <section class="hero">
-  <div class="wrap hero-grid">
-    <div class="hero-copy">
-      <p class="kicker">{icon('pin', 'ic ic-sm')}{e(h['hero_kicker'])}</p>
-      <h1>{e(h['hero_title'])}</h1>
-      <p class="hero-lead">{e(h['hero_lead'])}</p>
-      <div class="hero-cta">
-        <a class="btn btn-lg" href="#lead">{e(ui['cta'])}</a>
-        <a class="btn btn-lg btn-light" href="#services">{e(ui['nav_services'])}</a>
+  <div class="wrap">
+    <p class="hero-kicker rv">{e(h['hero_kicker'])}</p>
+    <h1 class="rv">{e(h['hero_title_pre'])} <em>{e(h['hero_title_accent'])}</em>{title_post}</h1>
+    <div class="hero-row">
+      <p class="hero-lead rv">{e(h['hero_lead'])}</p>
+      <div class="hero-cta rv">
+        <a class="btn btn-lg" href="#lead">{e(ui['cta'])} {icon('arrow', 'ic ic-sm')}</a>
+        <a class="tlink" href="{'#cases' if c.CASES else '#approach'}">{e(h['cases_eyebrow'] if c.CASES else h['hero_cta_secondary'])} {icon('arrow-down', 'ic ic-sm')}</a>
       </div>
-      <ul class="hero-points">{points}</ul>
     </div>
-    {post_mock(c)}
+    <ul class="facts rv">{facts}</ul>
   </div>
 </section>
-<section class="stories-sec">
-  <div class="wrap">{stories(c)}</div>
-</section>
+{clients_strip(c)}
 <section class="sec" id="services">
   <div class="wrap">
-    <h2>{e(ui['services_title'])}</h2>
-    <p class="sec-lead">{e(ui['services_lead'])}</p>
-    {service_cards(c)}
+    <div class="sec-head rv">{eyebrow(next(n), h['directions_eyebrow'])}<h2>{e(h['directions_title'])}</h2><p>{e(h['directions_lead'])}</p></div>
+    <ol class="dirs">{"".join(directions)}</ol>
+    <a class="dir-all rv" href="{url(c, all_slug)}"><span>{e(all_q)}</span><b>{e(all_label)}</b>{icon('arrow')}</a>
   </div>
 </section>
-<section class="sec">
+<section class="sec sec-soft" id="approach">
   <div class="wrap">
-    <h2>{e(h['why_title'])}</h2>
-    <div class="whys">{why}</div>
+    <div class="sec-head rv">{eyebrow(next(n), h['approach_eyebrow'])}<h2>{e(h['approach_title'])}</h2><p>{e(h['approach_lead'])}</p></div>
+    {flow(h['approach'], h['approach_loop'])}
   </div>
 </section>
-{steps_block(h['how_title'], h['how'], 'how')}
-{faq_block(c, h['faq'])}
+<section class="sec" id="analytics">
+  <div class="wrap">
+    <div class="sec-head rv">{eyebrow(next(n), h['analytics_eyebrow'])}<h2>{e(h['analytics_title'])}</h2><p>{e(h['analytics_lead'])}</p></div>
+    <div class="merge rv">
+      <ul class="merge-src">{sources}</ul>
+      <div class="merge-join" aria-hidden="true"><span></span></div>
+      <div class="merge-out"><h3>{e(h['analytics_result_title'])}</h3><ul>{result}</ul></div>
+    </div>
+  </div>
+</section>
+<section class="sec sec-dark" id="automation">
+  <div class="wrap">
+    <div class="sec-head rv">{eyebrow(next(n), h['automation_eyebrow'])}<h2>{e(h['automation_title'])}</h2><p>{e(h['automation_lead'])}</p></div>
+    <p class="pipe rv">{pipeline}</p>
+    <ul class="auto">{auto}</ul>
+  </div>
+</section>
+{cases_block(c, next(n))}
+{faq_block(c, h['faq'], next(n))}
 {lead_form(c, 'home')}
 """
     path = url(c)
@@ -423,54 +458,56 @@ def build_home(c):
 
 
 def build_service(c, s):
-    ui = c.UI
+    ui, h = c.UI, c.HOME
     path = url(c, s["slug"])
     alt = url(other_lang(c), s["slug"])
     intro = "".join(f"<p>{e(p)}</p>" for p in s["intro"])
     includes = "".join(
-        f'<li><span class="inc-ic">{icon("check", "ic ic-sm")}</span><div><h3>{e(t)}</h3><p>{e(d)}</p></div></li>'
-        for t, d in s["includes"]
+        f'<li class="rv"><span class="inc-n">{i:02d}</span><div><h3>{e(t)}</h3><p>{e(d)}</p></div></li>'
+        for i, (t, d) in enumerate(s["includes"], 1)
     )
-    for_whom = "".join(f"<li>{icon('check', 'ic ic-sm')}{e(x)}</li>" for x in s["for_whom"])
+    for_whom = "".join(f"<li>{e(x)}</li>" for x in s["for_whom"])
     body = f"""
 <section class="hero hero-svc">
   <div class="wrap">
-    <nav class="crumbs" aria-label="breadcrumbs"><a href="{url(c)}">{e(ui['breadcrumbs_home'])}</a><span>›</span><a href="{url(c)}#services">{e(ui['nav_services'])}</a></nav>
-    <div class="svc-head">
-      <span class="ring ring-lg"><span class="story-ic">{icon(s['icon'])}</span></span>
-      <div>
-        <h1>{e(s['h1'])}</h1>
-        <p class="hero-lead">{e(s['lead'])}</p>
-        <div class="hero-cta"><a class="btn btn-lg" href="#lead">{e(ui['cta'])}</a></div>
-      </div>
+    <nav class="crumbs rv" aria-label="breadcrumbs"><a href="{url(c)}">{e(ui['breadcrumbs_home'])}</a><span>/</span><a href="{url(c)}#services">{e(ui['nav_services'])}</a></nav>
+    <h1 class="rv">{e(s['h1'])}</h1>
+    <div class="hero-row">
+      <p class="hero-lead rv">{e(s['lead'])}</p>
+      <div class="hero-cta rv"><a class="btn btn-lg" href="#lead">{e(ui['cta'])} {icon('arrow', 'ic ic-sm')}</a></div>
     </div>
   </div>
 </section>
-<section class="stories-sec">
-  <div class="wrap">{stories(c, current=s['slug'])}</div>
-</section>
 <section class="sec">
-  <div class="wrap narrow"><div class="panel prose">{intro}</div></div>
+  <div class="wrap split">
+    <div class="split-head rv">{eyebrow('01', s['name'])}</div>
+    <div class="prose rv">{intro}</div>
+  </div>
 </section>
-<section class="sec">
+<section class="sec sec-soft">
   <div class="wrap">
-    <h2>{e(ui['includes_title'])}</h2>
-    <ul class="includes">{includes}</ul>
+    <div class="sec-head rv">{eyebrow('02', s['name'])}<h2>{e(ui['includes_title'])}</h2></div>
+    <ul class="incl">{includes}</ul>
   </div>
 </section>
 <section class="sec">
-  <div class="wrap">
-    <h2>{e(ui['for_whom_title'])}</h2>
-    <ul class="pills">{for_whom}</ul>
+  <div class="wrap split">
+    <div class="split-head rv">{eyebrow('03', s['name'])}<h2>{e(ui['for_whom_title'])}</h2></div>
+    <ul class="dash rv">{for_whom}</ul>
   </div>
 </section>
-{steps_block(ui['steps_title'], s['steps'])}
-{faq_block(c, s['faq'])}
+<section class="sec sec-soft">
+  <div class="wrap">
+    <div class="sec-head rv">{eyebrow('04', s['name'])}<h2>{e(ui['steps_title'])}</h2></div>
+    {flow(s['steps'])}
+  </div>
+</section>
+{faq_block(c, s['faq'], '05')}
 {lead_form(c, s['slug'])}
 <section class="sec">
   <div class="wrap">
-    <h2>{e(ui['other_services'])}</h2>
-    {service_cards(c, exclude=s['slug'])}
+    <div class="sec-head rv">{eyebrow('06', s['name'])}<h2>{e(ui['other_services'])}</h2></div>
+    {service_rows(c, exclude=s['slug'])}
   </div>
 </section>
 """
@@ -498,18 +535,16 @@ def build_contacts(c):
     body = f"""
 <section class="hero hero-svc">
   <div class="wrap">
-    <nav class="crumbs" aria-label="breadcrumbs"><a href="{url(c)}">{e(ui['breadcrumbs_home'])}</a></nav>
-    <h1>{e(k['h1'])}</h1>
-    <p class="hero-lead">{e(k['lead'])}</p>
-    <div class="chips chips-lg">{contact_links()}</div>
+    <nav class="crumbs rv" aria-label="breadcrumbs"><a href="{url(c)}">{e(ui['breadcrumbs_home'])}</a></nav>
+    <h1 class="rv">{e(k['h1'])}</h1>
+    <p class="hero-lead rv">{e(k['lead'])}</p>
+    <div class="clinks clinks-lg rv">{contact_links()}</div>
   </div>
 </section>
 <section class="sec">
-  <div class="wrap narrow">
-    <div class="panel">
-      <h2>{e(k['area_title'])}</h2>
-      <p>{e(k['area_text'])}</p>
-    </div>
+  <div class="wrap split">
+    <div class="split-head rv">{eyebrow('01', k['area_title'])}<h2>{e(k['area_title'])}</h2></div>
+    <div class="prose rv"><p>{e(k['area_text'])}</p></div>
   </div>
 </section>
 {lead_form(c, 'contacts')}
@@ -524,14 +559,13 @@ def build_404():
     body = f"""
 <section class="hero hero-svc">
   <div class="wrap">
-    <p class="kicker">404</p>
+    <p class="hero-kicker">404</p>
     <h1>{e(ui['not_found_title'])}</h1>
-    <p class="hero-lead">{e(ui['not_found_text'])}</p>
-    <p class="muted">{e(kz['not_found_text'])}</p>
-    <div class="hero-cta"><a class="btn btn-lg" href="/">{e(ui['not_found_btn'])}</a><a class="btn btn-lg btn-light" href="/kz/">{e(kz['not_found_btn'])}</a></div>
+    <p class="hero-lead">{e(ui['not_found_text'])}<br><span class="muted">{e(kz['not_found_text'])}</span></p>
+    <div class="hero-cta"><a class="btn btn-lg" href="/">{e(ui['not_found_btn'])}</a><a class="tlink" href="/kz/">{e(kz['not_found_btn'])} {icon('arrow', 'ic ic-sm')}</a></div>
   </div>
 </section>
-<section class="stories-sec"><div class="wrap">{stories(c)}</div></section>
+<section class="sec"><div class="wrap">{service_rows(c)}</div></section>
 """
     return page(c, path="/404.html", title="404 — ALFIMOV.KZ", desc=ui["not_found_text"], body=body, schema=[], alt_path="/kz/", noindex=True)
 
@@ -592,7 +626,7 @@ def build():
     (DIST / "api" / "config.php").write_text(
         f"<?php\nreturn ['tg_token' => {php_str(token)}, 'tg_chat' => {php_str(chat)}];\n", encoding="utf-8"
     )
-    print(f"Built {len(paths)} pages → {DIST}" + ("" if token and chat else "  (форма: TG_BOT_TOKEN/TG_CHAT_ID не заданы)"))
+    print(f"Built {len(paths)} pages → {DIST}")
 
 
 if __name__ == "__main__":
