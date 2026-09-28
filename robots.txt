@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+
+Sitemap: https://alfimov.kz/sitemap.xml
+Host: https://alfimov.kz
