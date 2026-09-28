@@ -15,13 +15,26 @@
     });
   }
 
+  // Появление блоков при прокрутке (CSS-переходы, без тяжёлых библиотек)
+  var items = document.querySelectorAll(".rv");
+  if ("IntersectionObserver" in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); }
+      });
+    }, { rootMargin: "0px 0px -8% 0px", threshold: 0.05 });
+    items.forEach(function (el) { io.observe(el); });
+  } else {
+    items.forEach(function (el) { el.classList.add("in"); });
+  }
+
   // Форма заявки → /api/send.php → Telegram
   document.querySelectorAll("form.form").forEach(function (form) {
     var ts = form.querySelector('input[name="ts"]');
     if (ts) ts.value = String(Date.now());
     var status = form.querySelector(".form-status");
     var btn = form.querySelector('button[type="submit"]');
-    var btnText = btn.textContent;
+    var btnHtml = btn.innerHTML;
 
     form.addEventListener("submit", function (ev) {
       ev.preventDefault();
@@ -38,8 +51,6 @@
           if (ts) ts.value = String(Date.now());
           status.className = "form-status ok";
           status.textContent = form.dataset.ok;
-          if (typeof window.ym === "function") try { window.ym(window.YM_ID, "reachGoal", "lead"); } catch (e) {}
-          if (typeof window.gtag === "function") try { window.gtag("event", "generate_lead"); } catch (e) {}
         })
         .catch(function () {
           status.className = "form-status err";
@@ -47,7 +58,7 @@
         })
         .finally(function () {
           btn.disabled = false;
-          btn.textContent = btnText;
+          btn.innerHTML = btnHtml;
         });
     });
   });
