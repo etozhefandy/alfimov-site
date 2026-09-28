@@ -11,6 +11,9 @@ HOST="srv-plesk22.ps.kz"
 USER="alfimovk"
 REMOTE_DIR="httpdocs"
 
+# Экранирование для конфига curl: \ и " внутри кавычек.
+esc() { local s="${1//\\/\\\\}"; printf '%s' "${s//\"/\\\"}"; }
+
 keychain() { security find-generic-password -s "$1" -w 2>/dev/null || true; }
 
 FTP_PW="$(keychain alfimov-site-ftp)"
@@ -24,7 +27,7 @@ TG_BOT_TOKEN="$(keychain alfimov-site-tg-token)" TG_CHAT_ID="$(keychain alfimov-
 
 # Один процесс curl на все файлы; пароль и список идут через stdin, а не в аргументах.
 CONFIG="$(
-  printf 'user = "%s:%s"\nssl-reqd\nftp-create-dirs\nsilent\nshow-error\n' "$USER" "${FTP_PW//\"/\\\"}"
+  printf 'user = "%s:%s"\nssl-reqd\nftp-create-dirs\nsilent\nshow-error\nfail-early\n' "$USER" "$(esc "$FTP_PW")"
   (cd dist && find . -type f | sed 's|^\./||' | sort) | while read -r f; do
     printf 'upload-file = "dist/%s"\nurl = "ftp://%s/%s/%s"\n' "$f" "$HOST" "$REMOTE_DIR" "$f"
   done

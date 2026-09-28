@@ -41,7 +41,9 @@ if (count($hits) >= 5) reply(false, 429);
 $hits[] = $now;
 @file_put_contents($rlFile, json_encode(array_values($hits)));
 
-$cfg = require __DIR__ . '/config.php';
+// Секреты лежат вне папки сайта (рядом с httpdocs), чтобы не попадать в публичный репозиторий.
+$external = dirname(__DIR__, 2) . '/tg-config.php';
+$cfg = require (is_file($external) ? $external : __DIR__ . '/config.php');
 if (empty($cfg['tg_token']) || empty($cfg['tg_chat'])) reply(false, 503);
 
 $esc = function ($s) { return htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); };
