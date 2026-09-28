@@ -20,6 +20,8 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 import content_kz  # noqa: E402
 import content_ru  # noqa: E402
 
+import blog  # noqa: E402
+
 ROOT = Path(__file__).parent
 DIST = ROOT / "dist"
 STATIC = ROOT / "static"
@@ -158,6 +160,8 @@ def header(c, alt_path):
         f'<li><a href="{url(c, s["slug"])}">{e(s["name"])}</a></li>' for s in c.SERVICES
     )
     cases_link = f'<a href="{url(c)}#cases">{e(c.HOME["cases_eyebrow"])}</a>' if c.CASES else ""
+    # Блог — только русский и только когда вышла хотя бы одна статья: пустой раздел в меню не нужен.
+    blog_link = f'<a href="{BLOG_PATH}">{e(BLOG_UI["nav"])}</a>' if c is content_ru and blog.live() else ""
     return f"""
 <header class="hdr">
   <div class="wrap hdr-in">
@@ -170,6 +174,7 @@ def header(c, alt_path):
       <a href="{url(c)}#approach">{e(c.HOME['approach_eyebrow'])}</a>
       {cases_link}
       <a href="{url(c)}#automation">{e(c.HOME['automation_eyebrow'])}</a>
+      {blog_link}
       <a href="{url(c, 'kontakty')}">{e(ui['nav_contacts'])}</a>
       <a class="lang" href="{alt_path}" hreflang="{other_lang(c).LANG}" aria-label="{e(ui['lang_switch_label'])}">{e(ui['lang_switch'])}</a>
       <a class="btn btn-sm" href="#lead">{e(ui['cta'])}</a>
@@ -249,11 +254,14 @@ def footer(c):
 </footer>"""
 
 
-def page(c, *, path, title, desc, body, schema, alt_path, noindex=False):
+def page(c, *, path, title, desc, body, schema, alt_path, noindex=False, og_type="website", image=None):
     graph = {"@context": "https://schema.org", "@graph": [org_schema(), *schema]}
     o = other_lang(c)
     alternates = ""
-    if not noindex:
+    if alt_path is None:
+        # Нет перевода (статьи блога — только RU): hreflang не ставим, переключатель языка ведёт на главную.
+        alt_path = url(o)
+    elif not noindex:
         alternates = (
             f'<link rel="alternate" hreflang="{HREFLANG[c.LANG]}" href="{SITE_URL}{path}">\n'
             f'<link rel="alternate" hreflang="{HREFLANG[o.LANG]}" href="{SITE_URL}{alt_path}">\n'
@@ -271,13 +279,13 @@ def page(c, *, path, title, desc, body, schema, alt_path, noindex=False):
 {robots}
 <link rel="canonical" href="{SITE_URL}{path}">
 {alternates}
-<meta property="og:type" content="website">
+<meta property="og:type" content="{og_type}">
 <meta property="og:site_name" content="ALFIMOV.KZ">
 <meta property="og:locale" content="{og_locale}">
 <meta property="og:title" content="{e(title)}">
 <meta property="og:description" content="{e(desc)}">
 <meta property="og:url" content="{SITE_URL}{path}">
-<meta property="og:image" content="{SITE_URL}/assets/og.png">
+<meta property="og:image" content="{SITE_URL}{image or '/assets/og.png'}">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#ffffff">
 <link rel="icon" href="/favicon.ico" sizes="any">
@@ -575,6 +583,160 @@ def build_404():
     return page(c, path="/404.html", title="404 — ALFIMOV.KZ", desc=ui["not_found_text"], body=body, schema=[], alt_path="/kz/", noindex=True)
 
 
+# ---------------------------------------------------------------- blog
+
+BLOG_PATH = "/blog/"
+BLOG_UI = {
+    "nav": "Блог",
+    "title": "Блог о маркетинге и рекламе в Казахстане",
+    "meta_title": "Блог о маркетинге и рекламе в Казахстане | Alfimov",
+    "meta_desc": "Разборы и практические материалы агентства Alfimov: таргет, контекст, SEO, SMM и аналитика для бизнеса в Казахстане.",
+    "lead": "Практические разборы о рекламе и маркетинге: как устроены кампании, что считать и какие решения за этим стоят.",
+    "toc": "Содержание",
+    "summary": "Коротко",
+    "read": "мин чтения",
+    "related": "Читайте также",
+    "all": "Все статьи",
+    "cta_title": "Нужна помощь с продвижением?",
+    "cta_lead": "Расскажите о задаче — разберём ваш случай и предложим план на месяц.",
+}
+MONTHS = ("января", "февраля", "марта", "апреля", "мая", "июня", "июля",
+          "августа", "сентября", "октября", "ноября", "декабря")
+
+
+def post_date(a, field="publish_at"):
+    dt = blog.parse_dt(a.get(field)) or blog.parse_dt(a.get("publish_at")) or blog.now()
+    return dt.date().isoformat()
+
+
+def human_date(iso):
+    d = date.fromisoformat(iso)
+    return f"{d.day} {MONTHS[d.month - 1]} {d.year}"
+
+
+def article_path(a):
+    return f"{BLOG_PATH}{a['slug']}/"
+
+
+def post_meta(a):
+    parts = [human_date(post_date(a)), f"{blog.read_minutes(a)} {BLOG_UI['read']}"]
+    if a.get("category"):
+        parts.insert(0, a["category"])
+    return " · ".join(e(p) for p in parts)
+
+
+def post_cards(posts):
+    return "".join(
+        f'<a class="post-card rv" href="{article_path(a)}">'
+        f'<span class="post-meta">{post_meta(a)}</span>'
+        f'<h3>{e(a["title"])}</h3><p>{e(a["description"] or a["lead"])}</p>'
+        f'<span class="tlink">{e(content_ru.UI["more"])} {icon("arrow", "ic ic-sm")}</span></a>'
+        for a in posts
+    )
+
+
+def build_blog_index(posts):
+    c, ui = content_ru, content_ru.UI
+    body = f"""
+<section class="hero hero-svc">
+  <div class="wrap">
+    <nav class="crumbs rv" aria-label="breadcrumbs"><a href="{url(c)}">{e(ui['breadcrumbs_home'])}</a><span>/</span><span>{e(BLOG_UI['nav'])}</span></nav>
+    <h1 class="rv">{e(BLOG_UI['title'])}</h1>
+    <p class="hero-lead rv">{e(BLOG_UI['lead'])}</p>
+  </div>
+</section>
+<section class="sec sec-tight">
+  <div class="wrap"><div class="post-grid">{post_cards(posts)}</div></div>
+</section>
+{lead_form(c, 'blog', BLOG_UI['cta_title'], BLOG_UI['cta_lead'])}
+"""
+    schema = [
+        {"@type": "Blog", "@id": f"{SITE_URL}{BLOG_PATH}#blog", "name": BLOG_UI["title"], "url": f"{SITE_URL}{BLOG_PATH}",
+         "publisher": {"@id": f"{SITE_URL}/#org"}, "inLanguage": "ru-KZ",
+         "blogPost": [{"@type": "BlogPosting", "headline": a["title"], "url": f"{SITE_URL}{article_path(a)}",
+                       "datePublished": post_date(a)} for a in posts]},
+        breadcrumbs_schema([(ui["breadcrumbs_home"], url(c)), (BLOG_UI["nav"], BLOG_PATH)]),
+    ]
+    return page(c, path=BLOG_PATH, title=BLOG_UI["meta_title"], desc=BLOG_UI["meta_desc"], body=body, schema=schema, alt_path=None)
+
+
+def build_article(a, posts):
+    """Страница статьи. posts — вышедшие статьи (для «Читайте также»)."""
+    c, ui = content_ru, content_ru.UI
+    path = article_path(a)
+    body_html, toc = blog.markdown(a["body_md"])
+    others = [p for p in posts if p["slug"] != a["slug"]]
+    by_slug = {p["slug"]: p for p in others}
+    related = [by_slug[s] for s in a["related"] if s in by_slug]
+    related += [p for p in others if p not in related][: max(0, 3 - len(related))]
+
+    toc_html = ""
+    if len(toc) >= 2:
+        items = "".join(f'<li><a href="#{aid}">{e(t)}</a></li>' for aid, t in toc)
+        toc_html = f'<nav class="art-toc" aria-label="{e(BLOG_UI["toc"])}"><p class="eyebrow">{e(BLOG_UI["toc"])}</p><ol>{items}</ol></nav>'
+    cover = f'<img class="art-cover" src="{e(a["cover_path"])}" alt="{e(a["title"])}" loading="lazy">' if a["cover_path"] else ""
+    summary = (f'<aside class="art-summary"><p class="eyebrow"><span>→</span>{e(BLOG_UI["summary"])}</p>'
+               f'<p>{e(a["summary"])}</p></aside>') if a["summary"] else ""
+    author = f' · {e(a["author"])}' if a["author"] else ""
+    faq = faq_block(c, a["faq"], "?") if a["faq"] else ""
+    related_html = ""
+    if related:
+        related_html = f"""
+<section class="sec sec-soft">
+  <div class="wrap">
+    <div class="sec-head rv">{eyebrow('→', BLOG_UI['related'])}<h2>{e(BLOG_UI['related'])}</h2></div>
+    <div class="post-grid">{post_cards(related)}</div>
+    <p class="post-all"><a class="tlink" href="{BLOG_PATH}">{e(BLOG_UI['all'])} {icon('arrow', 'ic ic-sm')}</a></p>
+  </div>
+</section>"""
+
+    body = f"""
+<section class="hero hero-svc hero-art">
+  <div class="wrap">
+    <nav class="crumbs rv" aria-label="breadcrumbs"><a href="{url(c)}">{e(ui['breadcrumbs_home'])}</a><span>/</span><a href="{BLOG_PATH}">{e(BLOG_UI['nav'])}</a></nav>
+    <p class="post-meta rv">{post_meta(a)}{author}</p>
+    <h1 class="rv">{e(a['title'])}</h1>
+    {f'<p class="hero-lead rv">{e(a["lead"])}</p>' if a['lead'] else ''}
+  </div>
+</section>
+<section class="sec sec-tight">
+  <div class="wrap art{' art-has-toc' if toc_html else ''}">
+    {toc_html}
+    <article class="art-body">
+      {cover}
+      {summary}
+      <div class="md">{body_html}</div>
+    </article>
+  </div>
+</section>
+{faq}
+{related_html}
+{lead_form(c, 'blog:' + a['slug'], BLOG_UI['cta_title'], BLOG_UI['cta_lead'])}
+"""
+    image = a["cover_path"] or None
+    posting = {
+        "@type": "BlogPosting",
+        "headline": a["title"],
+        "description": a["description"],
+        "datePublished": post_date(a),
+        "dateModified": post_date(a, "updated_at"),
+        "inLanguage": "ru-KZ",
+        "mainEntityOfPage": f"{SITE_URL}{path}",
+        "image": f"{SITE_URL}{image or '/assets/og.png'}",
+        "author": {"@type": "Person", "name": a["author"]} if a["author"] else {"@id": f"{SITE_URL}/#org"},
+        "publisher": {"@id": f"{SITE_URL}/#org"},
+    }
+    if a["keywords"]:
+        posting["keywords"] = ", ".join(a["keywords"])
+    if a["category"]:
+        posting["articleSection"] = a["category"]
+    schema = [posting, breadcrumbs_schema([(ui["breadcrumbs_home"], url(c)), (BLOG_UI["nav"], BLOG_PATH), (a["title"], path)])]
+    if a["faq"]:
+        schema.append(faq_schema(a["faq"]))
+    return path, page(c, path=path, title=a["seo_title"] or f"{a['title']} | Alfimov", desc=a["description"] or a["lead"],
+                      body=body, schema=schema, alt_path=None, og_type="article", image=image)
+
+
 # ---------------------------------------------------------------- build
 
 def write(path, content):
@@ -585,7 +747,8 @@ def write(path, content):
     target.write_text(content, encoding="utf-8")
 
 
-def sitemap(paths):
+def sitemap(paths, single=()):
+    """paths — страницы с парой RU/KZ; single — [(путь, lastmod)] без перевода (блог)."""
     today = date.today().isoformat()
     ru_paths = [p for p in paths if not p.startswith("/kz/")]
     rows = []
@@ -598,6 +761,8 @@ def sitemap(paths):
                 f'<xhtml:link rel="alternate" hreflang="kk-KZ" href="{SITE_URL}{kz}"/>'
                 f'<xhtml:link rel="alternate" hreflang="x-default" href="{SITE_URL}{ru}"/></url>'
             )
+    for p, lastmod in single:
+        rows.append(f"<url><loc>{SITE_URL}{p}</loc><lastmod>{lastmod or today}</lastmod></url>")
     return (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n'
@@ -621,7 +786,17 @@ def build():
             write(p, doc)
             paths.append(p)
     write("/404.html", build_404())
-    (DIST / "sitemap.xml").write_text(sitemap(paths), encoding="utf-8")
+
+    posts = blog.live()
+    single = []
+    if posts:
+        write(BLOG_PATH, build_blog_index(posts))
+        single.append((BLOG_PATH, max(post_date(a, "updated_at") for a in posts)))
+        for a in posts:
+            p, doc = build_article(a, posts)
+            write(p, doc)
+            single.append((p, post_date(a, "updated_at")))
+    (DIST / "sitemap.xml").write_text(sitemap(paths, single), encoding="utf-8")
     (DIST / "robots.txt").write_text(
         f"User-agent: *\nAllow: /\nDisallow: /api/\n\nSitemap: {SITE_URL}/sitemap.xml\nHost: {SITE_URL}\n",
         encoding="utf-8",
@@ -631,7 +806,7 @@ def build():
     (DIST / "api" / "config.php").write_text(
         f"<?php\nreturn ['tg_token' => {php_str(token)}, 'tg_chat' => {php_str(chat)}];\n", encoding="utf-8"
     )
-    print(f"Built {len(paths)} pages → {DIST}")
+    print(f"Built {len(paths)} pages + blog {len(posts)} → {DIST}")
 
 
 if __name__ == "__main__":
