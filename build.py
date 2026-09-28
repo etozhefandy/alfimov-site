@@ -7,6 +7,7 @@
 Форма заявок: если заданы переменные окружения TG_BOT_TOKEN и TG_CHAT_ID,
 в dist/api/config.php пишутся эти значения (в CI — из GitHub Secrets).
 """
+import hashlib
 import html
 import json
 import os
@@ -29,8 +30,10 @@ PHONE_DISPLAY = "+7 776 902 66 69"
 PHONE_TEL = "+77769026669"
 WHATSAPP_URL = "https://wa.me/77769026669"
 TELEGRAMS = ["fandylol", "etozhefandy"]
-FONT_URL = "https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap"
-ASSET_VER = date.today().strftime("%Y%m%d")
+FONT_URL = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Michroma&display=swap"
+ASSET_VER = hashlib.md5(
+    b"".join((STATIC / "assets" / f).read_bytes() for f in ("style.css", "main.js"))
+).hexdigest()[:8]
 
 LANGS = [content_ru, content_kz]
 HREFLANG = {"ru": "ru-KZ", "kk": "kk-KZ"}
@@ -50,18 +53,41 @@ ICONS = {
     "complex": '<circle cx="12" cy="12" r="3"/><circle cx="12" cy="4" r="1.6"/><circle cx="20" cy="12" r="1.6"/><circle cx="12" cy="20" r="1.6"/><circle cx="4" cy="12" r="1.6"/><path d="M12 5.6V9M18.4 12H15M12 18.4V15M5.6 12H9"/>',
     "check": '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
     "arrow": '<path d="M5 12h14M13 6l6 6-6 6"/>',
+    "chevron": '<path d="m9 6 6 6-6 6"/>',
     "phone": '<path d="M5 4h3.5l1.5 4.5-2 1.5a11 11 0 0 0 6 6l1.5-2 4.5 1.5V19a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z"/>',
     "whatsapp": '<path d="M4 20l1.2-4A8 8 0 1 1 8 18.8Z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1-1 .8c-1-.5-2-1.5-2.3-2.3l.8-1-1-2-1 .5Z"/>',
     "telegram": '<path d="M21 4 3 11l6 2.2L18 7l-7 7.5V20l3-3.5 4 3Z"/>',
     "menu": '<path d="M4 7h16M4 12h16M4 17h16"/>',
+    "heart": '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z"/>',
+    "comment": '<path d="M20 12a8 8 0 1 1-3.3-6.5A8 8 0 0 1 20 12Zm0 0v8l-3-2.5"/>',
+    "share": '<path d="M21 3 10 14M21 3l-7 18-4-7-7-4Z"/>',
+    "bookmark": '<path d="M6 3h12v18l-6-4-6 4Z"/>',
+    "target": '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".8" fill="currentColor"/>',
+    "eye": '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
+    "layers": '<path d="m12 3 9 5-9 5-9-5Z"/><path d="m3 13 9 5 9-5"/>',
+    "pin": '<path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/>',
 }
+WHY_ICONS = ["target", "telegram", "eye", "layers"]
 
 
 def icon(name, cls="ic"):
     return (
         f'<svg class="{cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
-        f'stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{ICONS[name]}</svg>'
+        f'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{ICONS[name]}</svg>'
     )
+
+
+# Знак «Λ» из логотипа: левая нога — чёрный верх и синий низ, правая — чёрная.
+LOGO_MARK = (
+    '<svg class="logo-a" viewBox="0 0 60 50" aria-hidden="true">'
+    '<path d="M25 0h11L59 50H48Z" fill="currentColor"/>'
+    '<path d="M25 0h11L25 23H14Z" fill="currentColor"/>'
+    '<path d="M12.2 27h11L12 50H1Z" fill="var(--blue)"/></svg>'
+)
+
+
+def logo(href):
+    return f'<a class="logo" href="{href}" aria-label="ALFIMOV.KZ">{LOGO_MARK}<span class="logo-word">LFIMOV</span><span class="logo-kz">.KZ</span></a>'
 
 
 # ---------------------------------------------------------------- helpers
@@ -116,12 +142,13 @@ def breadcrumbs_schema(trail):
 def header(c, alt_path):
     ui = c.UI
     nav_services = "".join(
-        f'<li><a href="{url(c, s["slug"])}">{e(s["name"])}</a></li>' for s in c.SERVICES
+        f'<li><a href="{url(c, s["slug"])}"><span class="dd-ic">{icon(s["icon"], "ic ic-sm")}</span>{e(s["name"])}</a></li>'
+        for s in c.SERVICES
     )
     return f"""
 <header class="hdr">
   <div class="wrap hdr-in">
-    <a class="logo" href="{url(c)}" aria-label="{BRAND} — {e(ui['brand_tagline'])}">alfimov<span>.</span></a>
+    {logo(url(c))}
     <nav class="nav" id="nav" aria-label="Main">
       <div class="dd">
         <a href="{url(c)}#services">{e(ui['nav_services'])}</a>
@@ -131,7 +158,7 @@ def header(c, alt_path):
       <a href="{url(c)}#faq">{e(ui['nav_faq'])}</a>
       <a href="{url(c, 'kontakty')}">{e(ui['nav_contacts'])}</a>
       <a class="lang" href="{alt_path}" hreflang="{other_lang(c).LANG}" aria-label="{e(ui['lang_switch_label'])}">{e(ui['lang_switch'])}</a>
-      <a class="btn btn-sm" href="#lead">{e(ui['cta'])}</a>
+      <a class="btn btn-sm" href="#lead">{e(ui['cta_short'])}</a>
     </nav>
     <button class="burger" type="button" aria-controls="nav" aria-expanded="false" aria-label="Menu">{icon('menu')}</button>
   </div>
@@ -150,6 +177,17 @@ def contact_links():
     )
 
 
+def stories(c, current=None):
+    """Ряд услуг в виде «кружков сторис» Instagram."""
+    items = "".join(
+        f'<a class="story{" is-current" if s["slug"] == current else ""}" href="{url(c, s["slug"])}">'
+        f'<span class="ring"><span class="story-ic">{icon(s["icon"])}</span></span>'
+        f'<span class="story-name">{e(s["story"])}</span></a>'
+        for s in c.SERVICES
+    )
+    return f'<nav class="stories" aria-label="{e(c.UI["nav_services"])}">{items}</nav>'
+
+
 def lead_form(c, source):
     ui = c.UI
     return f"""
@@ -161,18 +199,22 @@ def lead_form(c, source):
       <p class="muted">{e(ui['or_write'])}</p>
       <div class="chips">{contact_links()}</div>
     </div>
-    <form class="form" action="/api/send.php" method="post" data-ok="{e(ui['form_ok'])}" data-err="{e(ui['form_err'])}" data-sending="{e(ui['form_sending'])}">
-      <input type="hidden" name="source" value="{e(source)}">
-      <input type="hidden" name="lang" value="{c.LANG}">
-      <input type="hidden" name="ts" value="">
-      <div class="hp" aria-hidden="true"><label>Company<input type="text" name="company" tabindex="-1" autocomplete="off"></label></div>
-      <label class="fld"><span>{e(ui['form_name'])}</span><input type="text" name="name" required maxlength="80" autocomplete="name"></label>
-      <label class="fld"><span>{e(ui['form_phone'])}</span><input type="text" name="contact" required maxlength="80" autocomplete="tel" inputmode="tel"></label>
-      <label class="fld"><span>{e(ui['form_message'])}</span><textarea name="message" rows="3" maxlength="1000"></textarea></label>
-      <button class="btn btn-lg" type="submit">{e(ui['form_submit'])}</button>
-      <p class="consent">{e(ui['form_consent'])}</p>
-      <p class="form-status" role="status" aria-live="polite"></p>
-    </form>
+    <div class="login-box">
+      <form class="form" action="/api/send.php" method="post" data-ok="{e(ui['form_ok'])}" data-err="{e(ui['form_err'])}" data-sending="{e(ui['form_sending'])}">
+        <input type="hidden" name="source" value="{e(source)}">
+        <input type="hidden" name="lang" value="{c.LANG}">
+        <input type="hidden" name="ts" value="">
+        <div class="hp" aria-hidden="true"><label>Company<input type="text" name="company" tabindex="-1" autocomplete="off"></label></div>
+        <input class="inp" type="text" name="name" required maxlength="80" autocomplete="name" placeholder="{e(ui['form_name'])}" aria-label="{e(ui['form_name'])}">
+        <input class="inp" type="text" name="contact" required maxlength="80" autocomplete="tel" inputmode="tel" placeholder="{e(ui['form_phone'])}" aria-label="{e(ui['form_phone'])}">
+        <textarea class="inp" name="message" rows="3" maxlength="1000" placeholder="{e(ui['form_message'])}" aria-label="{e(ui['form_message'])}"></textarea>
+        <button class="btn btn-block" type="submit">{e(ui['form_submit'])}</button>
+        <p class="form-status" role="status" aria-live="polite"></p>
+        <p class="consent">{e(ui['form_consent'])}</p>
+      </form>
+      <div class="or"><span>{e(ui['or'])}</span></div>
+      <a class="btn btn-green" href="{WHATSAPP_URL}" target="_blank" rel="noopener">{icon('whatsapp')}{e(ui['wa_btn'])}</a>
+    </div>
   </div>
 </section>"""
 
@@ -185,7 +227,7 @@ def footer(c):
 <footer class="ftr">
   <div class="wrap ftr-in">
     <div>
-      <a class="logo" href="{url(c)}">alfimov<span>.</span></a>
+      {logo(url(c))}
       <p class="muted">{e(ui['footer_about'])}</p>
     </div>
     <div>
@@ -201,7 +243,7 @@ def footer(c):
       </ul>
     </div>
   </div>
-  <div class="wrap ftr-bottom muted">© {date.today().year} {BRAND}. {e(ui['rights'])}</div>
+  <div class="wrap ftr-bottom muted">ALFIMOV.KZ © {date.today().year} · {e(ui['rights'])}</div>
 </footer>"""
 
 
@@ -228,14 +270,14 @@ def page(c, *, path, title, desc, body, schema, alt_path, noindex=False):
 <link rel="canonical" href="{SITE_URL}{path}">
 {alternates}
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="{BRAND}">
+<meta property="og:site_name" content="ALFIMOV.KZ">
 <meta property="og:locale" content="{og_locale}">
 <meta property="og:title" content="{e(title)}">
 <meta property="og:description" content="{e(desc)}">
 <meta property="og:url" content="{SITE_URL}{path}">
 <meta property="og:image" content="{SITE_URL}/assets/og.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="theme-color" content="#0f1115">
+<meta name="theme-color" content="#ffffff">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/assets/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -258,18 +300,19 @@ def page(c, *, path, title, desc, body, schema, alt_path, noindex=False):
 
 def faq_block(c, items, anchor="faq"):
     qs = "".join(
-        f'<details class="qa"><summary>{e(q)}</summary><p>{e(a)}</p></details>' for q, a in items
+        f'<details class="qa"><summary>{e(q)}{icon("chevron", "ic ic-sm qa-ic")}</summary><p>{e(a)}</p></details>'
+        for q, a in items
     )
-    return f'<section class="sec" id="{anchor}"><div class="wrap narrow"><h2>{e(c.UI["faq_title"])}</h2><div class="faq">{qs}</div></div></section>'
+    return f'<section class="sec" id="{anchor}"><div class="wrap narrow"><h2>{e(c.UI["faq_title"])}</h2><div class="panel faq">{qs}</div></div></section>'
 
 
 def steps_block(title, steps, anchor=""):
     items = "".join(
-        f'<li><span class="num">{i:02d}</span><h3>{e(t)}</h3><p>{e(d)}</p></li>'
+        f'<li><span class="num">{i}</span><h3>{e(t)}</h3><p>{e(d)}</p></li>'
         for i, (t, d) in enumerate(steps, 1)
     )
     aid = f' id="{anchor}"' if anchor else ""
-    return f'<section class="sec sec-dark"{aid}><div class="wrap"><h2>{e(title)}</h2><ol class="steps">{items}</ol></div></section>'
+    return f'<section class="sec"{aid}><div class="wrap"><h2>{e(title)}</h2><ol class="steps">{items}</ol></div></section>'
 
 
 def service_cards(c, exclude=None):
@@ -277,9 +320,8 @@ def service_cards(c, exclude=None):
     for s in c.SERVICES:
         if s["slug"] == exclude:
             continue
-        cls = "card card-feature" if s["slug"] == "kompleksnyj-marketing" else "card"
         cards.append(
-            f'<a class="{cls}" href="{url(c, s["slug"])}">'
+            f'<a class="card" href="{url(c, s["slug"])}">'
             f'<span class="card-ic">{icon(s["icon"])}</span>'
             f'<h3>{e(s["name"])}</h3><p>{e(s["short"])}</p>'
             f'<span class="more">{e(c.UI["more"])} {icon("arrow", "ic ic-sm")}</span></a>'
@@ -287,24 +329,54 @@ def service_cards(c, exclude=None):
     return f'<div class="cards">{"".join(cards)}</div>'
 
 
+def post_mock(c):
+    """Макет рекламного поста Instagram — декоративный, для первого экрана."""
+    h = c.HOME
+    tags = "".join(f"<span>{e(t)}</span>" for t in h["post_tags"])
+    return f"""
+<div class="post" aria-hidden="true">
+  <div class="post-hd">
+    <span class="avatar"><span>{LOGO_MARK}</span></span>
+    <div class="post-who"><b>alfimov.kz</b><small>{e(h['post_label'])}</small></div>
+    <span class="post-dots">•••</span>
+  </div>
+  <div class="post-media">
+    <p class="post-title">{e(h['post_title'])}</p>
+    <div class="post-tags">{tags}</div>
+  </div>
+  <div class="post-cta">{e(h['post_cta'])}{icon('chevron', 'ic ic-sm')}</div>
+  <div class="post-actions">{icon('heart')}{icon('comment')}{icon('share')}<span class="sp"></span>{icon('bookmark')}</div>
+  <p class="post-cap"><b>alfimov.kz</b> {e(h['post_caption'])}</p>
+</div>"""
+
+
 # ---------------------------------------------------------------- pages
 
 def build_home(c):
     h, ui = c.HOME, c.UI
     points = "".join(f"<li>{icon('check', 'ic ic-sm')}{e(p)}</li>" for p in h["hero_points"])
-    why = "".join(f'<div class="why"><h3>{e(t)}</h3><p>{e(d)}</p></div>' for t, d in h["why"])
+    why = "".join(
+        f'<div class="why"><span class="why-ic">{icon(WHY_ICONS[i % len(WHY_ICONS)])}</span><h3>{e(t)}</h3><p>{e(d)}</p></div>'
+        for i, (t, d) in enumerate(h["why"])
+    )
     body = f"""
 <section class="hero">
-  <div class="wrap">
-    <p class="kicker">{e(h['hero_kicker'])}</p>
-    <h1>{e(h['hero_title'])}</h1>
-    <p class="hero-lead">{e(h['hero_lead'])}</p>
-    <div class="hero-cta">
-      <a class="btn btn-lg" href="#lead">{e(ui['cta'])}</a>
-      <a class="btn btn-lg btn-ghost" href="#services">{e(ui['nav_services'])}</a>
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <p class="kicker">{icon('pin', 'ic ic-sm')}{e(h['hero_kicker'])}</p>
+      <h1>{e(h['hero_title'])}</h1>
+      <p class="hero-lead">{e(h['hero_lead'])}</p>
+      <div class="hero-cta">
+        <a class="btn btn-lg" href="#lead">{e(ui['cta'])}</a>
+        <a class="btn btn-lg btn-light" href="#services">{e(ui['nav_services'])}</a>
+      </div>
+      <ul class="hero-points">{points}</ul>
     </div>
-    <ul class="hero-points">{points}</ul>
+    {post_mock(c)}
   </div>
+</section>
+<section class="stories-sec">
+  <div class="wrap">{stories(c)}</div>
 </section>
 <section class="sec" id="services">
   <div class="wrap">
@@ -313,7 +385,7 @@ def build_home(c):
     {service_cards(c)}
   </div>
 </section>
-<section class="sec sec-soft">
+<section class="sec">
   <div class="wrap">
     <h2>{e(h['why_title'])}</h2>
     <div class="whys">{why}</div>
@@ -328,7 +400,7 @@ def build_home(c):
     return path, page(
         c, path=path, title=h["meta_title"], desc=h["meta_desc"], body=body, alt_path=alt,
         schema=[
-            {"@type": "WebSite", "@id": f"{SITE_URL}/#site", "url": f"{SITE_URL}/", "name": BRAND, "inLanguage": c.LANG},
+            {"@type": "WebSite", "@id": f"{SITE_URL}/#site", "url": f"{SITE_URL}/", "name": "ALFIMOV.KZ", "inLanguage": c.LANG},
             faq_schema(h["faq"]),
         ],
     )
@@ -343,30 +415,37 @@ def build_service(c, s):
         f'<li><span class="inc-ic">{icon("check", "ic ic-sm")}</span><div><h3>{e(t)}</h3><p>{e(d)}</p></div></li>'
         for t, d in s["includes"]
     )
-    for_whom = "".join(f"<li>{e(x)}</li>" for x in s["for_whom"])
+    for_whom = "".join(f"<li>{icon('check', 'ic ic-sm')}{e(x)}</li>" for x in s["for_whom"])
     body = f"""
 <section class="hero hero-svc">
   <div class="wrap">
-    <nav class="crumbs" aria-label="breadcrumbs"><a href="{url(c)}">{e(ui['breadcrumbs_home'])}</a><span>/</span><a href="{url(c)}#services">{e(ui['nav_services'])}</a></nav>
-    <span class="hero-ic">{icon(s['icon'])}</span>
-    <h1>{e(s['h1'])}</h1>
-    <p class="hero-lead">{e(s['lead'])}</p>
-    <div class="hero-cta"><a class="btn btn-lg" href="#lead">{e(ui['cta'])}</a></div>
+    <nav class="crumbs" aria-label="breadcrumbs"><a href="{url(c)}">{e(ui['breadcrumbs_home'])}</a><span>›</span><a href="{url(c)}#services">{e(ui['nav_services'])}</a></nav>
+    <div class="svc-head">
+      <span class="ring ring-lg"><span class="story-ic">{icon(s['icon'])}</span></span>
+      <div>
+        <h1>{e(s['h1'])}</h1>
+        <p class="hero-lead">{e(s['lead'])}</p>
+        <div class="hero-cta"><a class="btn btn-lg" href="#lead">{e(ui['cta'])}</a></div>
+      </div>
+    </div>
   </div>
 </section>
-<section class="sec">
-  <div class="wrap narrow prose">{intro}</div>
+<section class="stories-sec">
+  <div class="wrap">{stories(c, current=s['slug'])}</div>
 </section>
-<section class="sec sec-soft">
+<section class="sec">
+  <div class="wrap narrow"><div class="panel prose">{intro}</div></div>
+</section>
+<section class="sec">
   <div class="wrap">
     <h2>{e(ui['includes_title'])}</h2>
     <ul class="includes">{includes}</ul>
   </div>
 </section>
 <section class="sec">
-  <div class="wrap narrow">
+  <div class="wrap">
     <h2>{e(ui['for_whom_title'])}</h2>
-    <ul class="bullets">{for_whom}</ul>
+    <ul class="pills">{for_whom}</ul>
   </div>
 </section>
 {steps_block(ui['steps_title'], s['steps'])}
@@ -411,8 +490,10 @@ def build_contacts(c):
 </section>
 <section class="sec">
   <div class="wrap narrow">
-    <h2>{e(k['area_title'])}</h2>
-    <p>{e(k['area_text'])}</p>
+    <div class="panel">
+      <h2>{e(k['area_title'])}</h2>
+      <p>{e(k['area_text'])}</p>
+    </div>
   </div>
 </section>
 {lead_form(c, 'contacts')}
@@ -425,18 +506,18 @@ def build_404():
     c, ui = content_ru, content_ru.UI
     kz = content_kz.UI
     body = f"""
-<section class="hero">
+<section class="hero hero-svc">
   <div class="wrap">
     <p class="kicker">404</p>
     <h1>{e(ui['not_found_title'])}</h1>
     <p class="hero-lead">{e(ui['not_found_text'])}</p>
     <p class="muted">{e(kz['not_found_text'])}</p>
-    <div class="hero-cta"><a class="btn btn-lg" href="/">{e(ui['not_found_btn'])}</a><a class="btn btn-lg btn-ghost" href="/kz/">{e(kz['not_found_btn'])}</a></div>
+    <div class="hero-cta"><a class="btn btn-lg" href="/">{e(ui['not_found_btn'])}</a><a class="btn btn-lg btn-light" href="/kz/">{e(kz['not_found_btn'])}</a></div>
   </div>
 </section>
-<section class="sec"><div class="wrap">{service_cards(c)}</div></section>
+<section class="stories-sec"><div class="wrap">{stories(c)}</div></section>
 """
-    return page(c, path="/404.html", title=f"404 — {BRAND}", desc=ui["not_found_text"], body=body, schema=[], alt_path="/kz/", noindex=True)
+    return page(c, path="/404.html", title="404 — ALFIMOV.KZ", desc=ui["not_found_text"], body=body, schema=[], alt_path="/kz/", noindex=True)
 
 
 # ---------------------------------------------------------------- build
