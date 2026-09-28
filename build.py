@@ -29,7 +29,9 @@ BRAND = "Alfimov"
 PHONE_DISPLAY = "+7 776 902 66 69"
 PHONE_TEL = "+77769026669"
 WHATSAPP_URL = "https://wa.me/77769026669"
-TELEGRAMS = ["fandylol", "etozhefandy"]
+TELEGRAMS = ["fandylol"]
+INSTAGRAM = "etozhefandy"
+INSTAGRAM_URL = f"https://www.instagram.com/{INSTAGRAM}/"
 FONT_URL = (
     "https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700"
     "&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
@@ -54,6 +56,7 @@ ICONS = {
     "whatsapp": '<path d="M4 20l1.2-4A8 8 0 1 1 8 18.8Z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1-1 .8c-1-.5-2-1.5-2.3-2.3l.8-1-1-2-1 .5Z"/>',
     "telegram": '<path d="M21 4 3 11l6 2.2L18 7l-7 7.5V20l3-3.5 4 3Z"/>',
     "menu": '<path d="M4 8h16M4 16h16"/>',
+    "instagram": '<rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="3.8"/><circle cx="17.2" cy="6.8" r=".7" fill="currentColor" stroke="none"/>',
 }
 
 
@@ -119,7 +122,7 @@ def org_schema():
         "priceRange": "$$",
         "address": {"@type": "PostalAddress", "addressCountry": "KZ"},
         "areaServed": {"@type": "Country", "name": "Kazakhstan"},
-        "sameAs": [f"https://t.me/{t}" for t in TELEGRAMS],
+        "sameAs": [INSTAGRAM_URL, *(f"https://t.me/{t}" for t in TELEGRAMS)],
     }
 
 
@@ -185,6 +188,7 @@ def contact_links():
         f'<a class="clink" href="tel:{PHONE_TEL}">{icon("phone")}{PHONE_DISPLAY}</a>'
         f'<a class="clink" href="{WHATSAPP_URL}" target="_blank" rel="noopener">{icon("whatsapp")}WhatsApp</a>'
         + tg
+        + f'<a class="clink" href="{INSTAGRAM_URL}" target="_blank" rel="noopener">{icon("instagram")}Instagram @{INSTAGRAM}</a>'
     )
 
 
@@ -237,6 +241,7 @@ def footer(c):
         <li><a href="tel:{PHONE_TEL}">{PHONE_DISPLAY}</a></li>
         <li><a href="{WHATSAPP_URL}" target="_blank" rel="noopener">WhatsApp</a></li>
         {tg}
+        <li><a href="{INSTAGRAM_URL}" target="_blank" rel="noopener">Instagram @{INSTAGRAM}</a></li>
       </ul>
     </div>
   </div>

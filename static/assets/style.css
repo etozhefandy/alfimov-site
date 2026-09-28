@@ -142,8 +142,9 @@ section[id] { scroll-margin-top: 72px; }
 .clients { border-bottom: 1px solid var(--line); }
 .clients-in { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 48px; padding-top: 28px; padding-bottom: 28px; }
 .clients p { margin: 0; font-family: var(--font-mono); font-size: 13px; text-transform: uppercase; color: var(--muted); }
-.clients ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 12px 40px; }
-.clients li { font-family: var(--font-head); font-weight: 600; font-size: 20px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+.clients ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px 24px; }
+@media (min-width: 720px) { .clients ul { gap: 12px 40px; } .clients li { font-size: 20px !important; } }
+.clients li { font-family: var(--font-head); font-weight: 600; font-size: 16px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
 
 /* sections */
 .sec { padding: var(--sec) 0; }
