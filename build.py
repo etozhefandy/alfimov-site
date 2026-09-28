@@ -410,8 +410,12 @@ def build_home(c):
     title_post = f" {e(h['hero_title_post'])}" if h.get("hero_title_post") else ""
     facts = "".join(f'<li><b>{e(a)}</b><span>{e(b)}</span></li>' for a, b in h["hero_facts"])
 
+    visible = {s["slug"] for s in c.SERVICES}
+    shown = lambda t: t.startswith("#") or t in visible  # noqa: E731
+    dirs = [(n, d, [l for l in ls if shown(l[1])]) for n, d, ls in h["directions"]]
+    dirs = [x for x in dirs if x[2]]
     directions = []
-    for i, (name, desc, links) in enumerate(h["directions"], 1):
+    for i, (name, desc, links) in enumerate(dirs, 1):
         ls = "".join(f'<a href="{link(c, t)}">{e(label)} {icon("arrow", "ic ic-sm")}</a>' for label, t in links)
         directions.append(
             f'<li class="dir rv"><span class="dir-n">{i:02d}</span><h3>{e(name)}</h3>'
@@ -448,7 +452,7 @@ def build_home(c):
   <div class="wrap">
     <div class="sec-head rv">{eyebrow(next(n), h['directions_eyebrow'])}<h2>{e(h['directions_title'])}</h2><p>{e(h['directions_lead'])}</p></div>
     <ol class="dirs">{"".join(directions)}</ol>
-    <a class="dir-all rv" href="{url(c, all_slug)}"><span>{e(all_q)}</span><b>{e(all_label)}</b>{icon('arrow')}</a>
+    {f'<a class="dir-all rv" href="{url(c, all_slug)}"><span>{e(all_q)}</span><b>{e(all_label)}</b>{icon("arrow")}</a>' if all_slug in visible else ''}
   </div>
 </section>
 <section class="sec sec-soft" id="approach">
