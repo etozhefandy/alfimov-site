@@ -4,13 +4,13 @@
   --bg: #f0f2f5;
   --surface: #ffffff;
   --hover: #f2f3f5;
-  --ink: #1c1e21;
+  --ink: #0c1011;
   --ink-2: #4b4f56;
   --muted: #65676b;
   --line: #e4e6eb;
-  --blue: #2d6bff;
-  --blue-hover: #1a56e8;
-  --blue-soft: #e8f0ff;
+  --blue: #1769ff;
+  --blue-hover: #0f57e0;
+  --blue-soft: #e7efff;
   --green: #42b72a;
   --green-hover: #36a420;
   --ig: linear-gradient(45deg, #feda75 0%, #fa7e1e 25%, #d62976 50%, #962fbf 75%, #4f5bd5 100%);
@@ -20,7 +20,6 @@
   --radius-lg: 16px;
   --wrap: 1140px;
   --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-logo: "Michroma", "Arial Black", sans-serif;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -55,13 +54,10 @@ section[id] { scroll-margin-top: 72px; }
 @media (min-width: 720px) { .panel { padding: 32px; } }
 
 /* logo */
-.logo {
-  display: inline-flex; align-items: center; gap: .08em; text-decoration: none; color: var(--ink);
-  font-family: var(--font-logo); font-size: 19px; line-height: 1; letter-spacing: .06em; white-space: nowrap;
-}
-.logo-a { width: auto; height: .92em; margin-right: .02em; }
-.logo-word { font-weight: 400; }
-.logo-kz { font-family: var(--font); font-weight: 400; letter-spacing: .12em; color: var(--ink-2); margin-left: .05em; font-size: .92em; }
+.logo { display: inline-flex; align-items: center; color: #0c1011; text-decoration: none; }
+.logo svg { height: 20px; width: auto; }
+@media (min-width: 720px) { .logo svg { height: 22px; } }
+.logo-mark { width: auto; height: 16px; }
 
 /* buttons */
 .btn {
@@ -146,7 +142,7 @@ section[id] { scroll-margin-top: 72px; }
 .post-hd { display: flex; align-items: center; gap: 10px; padding: 12px 14px; }
 .avatar { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: var(--ig); padding: 2px; flex: none; }
 .avatar > span { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; background: #fff; border: 2px solid #fff; color: var(--ink); }
-.avatar .logo-a { height: 13px; }
+.avatar .logo-mark { height: 15px; }
 .post-who { display: grid; line-height: 1.25; font-size: 14px; }
 .post-who small { color: var(--muted); font-size: 12px; }
 .post-dots { margin-left: auto; color: var(--ink); letter-spacing: 1px; font-size: 12px; }
@@ -154,7 +150,7 @@ section[id] { scroll-margin-top: 72px; }
   aspect-ratio: 1 / 1; padding: 28px; display: flex; flex-direction: column; justify-content: space-between;
   background:
     radial-gradient(circle at 85% 15%, rgba(255, 255, 255, .35), transparent 40%),
-    linear-gradient(150deg, #2d6bff 0%, #6a4df5 45%, #d62976 80%, #fa7e1e 100%);
+    linear-gradient(150deg, #1769ff 0%, #6a4df5 45%, #d62976 80%, #fa7e1e 100%);
   color: #fff;
 }
 .post-title { font-size: clamp(26px, 3.2vw, 32px); font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; margin: 0; }

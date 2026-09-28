@@ -30,7 +30,7 @@ PHONE_DISPLAY = "+7 776 902 66 69"
 PHONE_TEL = "+77769026669"
 WHATSAPP_URL = "https://wa.me/77769026669"
 TELEGRAMS = ["fandylol", "etozhefandy"]
-FONT_URL = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Michroma&display=swap"
+FONT_URL = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
 ASSET_VER = hashlib.md5(
     b"".join((STATIC / "assets" / f).read_bytes() for f in ("style.css", "main.js"))
 ).hexdigest()[:8]
@@ -77,17 +77,31 @@ def icon(name, cls="ic"):
     )
 
 
-# Знак «Λ» из логотипа: левая нога — чёрный верх и синий низ, правая — чёрная.
-LOGO_MARK = (
-    '<svg class="logo-a" viewBox="0 0 60 50" aria-hidden="true">'
-    '<path d="M25 0h11L59 50H48Z" fill="currentColor"/>'
-    '<path d="M25 0h11L25 23H14Z" fill="currentColor"/>'
-    '<path d="M12.2 27h11L12 50H1Z" fill="var(--blue)"/></svg>'
+# Логотип ALFIMOV.KZ (векторные контуры из brand-kit, static/assets/brand/).
+LOGO_BLUE = "#1769FF"
+LOGO_MARK_PATHS = (
+    f'<path fill="{LOGO_BLUE}" d="M56 114 80 78 Q84 72 90 72 H108 L81 114Z"/>'
+    '<path d="M102 47 108 38 H123 L166 114 H143Z"/>'
 )
+LOGO_WORD_PATHS = (
+    '<path d="M196 44H216V97H271V114H196Z"/>'
+    '<path d="M300 44H375V60H320V75H369V91H320V114H300Z"/>'
+    '<path d="M403 44H423V114H403Z"/>'
+    '<path d="M455 44H471L510 82 548 44H564V114H545V74L510 108 474 75V114H455Z"/>'
+    '<path fill-rule="evenodd" d="M644 43C608 43 594 52 594 79S608 114 644 114 695 106 695 79 681 43 644 43ZM644 60C669 60 675 63 675 79S669 98 644 98 614 94 614 79 620 60 644 60Z"/>'
+    '<path d="M720 44H743L773 92 801 44H824L782 114H762Z"/>'
+    '<path d="M854 108A6 6 0 1 1 842 108A6 6 0 1 1 854 108Z"/>'
+    '<path d="M890 44H896V80L935 44H944L908 77 946 114H937L896 86V114H890Z"/>'
+    '<path d="M979 44H1036V50L988 108H1037V114H978V108L1026 50H979Z"/>'
+)
+LOGO_MARK = f'<svg class="logo-mark" viewBox="52 34 118 84" fill="currentColor" aria-hidden="true">{LOGO_MARK_PATHS}</svg>'
 
 
 def logo(href):
-    return f'<a class="logo" href="{href}" aria-label="ALFIMOV.KZ">{LOGO_MARK}<span class="logo-word">LFIMOV</span><span class="logo-kz">.KZ</span></a>'
+    return (
+        f'<a class="logo" href="{href}" aria-label="ALFIMOV.KZ">'
+        f'<svg viewBox="52 34 990 84" fill="currentColor" role="img" aria-hidden="true">{LOGO_MARK_PATHS}{LOGO_WORD_PATHS}</svg></a>'
+    )
 
 
 # ---------------------------------------------------------------- helpers
@@ -107,7 +121,7 @@ def org_schema():
         "@id": f"{SITE_URL}/#org",
         "name": BRAND,
         "url": f"{SITE_URL}/",
-        "logo": f"{SITE_URL}/assets/logo.png",
+        "logo": f"{SITE_URL}/assets/brand/icon-512.png",
         "image": f"{SITE_URL}/assets/og.png",
         "telephone": PHONE_TEL,
         "priceRange": "$$",
@@ -278,8 +292,10 @@ def page(c, *, path, title, desc, body, schema, alt_path, noindex=False):
 <meta property="og:image" content="{SITE_URL}/assets/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#ffffff">
+<link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="/assets/logo.png">
+<link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png">
+<link rel="manifest" href="/assets/brand/site.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="{FONT_URL}">
