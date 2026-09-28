@@ -23,14 +23,22 @@ python3 build.py --serve   # http://localhost:8000
 
 ## Деплой
 
-Каждый push в `main` → GitHub Actions собирает сайт и заливает `dist/` по FTPS на хостинг PS.kz (`srv-plesk22.ps.kz`, папка `httpdocs`).
+С Mac, одной командой:
 
-Секреты репозитория (Settings → Secrets and variables → Actions):
+```
+./deploy.sh
+```
 
-| Секрет | Зачем |
-|---|---|
-| `FTP_PASSWORD` | пароль FTP-пользователя `alfimovk` в Plesk |
-| `TG_BOT_TOKEN` | токен бота, который присылает заявки |
-| `TG_CHAT_ID` | chat_id, куда слать заявки |
+Скрипт собирает сайт и заливает `dist/` по FTPS на хостинг PS.kz (`srv-plesk22.ps.kz`, папка `httpdocs`).
+Пароли берутся из Связки ключей macOS — один раз сохранить (команда спросит значение):
 
-Без `FTP_PASSWORD` сборка проходит, но деплой пропускается. Без Telegram-секретов форма отвечает ошибкой и предлагает написать в WhatsApp/Telegram.
+```
+security add-generic-password -a alfimovk -s alfimov-site-ftp -w
+security add-generic-password -a bot -s alfimov-site-tg-token -w
+security add-generic-password -a bot -s alfimov-site-tg-chat -w
+```
+
+Без Telegram-значений форма отвечает ошибкой и предлагает написать в WhatsApp/Telegram.
+
+Workflow `.github/workflows/deploy.yml` отключён: аккаунт GitHub заблокирован по биллингу, Actions не стартуют.
+Если это починить — `gh workflow enable deploy.yml` (секреты FTP_PASSWORD / TG_BOT_TOKEN / TG_CHAT_ID).
