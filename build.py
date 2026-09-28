@@ -148,6 +148,24 @@ def breadcrumbs_schema(trail):
     }
 
 
+def price_text(c, slug, short=False):
+    """«от 200 000 ₸ в месяц» / «по запросу»."""
+    amount, period = c.PRICES.get(slug, (None, None))
+    if amount is None:
+        return c.UI["price_on_request"]
+    s = c.UI["price_from"].format(sum=f"{amount:,}".replace(",", "\u00a0"))
+    return s if short or period != "month" else f"{s} {c.UI['price_month']}"
+
+
+def offer_schema(c, slug):
+    amount, _ = c.PRICES.get(slug, (None, None))
+    if amount is None:
+        return {}
+    return {"offers": {"@type": "Offer", "priceCurrency": "KZT",
+                       "priceSpecification": {"@type": "UnitPriceSpecification", "minPrice": amount,
+                                              "priceCurrency": "KZT", "unitText": "MON"}}}
+
+
 def eyebrow(num, text):
     return f'<p class="eyebrow"><span>{num}</span>{e(text)}</p>'
 
@@ -345,6 +363,7 @@ def service_rows(c, exclude=None):
         rows.append(
             f'<a class="row-link" href="{url(c, s["slug"])}"><span class="row-n">{n:02d}</span>'
             f'<span class="row-t">{e(s["name"])}</span><span class="row-d">{e(s["short"])}</span>'
+            f'<span class="row-p">{e(price_text(c, s["slug"], short=True))}</span>'
             f'{icon("arrow", "ic row-arrow")}</a>'
         )
     return f'<div class="rows rv">{"".join(rows)}</div>'
@@ -487,7 +506,10 @@ def build_service(c, s):
     <h1 class="rv">{e(s['h1'])}</h1>
     <div class="hero-row">
       <p class="hero-lead rv">{e(s['lead'])}</p>
-      <div class="hero-cta rv"><a class="btn btn-lg" href="#lead">{e(ui['cta'])} {icon('arrow', 'ic ic-sm')}</a></div>
+      <div class="hero-cta rv">
+        <div class="price"><span>{e(ui['price_label'])}</span><b>{e(price_text(c, s['slug']))}</b><small>{e(ui['price_note'])}</small></div>
+        <a class="btn btn-lg" href="#lead">{e(ui['cta'])} {icon('arrow', 'ic ic-sm')}</a>
+      </div>
     </div>
   </div>
 </section>
@@ -534,6 +556,7 @@ def build_service(c, s):
             "areaServed": {"@type": "Country", "name": "Kazakhstan"},
             "url": SITE_URL + path,
             "inLanguage": c.LANG,
+            **offer_schema(c, s["slug"]),
         },
         faq_schema(s["faq"]),
         breadcrumbs_schema([(ui["breadcrumbs_home"], url(c)), (s["name"], path)]),

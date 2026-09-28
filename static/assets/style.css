@@ -138,6 +138,13 @@ section[id] { scroll-margin-top: 72px; }
 .crumbs a { color: var(--muted); text-decoration: none; }
 .crumbs a:hover { color: var(--blue); }
 
+/* price (страницы услуг) */
+.price { display: grid; gap: 2px; padding-right: 8px; }
+.price span { font-family: var(--font-mono); font-size: 12px; text-transform: uppercase; color: var(--muted); }
+.price b { font-family: var(--font-head); font-size: 26px; font-weight: 600; letter-spacing: -0.015em; }
+.price small { font-size: 13px; color: var(--muted); max-width: 30ch; line-height: 1.4; }
+.hero-svc .hero-cta { align-items: flex-end; gap: 24px 40px; }
+
 /* clients */
 .clients { border-bottom: 1px solid var(--line); }
 .clients-in { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 48px; padding-top: 28px; padding-bottom: 28px; }
@@ -288,13 +295,14 @@ section[id] { scroll-margin-top: 72px; }
   display: grid; grid-template-columns: 40px 1fr auto; gap: 4px 16px; align-items: baseline; padding: 24px 0;
   border-bottom: 1px solid var(--line); text-decoration: none;
 }
-@media (min-width: 900px) { .row-link { grid-template-columns: 80px 4fr 6fr auto; gap: 32px; } }
+@media (min-width: 900px) { .row-link { grid-template-columns: 80px 4fr 5fr 2fr auto; gap: 32px; } }
 .row-n { font-family: var(--font-mono); font-size: 13px; color: var(--muted); }
 .row-t { font-family: var(--font-head); font-size: 22px; font-weight: 600; letter-spacing: -0.015em; transition: color .2s ease; }
 .row-d { color: var(--muted); font-size: 15px; grid-column: 2; }
 @media (min-width: 900px) { .row-d { grid-column: auto; } }
 .row-arrow { color: var(--blue); grid-row: 1; grid-column: 3; transition: transform .25s var(--ease); }
-@media (min-width: 900px) { .row-arrow { grid-column: 4; } }
+.row-p { grid-column: 2; font-family: var(--font-mono); font-size: 13px; color: var(--ink-2); }
+@media (min-width: 900px) { .row-p { grid-column: auto; text-align: right; } .row-arrow { grid-column: 5; } }
 .row-link:hover .row-t { color: var(--blue); }
 .row-link:hover .row-arrow { transform: translateX(4px); }
 
