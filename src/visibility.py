@@ -5,4 +5,4 @@
 см. static/.htaccess. Тексты услуг остаются в content_*.py: чтобы вернуть
 услугу, уберите её slug отсюда и из .htaccess.
 """
-HIDDEN_SLUGS = {"smm", "kompleksnyj-marketing", "marketingovye-issledovaniya"}
+HIDDEN_SLUGS = set()
