@@ -828,6 +828,10 @@ def build():
         f"User-agent: *\nAllow: /\nDisallow: /api/\n\nSitemap: {SITE_URL}/sitemap.xml\nHost: {SITE_URL}\n",
         encoding="utf-8",
     )
+    # Какая сборка сейчас на хостинге: https://alfimov.kz/version.txt
+    import subprocess
+    sha = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+    (DIST / "version.txt").write_text(f"{sha or 'local'}\n", encoding="utf-8")
 
     token, chat = os.environ.get("TG_BOT_TOKEN", ""), os.environ.get("TG_CHAT_ID", "")
     (DIST / "api" / "config.php").write_text(
