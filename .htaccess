@@ -11,9 +11,6 @@ ErrorDocument 404 /404.html
   RewriteCond %{HTTP_HOST} !^alfimov\.kz$ [NC]
   RewriteRule ^ https://alfimov.kz%{REQUEST_URI} [L,R=301]
 
-  # Временно скрытые услуги (src/visibility.py) → главная нужного языка
-  RewriteRule ^(kz/)?(smm|kompleksnyj-marketing|marketingovye-issledovaniya)(/.*)?$ /$1 [R=302,L]
-
   # /index.html → /
   RewriteCond %{THE_REQUEST} \s/+(.*/)?index\.html[\s?] [NC]
   RewriteRule ^ /%1 [L,R=301]
