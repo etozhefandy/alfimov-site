@@ -47,6 +47,21 @@ def run(cmd):
     return out
 
 
+class publish_lock:
+    """Межпроцессная блокировка: админка и автопубликатор не публикуют одновременно."""
+
+    def __enter__(self):
+        import fcntl
+        self.f = open(ROOT / ".git" / "alfimov-publish.lock", "w")
+        fcntl.flock(self.f, fcntl.LOCK_EX)
+        return self
+
+    def __exit__(self, *exc):
+        import fcntl
+        fcntl.flock(self.f, fcntl.LOCK_UN)
+        self.f.close()
+
+
 def publish():
     """Коммит статей → push main → ./deploy-git.sh. Возвращает лог для экрана."""
     log = []
@@ -183,7 +198,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 build.build()
             return self.send(200, {"ok": True, "live": len(blog.live())})
         if method == "POST" and path == "/admin/api/publish":
-            with _lock:
+            with _lock, publish_lock():
                 log = publish()
             return self.send(200, {"ok": True, "log": log})
         return self.error(404, "not found")

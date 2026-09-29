@@ -350,7 +350,7 @@ function refresh() {
   else {
     const due = new Date(a.publish_at + ":00+05:00") <= new Date();
     note.textContent = due ? "Дата наступила — статья попадёт на сайт при следующей публикации."
-      : `Выйдет при первой публикации после ${fmtDate(a.publish_at)}. Сайт статический — сам по себе он не обновится.`;
+      : `Выйдет автоматически в течение ~15 минут после ${fmtDate(a.publish_at)} (если Mac включён и автопубликация установлена), либо при ручной публикации.`;
   }
   const cp = $("f-cover_path").value, img = $("cover-prev");
   img.classList.toggle("hidden", !cp); if (cp) img.src = cp;
