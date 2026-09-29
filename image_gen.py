@@ -1,23 +1,23 @@
 """Картинки для блога через OpenAI Images: обложка статьи и иллюстрации в текст.
 
-Модель gpt-image-1 (как у генератора креативов в боте), при сбое — dall-e-3.
+Модель gpt-image-2, при сбое — gpt-image-1.5 (gpt-image-1 и dall-e-3 OpenAI выводит из работы).
 Ключ: переменная OPENAI_API_KEY или Связка ключей macOS (один раз):
 
-    security add-generic-password -a openai -s alfimov-site-openai -w
+    security add-generic-password -U -a openai -s alfimov-site-openai -w "$(pbpaste | tr -d '[:space:]')"
 
 Только stdlib: сборке сайта и админке не нужен пакет openai.
 """
 import base64
 import json
 import os
+import ssl
 import subprocess
-import tempfile
 import urllib.error
 import urllib.request
-from pathlib import Path
 
 KEYCHAIN_SERVICE = "alfimov-site-openai"
-MODEL = os.environ.get("BLOG_IMAGE_MODEL", "gpt-image-1")
+MODEL = os.environ.get("BLOG_IMAGE_MODEL", "gpt-image-2")
+FALLBACK_MODEL = os.environ.get("BLOG_IMAGE_FALLBACK", "gpt-image-1.5")
 QUALITY = os.environ.get("BLOG_IMAGE_QUALITY", "medium")  # low | medium | high
 API_URL = "https://api.openai.com/v1/images/generations"
 TIMEOUT = 180
@@ -28,17 +28,27 @@ STYLE = (
     "Minimalist, calm, rational, premium but not luxurious. Palette: white and light grey background, "
     "near-black #0C1011 shapes, a single saturated blue accent #1769FF used sparingly. "
     "Clean geometric composition, generous empty space, soft natural light, subtle depth. "
-    "No text, no letters, no numbers, no logos, no watermarks, no UI screenshots, no fake dashboards. "
+    "No text, no letters, no numbers, no logos or app icons of any brands (no Instagram, Facebook, TikTok, Google marks), "
+    "no watermarks, no UI screenshots, no fake dashboards. "
     "Avoid clichés: no rockets, no targets or bullseyes, no megaphones, no mouse cursors, no handshakes, "
     "no smiling stock people, no floating gradient blobs, no glowing neon, no glassmorphism, "
     "no charts with an upward arrow."
 )
 
-SIZES = {
-    # вид: (gpt-image-1, dall-e-3)
-    "cover": ("1536x1024", "1792x1024"),
-    "inline": ("1536x1024", "1792x1024"),
-}
+SIZES = {"cover": "1536x1024", "inline": "1536x1024"}
+
+
+def _ssl_context():
+    """Python с python.org на macOS не видит системные сертификаты — берём certifi или /etc/ssl/cert.pem."""
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        pass
+    ctx = ssl.create_default_context()
+    if not ctx.get_ca_certs() and os.path.exists("/etc/ssl/cert.pem"):
+        ctx.load_verify_locations("/etc/ssl/cert.pem")
+    return ctx
 
 
 class ImageError(Exception):
@@ -92,7 +102,8 @@ def _post(key, payload, opener=urllib.request.urlopen):
         headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
     )
     try:
-        with opener(req, timeout=TIMEOUT) as r:
+        kw = {"context": _ssl_context()} if opener is urllib.request.urlopen else {}
+        with opener(req, timeout=TIMEOUT, **kw) as r:
             return json.loads(r.read().decode("utf-8"))
     except urllib.error.HTTPError as ex:
         try:
@@ -112,18 +123,6 @@ def _first_b64(resp):
     return base64.b64decode(b64)
 
 
-def _png_to_jpeg(png):
-    """dall-e-3 отдаёт PNG на ~3 МБ — перегоняем в JPEG встроенной утилитой macOS (sips)."""
-    with tempfile.TemporaryDirectory() as tmp:
-        src, dst = Path(tmp) / "in.png", Path(tmp) / "out.jpg"
-        src.write_bytes(png)
-        r = subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", "82", str(src), "--out", str(dst)],
-                           capture_output=True, timeout=60)
-        if r.returncode == 0 and dst.is_file():
-            return dst.read_bytes(), ".jpg"
-    return png, ".png"
-
-
 def generate(kind, title="", lead="", idea="", key=None, opener=urllib.request.urlopen):
     """→ (bytes, расширение файла). Бросает ImageError с понятным текстом."""
     if kind not in SIZES:
@@ -131,21 +130,18 @@ def generate(kind, title="", lead="", idea="", key=None, opener=urllib.request.u
     prompt = build_prompt(kind, title, lead, idea)
     key = key or api_key()
     if not key:
-        raise ImageError("Нет ключа OpenAI. Сохраните его командой: "
-                         f"security add-generic-password -a openai -s {KEYCHAIN_SERVICE} -w")
-    size_new, size_old = SIZES[kind]
+        raise ImageError("Нет ключа OpenAI. Скопируйте ключ и выполните: "
+                         f"security add-generic-password -U -a openai -s {KEYCHAIN_SERVICE} -w \"$(pbpaste)\"")
+    payload = {"model": MODEL, "prompt": prompt, "size": SIZES[kind], "n": 1,
+               "output_format": "webp", "output_compression": 82}
+    if QUALITY:
+        payload["quality"] = QUALITY
     try:
-        payload = {"model": MODEL, "prompt": prompt, "size": size_new, "n": 1,
-                   "output_format": "webp", "output_compression": 82}
-        if QUALITY:
-            payload["quality"] = QUALITY
         return _first_b64(_post(key, payload, opener)), ".webp"
     except ImageError as first:
-        if "ключ" in str(first) or "средства" in str(first):
-            raise  # dall-e-3 с тем же ключом не поможет
+        if "ключ" in str(first) or "средства" in str(first) or not FALLBACK_MODEL:
+            raise  # другая модель с тем же ключом не поможет
         try:
-            png = _first_b64(_post(key, {"model": "dall-e-3", "prompt": prompt, "size": size_old, "n": 1,
-                                         "response_format": "b64_json"}, opener))
+            return _first_b64(_post(key, {**payload, "model": FALLBACK_MODEL}, opener)), ".webp"
         except ImageError:
             raise first from None
-        return _png_to_jpeg(png)

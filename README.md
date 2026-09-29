@@ -55,12 +55,14 @@ security add-generic-password -a claude -s alfimov-site-anthropic -w
 
 **Картинки (OpenAI).** В админке: «Сгенерировать обложку (ИИ)» у поля обложки и «Иллюстрация в текст (ИИ)»
 под текстом статьи — картинка в стиле сайта (без текста и маркетинговых штампов) сохраняется в
-`static/assets/blog/` и вставляется как `![подпись](/assets/blog/…)`. Модель `gpt-image-1` (webp), при сбое `dall-e-3`.
+`static/assets/blog/` и вставляется как `![подпись](/assets/blog/…)`. Модель `gpt-image-2` (webp), при сбое `gpt-image-1.5`.
 Ключ OpenAI — один раз в Связку ключей (или переменная `OPENAI_API_KEY`):
 
 ```
-security add-generic-password -a openai -s alfimov-site-openai -w
+security add-generic-password -U -a openai -s alfimov-site-openai -w "$(pbpaste | tr -d '[:space:]')"
 ```
+
+(ключ берётся из буфера обмена: интерактивный ввод `security … -w` обрезает до 128 символов, а ключи `sk-proj-` длиннее)
 
 Тесты: `python3 -m unittest discover tests -v`
 

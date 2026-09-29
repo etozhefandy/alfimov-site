@@ -63,13 +63,13 @@ class GenerateTest(unittest.TestCase):
         self.assertEqual(calls[0]["output_format"], "webp")
         self.assertEqual(calls[0]["size"], "1536x1024")
 
-    def test_fallback_to_dalle(self):
-        png = b"\x89PNGfake"
+    def test_fallback_model(self):
+        img = b"WEBP2"
         opener, calls = opener_returning(http_error(400, "model not available"),
-                                         {"data": [{"b64_json": base64.b64encode(png).decode()}]})
+                                         {"data": [{"b64_json": base64.b64encode(img).decode()}]})
         raw, ext = image_gen.generate("inline", idea="схема", key="k", opener=opener)
-        self.assertEqual([c["model"] for c in calls], [image_gen.MODEL, "dall-e-3"])
-        self.assertIn(ext, (".jpg", ".png"))
+        self.assertEqual([c["model"] for c in calls], [image_gen.MODEL, image_gen.FALLBACK_MODEL])
+        self.assertEqual((raw, ext), (img, ".webp"))
 
     def test_bad_key_no_fallback(self):
         opener, calls = opener_returning(http_error(401, "Incorrect API key provided"))
