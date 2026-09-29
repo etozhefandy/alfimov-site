@@ -17,7 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 import content_ru  # noqa: E402
 
-MODEL = os.environ.get("SEO_WRITER_MODEL", "claude-opus-5")
+MODEL = os.environ.get("SEO_WRITER_MODEL", "claude-opus-5-5")
 KEYCHAIN_SERVICE = "alfimov-site-anthropic"
 
 SCHEMA = {

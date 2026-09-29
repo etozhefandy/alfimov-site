@@ -50,7 +50,7 @@ python3 admin.py   # http://127.0.0.1:8001/admin/ — работает толь�
 security add-generic-password -a claude -s alfimov-site-anthropic -w
 ```
 
-(или переменная `ANTHROPIC_API_KEY`; модель меняется через `SEO_WRITER_MODEL`, по умолчанию `claude-opus-5`).
+(или переменная `ANTHROPIC_API_KEY`; модель меняется через `SEO_WRITER_MODEL`, по умолчанию `claude-opus-5-5`).
 Сборке сайта (`build.py`) зависимости по-прежнему не нужны.
 
 Тесты: `python3 -m unittest discover tests -v`
