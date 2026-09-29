@@ -412,3 +412,8 @@ section[id] { scroll-margin-top: 72px; }
 .md th, .md td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .md th { font-family: var(--font-mono); font-size: 13px; font-weight: 500; color: var(--muted); background: var(--soft); text-transform: uppercase; letter-spacing: .02em; }
 .md tr:last-child td { border-bottom: 0; }
+
+/* картинки внутри статьи блога */
+.art-body figure { margin: 40px 0; }
+.art-body figure img { width: 100%; height: auto; border-radius: var(--radius); display: block; }
+.art-body figcaption { margin-top: 10px; font-size: 14px; color: var(--muted); }

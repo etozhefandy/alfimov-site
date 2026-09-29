@@ -53,6 +53,15 @@ security add-generic-password -a claude -s alfimov-site-anthropic -w
 (или переменная `ANTHROPIC_API_KEY`; модель меняется через `SEO_WRITER_MODEL`, по умолчанию `claude-opus-5-5`).
 Сборке сайта (`build.py`) зависимости по-прежнему не нужны.
 
+**Картинки (OpenAI).** В админке: «Сгенерировать обложку (ИИ)» у поля обложки и «Иллюстрация в текст (ИИ)»
+под текстом статьи — картинка в стиле сайта (без текста и маркетинговых штампов) сохраняется в
+`static/assets/blog/` и вставляется как `![подпись](/assets/blog/…)`. Модель `gpt-image-1` (webp), при сбое `dall-e-3`.
+Ключ OpenAI — один раз в Связку ключей (или переменная `OPENAI_API_KEY`):
+
+```
+security add-generic-password -a openai -s alfimov-site-openai -w
+```
+
 Тесты: `python3 -m unittest discover tests -v`
 
 ## Деплой

@@ -64,7 +64,7 @@ def publish():
     else:
         log.append(f"Ветка {branch} — не main, на GitHub не отправляю (деплой всё равно из рабочей копии)")
     log.append(run(["./deploy-git.sh"]).splitlines()[-1])
-    log.append("Осталось в Plesk: «Получить сейчас» → «Развернуть сейчас»")
+    log.append("Plesk заберёт обновление сам — статья появится на alfimov.kz примерно через 10 секунд")
     return log
 
 
@@ -176,6 +176,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self.generate(self.body())
         if method == "POST" and path == "/admin/api/upload":
             return self.upload(self.body())
+        if method == "POST" and path == "/admin/api/image":
+            return self.image(self.body())
         if method == "POST" and path == "/admin/api/build":
             with _lock:
                 build.build()
@@ -202,6 +204,23 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if not blog.SLUG_RE.match(out.get("slug") or ""):
             out["slug"] = blog.slugify(out.get("slug") or out.get("title") or "")
         return self.send(200, {"article": out})
+
+    def image(self, data):
+        """ИИ-картинка: обложка или иллюстрация в текст → static/assets/blog/<slug>-<вид>.webp"""
+        import image_gen
+        kind = data.get("kind") if data.get("kind") in ("cover", "inline") else "cover"
+        try:
+            raw, ext = image_gen.generate(kind, data.get("title") or "", data.get("lead") or "", data.get("idea") or "")
+        except image_gen.ImageError as ex:
+            return self.error(400, str(ex))
+        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+        base = blog.slugify(data.get("slug") or data.get("title") or "image")[:60] or "image"
+        base = f"{base}-{'cover' if kind == 'cover' else 'img'}"
+        target, n = UPLOAD_DIR / f"{base}{ext}", 2
+        while target.exists():
+            target, n = UPLOAD_DIR / f"{base}-{n}{ext}", n + 1
+        target.write_bytes(raw)
+        return self.send(200, {"path": f"/assets/blog/{target.name}"})
 
     def upload(self, data):
         name = Path(str(data.get("filename") or "")).name

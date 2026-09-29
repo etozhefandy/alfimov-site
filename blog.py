@@ -251,7 +251,8 @@ def markdown(md):
     """Markdown статьи → (html, оглавление [(id, текст h2)]).
 
     Поддерживается то, что нужно SEO-статье: ## и ### заголовки (с якорями), абзацы,
-    списки, цитаты, таблицы, **жирный**, *курсив*, `код`, ссылки. Сырой HTML экранируется.
+    списки, цитаты, таблицы, **жирный**, *курсив*, `код`, ссылки, картинки отдельной строкой
+    ![подпись](/assets/…) — только со своего сайта. Сырой HTML экранируется.
     Заголовок уровня # превращается в ## — h1 на странице один, это заголовок статьи.
     """
     lines = (md or "").replace("\r\n", "\n").split("\n")
@@ -276,6 +277,14 @@ def markdown(md):
         s = line.strip()
         if not s:
             flush()
+            i += 1
+            continue
+        img = re.match(r"^!\[([^\]]*)\]\((/assets/[^)\s]+)\)$", s)
+        if img:
+            flush()
+            alt, src = img.group(1).strip(), img.group(2)
+            cap = f"<figcaption>{_inline(alt)}</figcaption>" if alt else ""
+            out.append(f'<figure><img src="{_e(src)}" alt="{_e(alt)}" loading="lazy">{cap}</figure>')
             i += 1
             continue
         m = re.match(r"^(#{1,4})\s+(.+?)\s*#*$", s)

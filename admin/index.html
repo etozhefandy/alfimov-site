@@ -146,8 +146,12 @@ textarea.body { min-height: 520px; font-family: var(--mono); font-size: 13px; }
     </section>
 
     <section class="card">
-      <h2>Текст <small>markdown: ## раздел, ### подраздел, - список, | таблица |, **жирный**, [ссылка](/smm/)</small></h2>
+      <h2>Текст <small>markdown: ## раздел, ### подраздел, - список, | таблица |, **жирный**, [ссылка](/smm/), ![подпись](/assets/blog/…)</small></h2>
       <textarea class="body" id="f-body_md"></textarea>
+      <div class="row" style="margin-top:10px;gap:8px;align-items:center">
+        <button class="btn" type="button" id="b-inline-img">Иллюстрация в текст (ИИ)</button>
+        <span class="hint">Картинка вставится туда, где стоит курсор. ~30–60 с.</span>
+      </div>
     </section>
 
     <section class="card">
@@ -166,6 +170,7 @@ textarea.body { min-height: 520px; font-family: var(--mono); font-size: 13px; }
         <div class="grid">
           <label class="f">Обложка <span class="hint">— jpg/png/webp до 5 МБ, 1200×630</span>
             <div class="row"><input type="text" id="f-cover_path" placeholder="/assets/blog/…" style="flex:1"><label class="btn">Загрузить<input type="file" id="f-file" accept=".jpg,.jpeg,.png,.webp" hidden></label></div>
+            <div class="row" style="margin-top:8px;gap:8px"><input type="text" id="img-idea" placeholder="Идея картинки (необязательно) — иначе по заголовку статьи" style="flex:1"><button class="btn" type="button" id="b-cover-ai">Сгенерировать обложку (ИИ)</button></div>
             <img class="cover-prev hidden" id="cover-prev" alt="">
           </label>
           <div class="grid g2">
@@ -409,6 +414,29 @@ $("f-file").onchange = async e => {
   try { const d = await api("/admin/api/upload", {method: "POST", body: JSON.stringify({filename: file.name, data})}); $("f-cover_path").value = d.path; dirty = true; refresh(); toast("Обложка загружена"); }
   catch (err) { toast(err.message, true); }
   e.target.value = "";
+};
+async function aiImage(kind, idea, btn, label) {
+  busy(btn, true, label);
+  const t0 = Date.now(), tick = setInterval(() => { btn.textContent = `${label} ${Math.round((Date.now() - t0) / 1000)} с`; }, 1000);
+  try {
+    return (await api("/admin/api/image", {method: "POST", body: JSON.stringify({
+      kind, idea, title: $("f-title").value, lead: $("f-lead").value, slug: $("f-slug").value})})).path;
+  } catch (e) { toast(e.message, true); return null; }
+  finally { clearInterval(tick); busy(btn, false); }
+}
+$("b-cover-ai").onclick = async () => {
+  const path = await aiImage("cover", $("img-idea").value, $("b-cover-ai"), "Рисую обложку…");
+  if (path) { $("f-cover_path").value = path; dirty = true; refresh(); toast("Обложка готова — не забудьте сохранить статью"); }
+};
+$("b-inline-img").onclick = async () => {
+  const ta = $("f-body_md"), pos = ta.selectionStart ?? ta.value.length;
+  const idea = prompt("Что должно быть на картинке? Это же станет подписью под ней.");
+  if (!idea || !idea.trim()) return;
+  const path = await aiImage("inline", idea.trim(), $("b-inline-img"), "Рисую…");
+  if (!path) return;
+  const md = `\n\n![${idea.trim().replace(/[\[\]]/g, "")}](${path})\n\n`;
+  ta.value = ta.value.slice(0, pos) + md + ta.value.slice(pos);
+  dirty = true; refresh(); toast("Иллюстрация вставлена в текст");
 };
 $("b-build").onclick = async () => {
   const b = $("b-build"); busy(b, true, "Собираю…");
