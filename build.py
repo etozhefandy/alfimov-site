@@ -655,9 +655,10 @@ def post_meta(a):
 def post_cards(posts):
     return "".join(
         f'<a class="post-card rv" href="{article_path(a)}">'
-        f'<span class="post-meta">{post_meta(a)}</span>'
+        + (f'<img class="post-img" src="{e(a["cover_path"])}" alt="" loading="lazy">' if a["cover_path"] else "")
+        + f'<div class="post-body"><span class="post-meta">{post_meta(a)}</span>'
         f'<h3>{e(a["title"])}</h3><p>{e(a["description"] or a["lead"])}</p>'
-        f'<span class="tlink">{e(content_ru.UI["more"])} {icon("arrow", "ic ic-sm")}</span></a>'
+        f'<span class="tlink">{e(content_ru.UI["more"])} {icon("arrow", "ic ic-sm")}</span></div></a>'
         for a in posts
     )
 

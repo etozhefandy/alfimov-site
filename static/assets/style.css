@@ -367,12 +367,16 @@ section[id] { scroll-margin-top: 72px; }
 
 /* blog: список и статья */
 .sec-tight { padding-top: 24px; }
-.post-grid { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.post-grid { display: grid; gap: 24px; }
 @media (min-width: 720px) { .post-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (min-width: 1020px) { .post-grid { grid-template-columns: repeat(3, 1fr); } }
-.post-card { display: flex; flex-direction: column; gap: 14px; padding: 28px; background: var(--bg); text-decoration: none; transition: background .2s ease; }
-.post-card:hover { background: var(--soft); }
+.post-card { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--bg); text-decoration: none; transition: border-color .2s ease; }
+.post-card:hover { border-color: var(--ink); }
+.post-img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; background: var(--soft); transition: transform .4s var(--ease); }
+.post-card:hover .post-img { transform: scale(1.02); }
+.post-body { display: flex; flex-direction: column; gap: 14px; padding: 24px 28px 28px; flex: 1; }
 .post-card h3 { font-size: 22px; }
+.post-card:hover h3 { color: var(--blue); }
 .post-card p { margin: 0; color: var(--ink-2); font-size: 16px; flex: 1; }
 .post-card .tlink { align-self: flex-start; }
 .post-meta { font-family: var(--font-mono); font-size: 13px; color: var(--muted); letter-spacing: .02em; margin: 0 0 20px; }
