@@ -57,22 +57,19 @@ security add-generic-password -a claude -s alfimov-site-anthropic -w
 
 ## Деплой
 
-С Mac, одной командой:
+Автоматический, без кнопок:
 
 ```
-./deploy.sh
+./deploy-git.sh
 ```
 
-Скрипт собирает сайт и заливает `dist/` по FTPS на хостинг PS.kz (`srv-plesk22.ps.kz`, папка `httpdocs`).
-Пароли берутся из Связки ключей macOS — один раз сохранить (команда спросит значение):
+Скрипт собирает сайт и кладёт `dist/` новым коммитом в ветку `deploy`. GitHub-вебхук (push) дёргает
+Plesk Git (репозиторий `alfimov-site.git`, ветка `deploy` → `/httpdocs`, режим «Автоматически»),
+и через ~10 секунд новая версия на сайте. Какая сборка сейчас на хостинге — https://alfimov.kz/version.txt.
 
-```
-security add-generic-password -a alfimovk -s alfimov-site-ftp -w
-security add-generic-password -a bot -s alfimov-site-tg-token -w
-security add-generic-password -a bot -s alfimov-site-tg-chat -w
-```
+Статьи блога: после публикации в админке тоже нужен `./deploy-git.sh` (админка делает это сама).
 
-Без Telegram-значений форма отвечает ошибкой и предлагает написать в WhatsApp/Telegram.
+Секреты формы — файл `tg-config.php` рядом с `httpdocs` на хостинге (вне репозитория).
 
-Workflow `.github/workflows/deploy.yml` отключён: аккаунт GitHub заблокирован по биллингу, Actions не стартуют.
-Если это починить — `gh workflow enable deploy.yml` (секреты FTP_PASSWORD / TG_BOT_TOKEN / TG_CHAT_ID).
+`./deploy.sh` (FTPS) и workflow `.github/workflows/deploy.yml` — запасные варианты, сейчас не используются:
+FTP-вход не настроен, а GitHub Actions на аккаунте заблокированы по биллингу.
