@@ -10,6 +10,7 @@
 import base64
 import json
 import os
+import random
 import ssl
 import subprocess
 import urllib.error
@@ -23,17 +24,62 @@ API_URL = "https://api.openai.com/v1/images/generations"
 TIMEOUT = 180
 
 # Визуальный язык сайта (design brief): спокойно, технологично, без штампов маркетинга.
+# Промпт собирается из слоёв (подход agency-os): постоянные слои держат стиль и качество,
+# переменные (сюжет, приём съёмки) дают разнообразие. Цвета — ТОЛЬКО словами: hex-код в промпте
+# модель норовит напечатать в кадре (в agency-os так на вывеске появилось «88E75»).
 STYLE = (
-    "Editorial illustration for a data-driven digital marketing agency website. "
-    "Minimalist, calm, rational, premium but not luxurious. Palette: white and light grey background, "
-    "near-black #0C1011 shapes, a single saturated blue accent #1769FF used sparingly. "
-    "Clean geometric composition, generous empty space, soft natural light, subtle depth. "
-    "No text, no letters, no numbers, no logos or app icons of any brands (no Instagram, Facebook, TikTok, Google marks), "
-    "no watermarks, no UI screenshots, no fake dashboards. "
-    "Avoid clichés: no rockets, no targets or bullseyes, no megaphones, no mouse cursors, no handshakes, "
-    "no smiling stock people, no floating gradient blobs, no glowing neon, no glassmorphism, "
-    "no charts with an upward arrow."
+    "Editorial image for a data-driven digital marketing agency website. "
+    "Minimalist, calm, rational, premium but not luxurious. Palette: white, light grey and near-black, "
+    "with one saturated cobalt-blue accent. "
+    "SIGNATURE ELEMENT: every image contains exactly one bold cobalt-blue geometric element — a cube, "
+    "slab, sphere, ribbon, panel or beam of blue light — placed with intent; everything else stays "
+    "white, grey and near-black. Clean geometric composition, generous negative space, subtle depth."
 )
+BANS = (
+    "No text, no letters, no numbers, no logos or app icons of any brands (no Instagram, Facebook, TikTok, "
+    "Google marks), no watermarks, no UI screenshots, no fake dashboards or charts. "
+    "Avoid clichés: no rockets, no targets or bullseyes, no megaphones, no mouse cursors, no handshakes, "
+    "no floating gradient blobs, no glowing neon, no glassmorphism, no arrows pointing up. "
+    "Commercial-grade finish, crisp composition, natural hands and faces, no extra limbs, no distortions."
+)
+
+# Сюжеты. people — живые, но редакционные и чуть абстрактные кадры, не сток.
+PEOPLE_RULE = (
+    "PEOPLE: authentic Central Asian (Kazakh) professionals and small-business owners in a modern "
+    "Almaty or Astana setting, candid and mid-action, not posing, not looking at the camera, no stock smiles. "
+    "Editorial, slightly abstract treatment: people partly in shadow or silhouette, cropped by geometry, "
+    "scale contrast between people and space; the scene explains the idea, faces are secondary."
+)
+NO_PEOPLE_RULE = (
+    "NO PEOPLE: no humans, faces, hands or silhouettes — abstract still life of objects, materials and "
+    "architecture only."
+)
+PEOPLE_SCENES = [
+    "a business owner and a marketer reviewing results together at a long table",
+    "a café owner behind the counter checking incoming orders on a phone",
+    "a small team at a whiteboard mapping the customer journey with sticky shapes",
+    "a founder alone in a bright empty office thinking over the next decision",
+    "two colleagues walking through a minimalist corridor mid-conversation",
+    "a shop owner welcoming a customer in a clean modern boutique",
+    "a person seen from behind at a large window overlooking the city",
+    "a meeting seen from above, people around a table covered with printed materials",
+]
+# Приёмы съёмки из словаря agency-os (shared/visual_techniques), отобраны под спокойный стиль сайта.
+TECHNIQUES = [
+    "shot perfectly top-down, objects and people arranged on a plane",
+    "low camera angle looking up, heroic monumental perspective",
+    "wide shot, the subject small inside a large architectural space",
+    "subject rendered as a backlit silhouette against a luminous wall",
+    "hard direct light with crisp graphic shadow shapes",
+    "composition built on reflections in glass and polished surfaces",
+    "graphic cast shadows used as the main compositional element",
+    "deliberate play of scale, an ordinary object made giant",
+    "vast negative space, the subject small and isolated",
+    "perfectly symmetrical centred framing, balanced geometry",
+    "shallow depth of field, one subject tack-sharp, the rest melting into soft bokeh",
+    "soft atmospheric haze and volumetric window light",
+]
+MODES = ("auto", "people", "abstract")
 
 SIZES = {"cover": "1536x1024", "inline": "1536x1024"}
 
@@ -67,18 +113,27 @@ def api_key():
         return ""
 
 
-def build_prompt(kind, title="", lead="", idea=""):
-    """Промпт: идея пользователя (если есть) или тема статьи + общий стиль сайта."""
+def build_prompt(kind, title="", lead="", idea="", mode="auto", rng=None):
+    """Промпт = тема (идея пользователя или заголовок) + сюжет (люди/абстракция) + приём съёмки + стиль.
+
+    mode: auto — люди примерно в половине картинок; people — всегда с людьми; abstract — без людей.
+    """
+    rng = rng or random.Random()
     idea, title, lead = (idea or "").strip(), (title or "").strip(), (lead or "").strip()
     if idea:
-        subject = f"Scene: {idea}."
+        topic = f"Idea to show: {idea}."
     elif title:
-        subject = f"A conceptual visual metaphor for an article titled «{title}»" + (f" — {lead}" if lead else "") + "."
+        topic = f"A visual metaphor for an article titled «{title}»" + (f" — {lead}" if lead else "") + "."
     else:
         raise ImageError("Опишите картинку или сначала заполните заголовок статьи")
-    frame = ("Wide 3:2 cover image, the main subject slightly off-centre."
+    people = mode == "people" or (mode not in MODES[1:] and rng.random() < 0.5)
+    if people:
+        scene = f"Scene: {rng.choice(PEOPLE_SCENES)}, connected to the idea above. {PEOPLE_RULE}"
+    else:
+        scene = f"Scene: an abstract still life of objects and materials expressing the idea. {NO_PEOPLE_RULE}"
+    frame = ("Wide 3:2 cover image."
              if kind == "cover" else "Wide 3:2 in-article illustration that explains the idea at a glance.")
-    return f"{subject} {frame} {STYLE}"
+    return f"{topic} {scene} Camera: {rng.choice(TECHNIQUES)}. {frame} {STYLE} {BANS}"
 
 
 def humanize(status, message):
@@ -123,11 +178,11 @@ def _first_b64(resp):
     return base64.b64decode(b64)
 
 
-def generate(kind, title="", lead="", idea="", key=None, opener=urllib.request.urlopen):
+def generate(kind, title="", lead="", idea="", key=None, opener=urllib.request.urlopen, mode="auto"):
     """→ (bytes, расширение файла). Бросает ImageError с понятным текстом."""
     if kind not in SIZES:
         raise ImageError("Неизвестный вид картинки")
-    prompt = build_prompt(kind, title, lead, idea)
+    prompt = build_prompt(kind, title, lead, idea, mode)
     key = key or api_key()
     if not key:
         raise ImageError("Нет ключа OpenAI. Скопируйте ключ и выполните: "

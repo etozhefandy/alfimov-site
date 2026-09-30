@@ -246,7 +246,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         import image_gen
         kind = data.get("kind") if data.get("kind") in ("cover", "inline") else "cover"
         try:
-            raw, ext = image_gen.generate(kind, data.get("title") or "", data.get("lead") or "", data.get("idea") or "")
+            raw, ext = image_gen.generate(kind, data.get("title") or "", data.get("lead") or "", data.get("idea") or "",
+                                          mode=data.get("mode") if data.get("mode") in image_gen.MODES else "auto")
         except image_gen.ImageError as ex:
             return self.error(400, str(ex))
         UPLOAD_DIR.mkdir(parents=True, exist_ok=True)

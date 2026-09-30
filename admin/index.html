@@ -247,6 +247,7 @@ details.more input { margin-top: 8px; }
             <div class="cover-empty" id="cover-empty">Обложки нет</div>
           </div>
           <input type="text" id="img-idea" placeholder="Идея картинки (необязательно)" style="margin-top:10px">
+          <select id="img-mode" style="margin-top:8px" title="Сюжет картинки"><option value="auto">Сюжет: авто (иногда с людьми)</option><option value="people">Сюжет: с людьми</option><option value="abstract">Сюжет: абстракция, без людей</option></select>
           <div class="row" style="margin-top:8px">
             <button class="btn btn-p" type="button" id="b-cover-ai">Сгенерировать (ИИ)</button>
             <label class="btn">Загрузить свою<input type="file" id="f-file" accept=".jpg,.jpeg,.png,.webp" hidden></label>
@@ -536,7 +537,7 @@ async function aiImage(kind, idea, btn, label) {
   const t0 = Date.now(), tick = setInterval(() => { btn.textContent = `${label} ${Math.round((Date.now() - t0) / 1000)} с`; }, 1000);
   try {
     return (await api("/admin/api/image", {method: "POST", body: JSON.stringify({
-      kind, idea, title: $("f-title").value, lead: $("f-lead").value, slug: $("f-slug").value})})).path;
+      kind, idea, mode: $("img-mode").value, title: $("f-title").value, lead: $("f-lead").value, slug: $("f-slug").value})})).path;
   } catch (e) { toast(e.message, true); return null; }
   finally { clearInterval(tick); busy(btn, false); }
 }

@@ -53,6 +53,29 @@ class PromptTest(unittest.TestCase):
             image_gen.build_prompt("cover")
 
 
+class SceneModeTest(unittest.TestCase):
+    def test_no_hex_codes_in_any_prompt(self):
+        import random
+        import re
+        for mode in image_gen.MODES:
+            for seed in range(20):
+                p = image_gen.build_prompt("cover", "Тема", mode=mode, rng=random.Random(seed))
+                self.assertNotRegex(p, r"#?\b[0-9A-Fa-f]{6}\b")
+                self.assertIn("cobalt-blue", p)  # фирменный синий элемент в каждой картинке
+
+    def test_people_and_abstract_modes(self):
+        self.assertIn("PEOPLE: authentic", image_gen.build_prompt("cover", "Тема", mode="people"))
+        abstract = image_gen.build_prompt("cover", "Тема", mode="abstract")
+        self.assertIn("NO PEOPLE", abstract)
+        self.assertNotIn("PEOPLE: authentic", abstract)
+
+    def test_auto_mixes_people_and_abstract(self):
+        import random
+        rng = random.Random(1)
+        kinds = {("PEOPLE: authentic" in image_gen.build_prompt("cover", "Тема", rng=rng)) for _ in range(30)}
+        self.assertEqual(kinds, {True, False})
+
+
 class GenerateTest(unittest.TestCase):
     def test_gpt_image_webp(self):
         img = b"WEBPDATA"
