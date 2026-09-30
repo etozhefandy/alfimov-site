@@ -81,6 +81,8 @@ textarea.body { min-height: 520px; font-family: var(--mono); font-size: 13px; }
 .idea { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r); }
 .idea b { display: block; margin-bottom: 4px; }
 .idea .btn { flex: none; }
+.btn-go { background: #178a4c; border-color: #178a4c; color: #fff; }
+.btn-go:hover { background: #12723e; }
 .cover-prev { max-width: 220px; border-radius: var(--r); border: 1px solid var(--line); display: block; margin-top: 8px; }
 .toast { position: fixed; right: 20px; bottom: 20px; max-width: 460px; padding: 12px 16px; border-radius: var(--r); background: var(--ink); color: #fff; font-size: 14px; white-space: pre-line; box-shadow: 0 8px 30px rgba(0,0,0,.2); z-index: 10; }
 .toast.err { background: var(--bad); }
@@ -214,6 +216,7 @@ textarea.body { min-height: 520px; font-family: var(--mono); font-size: 13px; }
     <div class="foot-actions">
       <button class="btn btn-p" id="b-save">Сохранить</button>
       <button class="btn" id="b-preview">Предпросмотр</button>
+      <button class="btn btn-go" id="b-now">Опубликовать сейчас</button>
       <span class="spacer"></span>
       <button class="btn btn-d" id="b-del">Удалить</button>
     </div>
@@ -359,7 +362,7 @@ function refresh() {
   $("checks").innerHTML = checks.map(([c, t]) => `<li class="${c}">${esc(t)}</li>`).join("");
   const note = $("pub-note");
   if (a.status === "draft") note.textContent = "Черновик на сайт не попадает.";
-  else if (!a.publish_at) note.textContent = "Укажите дату выхода.";
+  else if (!a.publish_at) note.textContent = "Укажите дату выхода — или нажмите «Опубликовать сейчас» внизу.";
   else {
     const due = new Date(a.publish_at + ":00+05:00") <= new Date();
     note.textContent = due ? "Дата наступила — статья попадёт на сайт при следующей публикации."
@@ -393,6 +396,20 @@ async function save() {
 $("b-save").onclick = async () => {
   const b = $("b-save"); busy(b, true, "Сохраняю…");
   try { const a = await save(); toast("Сохранено · " + STATE[a.state][0]); } catch (e) { toast(e.message, true); }
+  busy(b, false);
+};
+// Одной кнопкой: статус «Запланировано» + дата «сейчас» → сохранить → выложить сайт.
+const almatyNow = () => new Date(Date.now() - 60000).toLocaleString("sv-SE", {timeZone: "Asia/Almaty"}).slice(0, 16).replace(" ", "T");
+$("b-now").onclick = async () => {
+  const title = $("f-title").value.trim() || "без заголовка";
+  if (!confirm(`Опубликовать статью «${title}» на alfimov.kz прямо сейчас?`)) return;
+  const b = $("b-now"); busy(b, true, "Публикую…");
+  try {
+    $("f-status").value = "scheduled"; $("f-publish_at").value = almatyNow(); dirty = true;
+    const a = await save();
+    const d = await api("/admin/api/publish", {method: "POST"});
+    toast(`Опубликовано: alfimov.kz${a.path}\n` + d.log.join("\n"));
+  } catch (e) { toast(e.message, true); }
   busy(b, false);
 };
 $("b-preview").onclick = async () => {
