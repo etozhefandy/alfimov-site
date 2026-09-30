@@ -405,6 +405,21 @@ def cases_block(c, num):
 
 # ---------------------------------------------------------------- pages
 
+def home_blog_block(c, n):
+    """Свежие статьи блога на главной (только RU: статьи на русском). Нет статей — нет блока."""
+    posts = blog.live() if c is content_ru else []
+    if not posts:
+        return ""
+    return f"""
+<section class="sec" id="blog">
+  <div class="wrap">
+    <div class="sec-head rv">{eyebrow(next(n), BLOG_UI['nav'])}<h2>{e(BLOG_UI['home_title'])}</h2><p>{e(BLOG_UI['lead'])}</p></div>
+    <div class="post-grid">{post_cards(posts[:3])}</div>
+    <p class="rv" style="margin:32px 0 0"><a class="tlink" href="{BLOG_PATH}">{e(BLOG_UI['all'])} {icon('arrow', 'ic ic-sm')}</a></p>
+  </div>
+</section>"""
+
+
 def build_home(c):
     h, ui = c.HOME, c.UI
     title_post = f" {e(h['hero_title_post'])}" if h.get("hero_title_post") else ""
@@ -479,6 +494,7 @@ def build_home(c):
   </div>
 </section>
 {cases_block(c, next(n))}
+{home_blog_block(c, n)}
 {faq_block(c, h['faq'], next(n))}
 {lead_form(c, 'home')}
 """
@@ -615,6 +631,7 @@ def build_404():
 BLOG_PATH = "/blog/"
 BLOG_UI = {
     "nav": "Блог",
+    "home_title": "Свежие статьи",
     "title": "Блог о маркетинге и рекламе в Казахстане",
     "meta_title": "Блог о маркетинге и рекламе в Казахстане | Alfimov",
     "meta_desc": "Разборы и практические материалы агентства Alfimov: таргет, контекст, SEO, SMM и аналитика для бизнеса в Казахстане.",

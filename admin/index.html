@@ -408,16 +408,20 @@ $("b-del").onclick = async () => {
 $("b-gen").onclick = async () => {
   const topic = $("g-topic").value.trim();
   if (!topic) { toast("Впишите тему статьи", true); $("g-topic").focus(); return; }
-  if (($("f-body_md").value.trim() || $("f-title").value.trim()) && !confirm("Черновик ИИ заменит текст и SEO-поля в редакторе (статус, дата и обложка останутся). Продолжить?")) return;
+  // ИИ всегда пишет НОВУЮ статью: сохранённую (тем более опубликованную) он не перезаписывает.
+  if (current) {
+    if (dirty && !confirm(`В редакторе открыта статья «${current.title}» с несохранёнными правками. Они пропадут, а ИИ напишет новую статью. Продолжить?`)) return;
+    const ai = {topic: $("g-topic").value, keys: $("g-keys").value, notes: $("g-notes").value};
+    delete $("f-slug").dataset.touched; open(null);  // open(null) очищает поля ИИ — возвращаем их
+    $("g-topic").value = ai.topic; $("g-keys").value = ai.keys; $("g-notes").value = ai.notes;
+  } else if (($("f-body_md").value.trim() || $("f-title").value.trim()) && !confirm("Черновик ИИ заменит несохранённый текст в редакторе. Продолжить?")) return;
   const b = $("b-gen"); busy(b, true, "Пишу…");
   const t0 = Date.now(), tick = setInterval(() => { $("g-status").textContent = `Claude пишет статью… ${Math.round((Date.now() - t0) / 1000)} с (обычно 1–3 мин)`; }, 1000);
   try {
     const d = await api("/admin/api/generate", {method: "POST", body: JSON.stringify({
-      topic, keywords: $("g-keys").value, notes: $("g-notes").value, words: $("g-words").value, current_slug: current ? current.slug : null})});
-    const keepSlug = current ? current.slug : null;
+      topic, keywords: $("g-keys").value, notes: $("g-notes").value, words: $("g-words").value, current_slug: null})});
     fill(d.article);
-    if (keepSlug) $("f-slug").value = keepSlug;
-    $("g-status").textContent = "Готово. Проверьте текст и нажмите «Сохранить» — статья сохранится черновиком.";
+    $("g-status").textContent = "Готово — это новая статья. Проверьте текст и нажмите «Сохранить»: она сохранится черновиком.";
   } catch (e) { $("g-status").textContent = ""; toast(e.message, true); }
   clearInterval(tick); busy(b, false);
 };
