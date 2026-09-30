@@ -149,6 +149,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         if path == "/admin/":
             return self.send(200, ADMIN_HTML.read_text(encoding="utf-8"), "text/html; charset=utf-8")
+        if path == "/admin/api/ideas":
+            import topic_ideas
+            return self.send(200, topic_ideas.cached() or {"ideas": []})
         if path == "/admin/api/articles":
             return self.send(200, {"articles": [article_view(a) for a in blog.load_all()],
                                    "now": blog.now().isoformat(timespec="minutes"),
@@ -191,6 +194,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self.generate(self.body())
         if method == "POST" and path == "/admin/api/upload":
             return self.upload(self.body())
+        if method == "POST" and path == "/admin/api/ideas":
+            import seo_writer
+            import topic_ideas
+            data = self.body()
+            existing = [a["title"] for a in blog.load_all()]
+            try:
+                return self.send(200, topic_ideas.run(existing, (data.get("focus") or "").strip()))
+            except seo_writer.WriterError as ex:
+                return self.error(400, str(ex))
         if method == "POST" and path == "/admin/api/image":
             return self.image(self.body())
         if method == "POST" and path == "/admin/api/build":

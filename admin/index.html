@@ -77,6 +77,10 @@ textarea.body { min-height: 520px; font-family: var(--mono); font-size: 13px; }
 .checks li.ok::before { content: "✓"; color: var(--ok); }
 .checks li.warn::before { content: "!"; color: var(--warn); }
 .checks li.bad::before { content: "✕"; color: var(--bad); }
+.ideas { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+.idea { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r); }
+.idea b { display: block; margin-bottom: 4px; }
+.idea .btn { flex: none; }
 .cover-prev { max-width: 220px; border-radius: var(--r); border: 1px solid var(--line); display: block; margin-top: 8px; }
 .toast { position: fixed; right: 20px; bottom: 20px; max-width: 460px; padding: 12px 16px; border-radius: var(--r); background: var(--ink); color: #fff; font-size: 14px; white-space: pre-line; box-shadow: 0 8px 30px rgba(0,0,0,.2); z-index: 10; }
 .toast.err { background: var(--bad); }
@@ -104,6 +108,15 @@ textarea.body { min-height: 520px; font-family: var(--mono); font-size: 13px; }
     <ul class="list" id="list"></ul>
   </aside>
   <main class="main">
+    <section class="card ai" id="ideas-card">
+      <h2>Идеи тем <small>живые запросы из подсказок Google и Яндекса по Казахстану → Claude</small></h2>
+      <div class="row" style="gap:8px">
+        <input type="text" id="i-focus" placeholder="На чём сфокусироваться (необязательно): например, TikTok или клиники" style="flex:1">
+        <span class="ai-status" id="i-status"></span>
+        <button class="btn btn-p" id="b-ideas">Предложить темы</button>
+      </div>
+      <ul class="ideas" id="ideas"></ul>
+    </section>
     <section class="card ai">
       <h2>Написать с ИИ <small id="model"></small></h2>
       <div class="grid">
@@ -438,6 +451,35 @@ $("b-inline-img").onclick = async () => {
   ta.value = ta.value.slice(0, pos) + md + ta.value.slice(pos);
   dirty = true; refresh(); toast("Иллюстрация вставлена в текст");
 };
+const SERVICE_NAMES = {"target-facebook-instagram": "Таргет Instagram/Facebook", "target-tiktok": "Таргет TikTok", "smm": "SMM",
+  "kontekstnaya-reklama": "Контекст", "seo-prodvizhenie": "SEO", "marketingovye-issledovaniya": "Исследования", "kompleksnyj-marketing": "Комплексный"};
+function renderIdeas(d) {
+  const ideas = (d && d.ideas) || [];
+  $("ideas").innerHTML = ideas.map((i, n) => `<li class="idea">
+    <div><b>${esc(i.topic)}</b>
+      <div class="hint">🔑 ${esc(i.main_keyword)} · ${esc(i.intent)}${i.service ? " · → " + esc(SERVICE_NAMES[i.service] || i.service) : ""}</div>
+      <div class="hint">${esc(i.why)}</div>
+      <div class="hint">Запросы: ${esc(i.keywords.join(", "))}</div></div>
+    <button class="btn" data-idea="${n}">Написать статью</button></li>`).join("");
+  $("ideas")._data = ideas;
+  if (d && d.created) $("i-status").textContent = `${ideas.length} тем из ${d.queries} запросов · ${d.created}`;
+}
+$("ideas").onclick = e => {
+  const b = e.target.closest("[data-idea]"); if (!b) return;
+  const i = $("ideas")._data[+b.dataset.idea];
+  $("g-topic").value = i.topic;
+  $("g-keys").value = [i.main_keyword, ...i.keywords.filter(k => k !== i.main_keyword)].join("\n");
+  $("g-topic").scrollIntoView({behavior: "smooth", block: "center"});
+  toast("Тема подставлена — нажмите «Сгенерировать черновик»");
+};
+$("b-ideas").onclick = async () => {
+  const b = $("b-ideas"); busy(b, true, "Собираю запросы…");
+  const t0 = Date.now(), tick = setInterval(() => { $("i-status").textContent = `Собираю подсказки и думаю… ${Math.round((Date.now() - t0) / 1000)} с (обычно до минуты)`; }, 1000);
+  try { renderIdeas(await api("/admin/api/ideas", {method: "POST", body: JSON.stringify({focus: $("i-focus").value})})); }
+  catch (e) { $("i-status").textContent = ""; toast(e.message, true); }
+  clearInterval(tick); busy(b, false);
+};
+api("/admin/api/ideas").then(renderIdeas).catch(() => {});
 $("b-build").onclick = async () => {
   const b = $("b-build"); busy(b, true, "Собираю…");
   try { const d = await api("/admin/api/build", {method: "POST"}); toast(`Собрано. Статей на сайте: ${d.live}. Откройте /blog/`); } catch (e) { toast(e.message, true); }
