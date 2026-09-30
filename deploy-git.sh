@@ -5,6 +5,8 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 python3 build.py
+# Критичные SEO-ошибки (битые ссылки, дубли title, нет H1) — не выкладываем.
+python3 seo_audit.py >/dev/null || { python3 seo_audit.py | grep '\[critical\]'; echo 'Выкладка остановлена: исправьте critical-ошибки SEO-аудита'; exit 1; }
 REMOTE="$(git remote get-url origin)"
 SRC_SHA="$(git rev-parse --short HEAD)"
 TMP="$(mktemp -d)"

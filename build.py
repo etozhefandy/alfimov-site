@@ -657,7 +657,7 @@ def post_cards(posts):
         f'<a class="post-card rv" href="{article_path(a)}">'
         + (f'<img class="post-img" src="{e(a["cover_path"])}" alt="" loading="lazy">' if a["cover_path"] else "")
         + f'<div class="post-body"><span class="post-meta">{post_meta(a)}</span>'
-        f'<h3>{e(a["title"])}</h3><p>{e(a["description"] or a["lead"])}</p>'
+        f'<h2>{e(a["title"])}</h2><p>{e(a["description"] or a["lead"])}</p>'
         f'<span class="tlink">{e(content_ru.UI["more"])} {icon("arrow", "ic ic-sm")}</span></div></a>'
         for a in posts
     )
@@ -839,6 +839,12 @@ def build():
         f"<?php\nreturn ['tg_token' => {php_str(token)}, 'tg_chat' => {php_str(chat)}];\n", encoding="utf-8"
     )
     print(f"Built {len(paths)} pages + blog {len(posts)} → {DIST}")
+    import seo_audit
+    issues = seo_audit.audit(DIST)
+    for i in issues:
+        if i.severity != "info":
+            print(f"  {i}")
+    print(f"  {seo_audit.summary(issues)}")
 
 
 if __name__ == "__main__":

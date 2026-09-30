@@ -69,6 +69,11 @@ security add-generic-password -U -a openai -s alfimov-site-openai -w "$(pbpaste 
 
 (ключ берётся из буфера обмена: интерактивный ввод `security … -w` обрезает до 128 символов, а ключи `sk-proj-` длиннее)
 
+**SEO-аудит** (`seo_audit.py`, правила по мотивам аудита OpenSEO): title/description (есть, длина ≤60/≤160, дубли),
+ровно один H1, уровни заголовков без пропусков, битые внутренние ссылки, страницы-сироты, картинки без alt, объём текста.
+Сводка печатается при каждой сборке; `./deploy-git.sh` не выкладывает сайт при critical-ошибках.
+Вручную: `python3 seo_audit.py`.
+
 Тесты: `python3 -m unittest discover tests -v`
 
 ## Деплой
