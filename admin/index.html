@@ -89,6 +89,34 @@ textarea.body { min-height: 520px; font-family: var(--mono); font-size: 13px; }
 .toast { position: fixed; right: 20px; bottom: 20px; max-width: 460px; padding: 12px 16px; border-radius: var(--r); background: var(--ink); color: #fff; font-size: 14px; white-space: pre-line; box-shadow: 0 8px 30px rgba(0,0,0,.2); z-index: 10; }
 .toast.err { background: var(--bad); }
 .hidden { display: none !important; }
+/* два экрана: главный (статьи, идеи, ИИ) и редактор */
+.page { max-width: 1280px; margin: 0 auto; padding: 20px; }
+.home, .editor { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-content: start; }
+body.view-edit .home, body:not(.view-edit) .editor { display: none; }
+.acards { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+.acard { border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; cursor: pointer; background: #fff; display: flex; flex-direction: column; transition: border-color .15s; }
+.acard:hover { border-color: var(--blue); }
+.acard .th { aspect-ratio: 3 / 2; background: var(--soft); object-fit: cover; width: 100%; display: block; }
+.acard .th.none { display: grid; place-items: center; color: var(--muted); font-size: 13px; }
+.acard .b { padding: 12px 14px 14px; display: grid; gap: 8px; }
+.acard .t { font-weight: 600; line-height: 1.35; }
+.acard .m { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--muted); font-family: var(--mono); }
+.acard .edit { color: var(--blue); font-weight: 500; font-size: 13px; }
+.acards .empty { grid-column: 1 / -1; }
+.ebar { position: sticky; top: 57px; z-index: 4; display: flex; gap: 8px; align-items: center; padding: 10px 14px; background: #fff; border: 1px solid var(--line); border-radius: var(--r); box-shadow: 0 4px 16px rgba(0,0,0,.05); }
+.ebar-t { display: flex; gap: 10px; align-items: center; min-width: 0; }
+.ebar-t { flex: 1; }
+.ebar-t b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ecols { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr) 360px; align-items: start; }
+@media (max-width: 1000px) { .ecols { grid-template-columns: 1fr; } .ebar { flex-wrap: wrap; } }
+.ecol-main, .ecol-side { display: grid; gap: 16px; align-content: start; }
+input.big { font-size: 20px; font-weight: 600; padding: 12px 14px; }
+.cover-box { border: 1px dashed var(--line-2); border-radius: var(--r); overflow: hidden; background: var(--soft); }
+.cover-box .cover-prev { max-width: none; width: 100%; margin: 0; border: 0; border-radius: 0; aspect-ratio: 3 / 2; object-fit: cover; }
+.cover-empty { aspect-ratio: 3 / 2; display: grid; place-items: center; color: var(--muted); font-size: 14px; }
+details.more summary { cursor: pointer; font-size: 13px; color: var(--ink-2); }
+details.more input { margin-top: 8px; }
+
 .foot-actions { display: flex; gap: 8px; flex-wrap: wrap; position: sticky; bottom: 0; padding: 12px 0; background: var(--soft); }
 .spacer { flex: 1; }
 </style>
@@ -100,18 +128,25 @@ textarea.body { min-height: 520px; font-family: var(--mono); font-size: 13px; }
   <a class="btn" href="/blog/" target="_blank" title="Собранный блог (после «Собрать»)">Открыть /blog/</a>
   <button class="btn btn-p" id="b-publish">Опубликовать на сайт</button>
 </header>
-<div class="layout">
-  <aside class="side">
-    <button class="btn btn-p" id="b-new">+ Новая статья</button>
-    <div class="filters" id="filters">
-      <button data-f="all" class="on">Все</button>
-      <button data-f="draft">Черновики</button>
-      <button data-f="scheduled">Запланированы</button>
-      <button data-f="live">На сайте</button>
-    </div>
-    <ul class="list" id="list"></ul>
-  </aside>
-  <main class="main">
+<div class="page">
+
+  <!-- ===== ГЛАВНЫЙ ЭКРАН: статьи, идеи, ИИ ===== -->
+  <div class="home">
+    <section class="card">
+      <div class="row" style="margin-bottom:14px">
+        <h2 style="margin:0">Статьи</h2>
+        <div class="filters" id="filters">
+          <button data-f="all" class="on">Все</button>
+          <button data-f="draft">Черновики</button>
+          <button data-f="scheduled">Запланированы</button>
+          <button data-f="live">На сайте</button>
+        </div>
+        <span class="spacer"></span>
+        <button class="btn" id="b-new">+ Новая статья вручную</button>
+      </div>
+      <ul class="acards" id="list"></ul>
+    </section>
+
     <section class="card ai" id="ideas-card">
       <h2>Идеи тем <small>живые запросы из подсказок Google и Яндекса по Казахстану → Claude</small></h2>
       <div class="row" style="gap:8px">
@@ -126,8 +161,9 @@ textarea.body { min-height: 520px; font-family: var(--mono); font-size: 13px; }
       </div>
       <ul class="ideas" id="ideas"></ul>
     </section>
-    <section class="card ai">
-      <h2>Написать с ИИ <small id="model"></small></h2>
+
+    <section class="card ai" id="ai-card">
+      <h2>Написать статью с ИИ <small id="model"></small></h2>
       <div class="grid">
         <label class="f">Тема статьи
           <input type="text" id="g-topic" placeholder="Сколько стоит таргетированная реклама в Instagram в Казахстане">
@@ -148,86 +184,102 @@ textarea.body { min-height: 520px; font-family: var(--mono); font-size: 13px; }
         </div>
       </div>
     </section>
+  </div>
 
-    <section class="card">
-      <h2 id="ed-title">Новая статья</h2>
-      <div class="grid">
-        <label class="f">Заголовок (h1) <span class="cnt" id="c-title"></span><input type="text" id="f-title"></label>
-        <div class="grid g2">
-          <label class="f">Адрес: /blog/…/ <span class="hint">— латиница и дефис</span>
-            <div class="row"><input type="text" id="f-slug" style="flex:1"><button class="btn" id="b-slug" type="button" title="Из заголовка">↻</button></div>
-          </label>
-          <label class="f">Раздел<input type="text" id="f-category" list="cats" placeholder="Таргет, SEO, Аналитика…"><datalist id="cats"></datalist></label>
-        </div>
-        <label class="f">SEO title (&lt;title&gt;) <span class="hint">— если пусто, возьмём заголовок</span> <span class="cnt" id="c-seo"></span><input type="text" id="f-seo_title"></label>
-        <label class="f">Meta description <span class="cnt" id="c-desc"></span><textarea id="f-description" rows="2"></textarea></label>
-        <label class="f">Лид — подзаголовок под h1<textarea id="f-lead" rows="2"></textarea></label>
-        <label class="f">«Коротко» — суть статьи для читателя<textarea id="f-summary" rows="3"></textarea></label>
-        <label class="f">Поисковые запросы статьи<input type="text" id="f-keywords" placeholder="через запятую"></label>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2>Текст <small>markdown: ## раздел, ### подраздел, - список, | таблица |, **жирный**, [ссылка](/smm/), ![подпись](/assets/blog/…)</small></h2>
-      <textarea class="body" id="f-body_md"></textarea>
-      <div class="row" style="margin-top:10px;gap:8px;align-items:center">
-        <button class="btn" type="button" id="b-inline-img">Иллюстрация в текст (ИИ)</button>
-        <span class="hint">Картинка вставится туда, где стоит курсор. ~30–60 с.</span>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2>FAQ <small>попадёт на страницу и в разметку FAQPage</small></h2>
-      <div id="faq"></div>
-      <button class="btn" id="b-faq" type="button">+ Вопрос</button>
-    </section>
-
-    <div class="grid g2">
-      <section class="card">
-        <h2>Перелинковка <small>«Читайте также»</small></h2>
-        <div class="rel" id="related"></div>
-      </section>
-      <section class="card">
-        <h2>Обложка и автор</h2>
-        <div class="grid">
-          <label class="f">Обложка <span class="hint">— jpg/png/webp до 5 МБ, 1200×630</span>
-            <div class="row"><input type="text" id="f-cover_path" placeholder="/assets/blog/…" style="flex:1"><label class="btn">Загрузить<input type="file" id="f-file" accept=".jpg,.jpeg,.png,.webp" hidden></label></div>
-            <div class="row" style="margin-top:8px;gap:8px"><input type="text" id="img-idea" placeholder="Идея картинки (необязательно) — иначе по заголовку статьи" style="flex:1"><button class="btn" type="button" id="b-cover-ai">Сгенерировать обложку (ИИ)</button></div>
-            <img class="cover-prev hidden" id="cover-prev" alt="">
-          </label>
-          <div class="grid g2">
-            <label class="f">Автор<input type="text" id="f-author" placeholder="пусто — от агентства"></label>
-            <label class="f">Время чтения, мин<input type="number" id="f-read_min" min="1" placeholder="авто"></label>
-          </div>
-        </div>
-      </section>
-    </div>
-
-    <div class="grid g2">
-      <section class="card">
-        <h2>Публикация</h2>
-        <div class="grid g2">
-          <label class="f">Статус
-            <select id="f-status"><option value="draft">Черновик</option><option value="scheduled">Запланировано</option></select>
-          </label>
-          <label class="f">Дата выхода <span class="hint">(Алматы)</span><input type="datetime-local" id="f-publish_at"></label>
-        </div>
-        <p class="ai-status" id="pub-note" style="margin:12px 0 0"></p>
-      </section>
-      <section class="card">
-        <h2>SEO-проверка</h2>
-        <ul class="checks" id="checks"></ul>
-      </section>
-    </div>
-
-    <div class="foot-actions">
-      <button class="btn btn-p" id="b-save">Сохранить</button>
-      <button class="btn" id="b-preview">Предпросмотр</button>
-      <button class="btn btn-go" id="b-now">Опубликовать сейчас</button>
+  <!-- ===== РЕДАКТОР СТАТЬИ ===== -->
+  <div class="editor">
+    <div class="ebar">
+      <button class="btn" id="b-back">← Все статьи</button>
+      <div class="ebar-t"><span class="badge" id="ed-badge"></span><b id="ed-title">Новая статья</b></div>
       <span class="spacer"></span>
-      <button class="btn btn-d" id="b-del">Удалить</button>
+      <button class="btn" id="b-preview">Предпросмотр</button>
+      <button class="btn btn-p" id="b-save">Сохранить</button>
+      <button class="btn btn-go" id="b-now">Опубликовать сейчас</button>
     </div>
-  </main>
+
+    <div class="ecols">
+      <div class="ecol-main">
+        <section class="card">
+          <label class="f">Заголовок статьи (h1) <span class="cnt" id="c-title"></span><input type="text" id="f-title" class="big"></label>
+          <label class="f" style="margin-top:14px">Лид — подзаголовок под заголовком<textarea id="f-lead" rows="2"></textarea></label>
+          <label class="f" style="margin-top:14px">«Коротко» — суть статьи для читателя<textarea id="f-summary" rows="3"></textarea></label>
+        </section>
+
+        <section class="card">
+          <h2>Текст статьи <small>## раздел · ### подраздел · - список · | таблица | · **жирный** · [ссылка](/smm/)</small></h2>
+          <textarea class="body" id="f-body_md"></textarea>
+          <div class="row" style="margin-top:10px;gap:8px;align-items:center">
+            <button class="btn" type="button" id="b-inline-img">🖼 Иллюстрация в текст (ИИ)</button>
+            <span class="hint">Картинка вставится туда, где стоит курсор. ~30–60 с.</span>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>Вопросы и ответы (FAQ) <small>попадут на страницу и в разметку для Google</small></h2>
+          <div id="faq"></div>
+          <button class="btn" id="b-faq" type="button">+ Вопрос</button>
+        </section>
+
+        <section class="card">
+          <h2>Перелинковка <small>блок «Читайте также»</small></h2>
+          <div class="rel" id="related"></div>
+        </section>
+
+        <div class="row" style="padding:4px 0 24px"><span class="spacer"></span><button class="btn btn-d" id="b-del">Удалить статью</button></div>
+      </div>
+
+      <aside class="ecol-side">
+        <section class="card">
+          <h2>Публикация</h2>
+          <div class="grid">
+            <label class="f">Статус
+              <select id="f-status"><option value="draft">Черновик</option><option value="scheduled">Запланировано</option></select>
+            </label>
+            <label class="f">Дата выхода <span class="hint">(Алматы)</span><input type="datetime-local" id="f-publish_at"></label>
+          </div>
+          <p class="ai-status" id="pub-note" style="margin:12px 0 0"></p>
+        </section>
+
+        <section class="card">
+          <h2>Обложка</h2>
+          <div class="cover-box" id="cover-box">
+            <img class="cover-prev hidden" id="cover-prev" alt="">
+            <div class="cover-empty" id="cover-empty">Обложки нет</div>
+          </div>
+          <input type="text" id="img-idea" placeholder="Идея картинки (необязательно)" style="margin-top:10px">
+          <div class="row" style="margin-top:8px">
+            <button class="btn btn-p" type="button" id="b-cover-ai">Сгенерировать (ИИ)</button>
+            <label class="btn">Загрузить свою<input type="file" id="f-file" accept=".jpg,.jpeg,.png,.webp" hidden></label>
+          </div>
+          <details class="more"><summary>Путь к файлу</summary><input type="text" id="f-cover_path" placeholder="/assets/blog/…"></details>
+        </section>
+
+        <section class="card">
+          <h2>SEO-проверка</h2>
+          <ul class="checks" id="checks"></ul>
+        </section>
+
+        <section class="card">
+          <details class="more" open>
+            <summary><b>SEO и адрес страницы</b></summary>
+            <div class="grid" style="margin-top:12px">
+              <label class="f">Адрес: /blog/…/ <span class="hint">— латиница и дефис</span>
+                <div class="row"><input type="text" id="f-slug" style="flex:1"><button class="btn" id="b-slug" type="button" title="Из заголовка">↻</button></div>
+              </label>
+              <label class="f">SEO title (&lt;title&gt;) <span class="cnt" id="c-seo"></span><input type="text" id="f-seo_title" placeholder="пусто — возьмём заголовок"></label>
+              <label class="f">Описание для поиска <span class="cnt" id="c-desc"></span><textarea id="f-description" rows="3"></textarea></label>
+              <label class="f">Поисковые запросы<input type="text" id="f-keywords" placeholder="через запятую"></label>
+              <label class="f">Раздел<input type="text" id="f-category" list="cats" placeholder="Таргет, SEO, Аналитика…"><datalist id="cats"></datalist></label>
+              <div class="grid g2">
+                <label class="f">Автор<input type="text" id="f-author" placeholder="от агентства"></label>
+                <label class="f">Минут чтения<input type="number" id="f-read_min" min="1" placeholder="авто"></label>
+              </div>
+            </div>
+          </details>
+        </section>
+      </aside>
+    </div>
+  </div>
 </div>
 <div class="toast hidden" id="toast"></div>
 
@@ -265,20 +317,26 @@ async function load(selectSlug) {
   $("model").textContent = "· " + d.writer_model;
   $("cats").innerHTML = [...new Set(articles.map(a => a.category).filter(Boolean))].map(c => `<option value="${esc(c)}">`).join("");
   renderList();
-  if (selectSlug !== undefined) open(articles.find(a => a.slug === selectSlug) || null);
+  if (selectSlug) open(articles.find(a => a.slug === selectSlug) || null);
+  else if (selectSlug === null) showHome();
 }
 function renderList() {
   const items = articles.filter(a => filter === "all" || a.state === filter);
   $("list").innerHTML = items.length ? items.map(a => {
     const [label, cls] = STATE[a.state];
-    return `<li data-slug="${esc(a.slug)}" class="${current && current.slug === a.slug ? "on" : ""}">
-      <div class="t">${esc(a.title)}</div>
-      <div class="m"><span class="badge ${cls}">${label}</span>${a.publish_at ? esc(fmtDate(a.publish_at)) : ""}</div></li>`;
-  }).join("") : `<li class="empty">Статей нет. Напишите первую с помощью ИИ справа.</li>`;
+    const th = a.cover_path ? `<img class="th" src="${esc(a.cover_path)}" alt="" loading="lazy">` : `<div class="th none">без обложки</div>`;
+    return `<li class="acard" data-slug="${esc(a.slug)}">${th}<div class="b">
+      <div class="m"><span class="badge ${cls}">${label}</span>${a.publish_at ? esc(fmtDate(a.publish_at)) : ""}</div>
+      <div class="t">${esc(a.title)}</div><span class="edit">Редактировать →</span></div></li>`;
+  }).join("") : `<li class="empty">Статей пока нет — предложите темы или напишите статью с ИИ ниже.</li>`;
 }
+function showHome() {
+  current = null; dirty = false;
+  document.body.classList.remove("view-edit"); renderList(); window.scrollTo(0, 0);
+}
+function showEditor() { document.body.classList.add("view-edit"); window.scrollTo(0, 0); }
 $("list").onclick = e => {
   const li = e.target.closest("li[data-slug]"); if (!li) return;
-  if (dirty && !confirm("Есть несохранённые изменения. Открыть другую статью?")) return;
   open(articles.find(a => a.slug === li.dataset.slug));
 };
 $("filters").onclick = e => {
@@ -296,7 +354,11 @@ function open(a) {
   renderFaq(v.faq || []);
   renderRelated(v.related || []);
   $("ed-title").textContent = a ? a.title : "Новая статья";
+  const [label, cls] = STATE[a ? a.state : "draft"];
+  $("ed-badge").textContent = label; $("ed-badge").className = "badge " + cls;
+  $("b-now").textContent = a && a.state === "live" ? "Обновить на сайте" : "Опубликовать сейчас";
   $("b-del").classList.toggle("hidden", !a);
+  showEditor();
   if (!a) { $("g-topic").value = ""; $("g-keys").value = ""; $("g-notes").value = ""; }
   dirty = false; renderList(); refresh();
 }
@@ -377,15 +439,16 @@ function refresh() {
   }
   const cp = $("f-cover_path").value, img = $("cover-prev");
   img.classList.toggle("hidden", !cp); if (cp) img.src = cp;
+  $("cover-empty").classList.toggle("hidden", !!cp);
 }
-document.querySelector(".main").addEventListener("input", e => {
+document.querySelector(".editor").addEventListener("input", e => {
   if (e.target.closest(".ai")) return;
   dirty = true;
   if (e.target.id === "f-title" && !current && !$("f-slug").dataset.touched) $("f-slug").value = slugify(e.target.value);
   if (e.target.id === "f-slug") $("f-slug").dataset.touched = "1";
   refresh();
 });
-document.querySelector(".main").addEventListener("change", () => refresh());
+document.querySelector(".editor").addEventListener("change", () => refresh());
 $("b-slug").onclick = () => { $("f-slug").value = slugify($("f-title").value); dirty = true; refresh(); };
 $("b-faq").onclick = () => { addFaq(); dirty = true; };
 $("b-new").onclick = () => { if (dirty && !confirm("Есть несохранённые изменения. Начать новую статью?")) return; delete $("f-slug").dataset.touched; open(null); };
@@ -409,15 +472,21 @@ $("b-save").onclick = async () => {
 const almatyNow = () => new Date(Date.now() - 60000).toLocaleString("sv-SE", {timeZone: "Asia/Almaty"}).slice(0, 16).replace(" ", "T");
 $("b-now").onclick = async () => {
   const title = $("f-title").value.trim() || "без заголовка";
-  if (!confirm(`Опубликовать статью «${title}» на alfimov.kz прямо сейчас?`)) return;
+  const isLive = current && current.state === "live";
+  if (!confirm(isLive ? `Сохранить правки и обновить статью «${title}» на сайте?` : `Опубликовать статью «${title}» на alfimov.kz прямо сейчас?`)) return;
   const b = $("b-now"); busy(b, true, "Публикую…");
   try {
-    $("f-status").value = "scheduled"; $("f-publish_at").value = almatyNow(); dirty = true;
+    if (!(current && current.state === "live")) { $("f-status").value = "scheduled"; $("f-publish_at").value = almatyNow(); }
+    dirty = true;
     const a = await save();
     const d = await api("/admin/api/publish", {method: "POST"});
     toast(`Опубликовано: alfimov.kz${a.path}\n` + d.log.join("\n"));
   } catch (e) { toast(e.message, true); }
   busy(b, false);
+};
+$("b-back").onclick = () => {
+  if (dirty && !confirm("Есть несохранённые изменения. Выйти без сохранения?")) return;
+  showHome();
 };
 $("b-preview").onclick = async () => {
   const w = window.open("about:blank", "_blank");
@@ -438,13 +507,15 @@ $("b-gen").onclick = async () => {
     const ai = {topic: $("g-topic").value, keys: $("g-keys").value, notes: $("g-notes").value};
     delete $("f-slug").dataset.touched; open(null);  // open(null) очищает поля ИИ — возвращаем их
     $("g-topic").value = ai.topic; $("g-keys").value = ai.keys; $("g-notes").value = ai.notes;
-  } else if (($("f-body_md").value.trim() || $("f-title").value.trim()) && !confirm("Черновик ИИ заменит несохранённый текст в редакторе. Продолжить?")) return;
+  }
   const b = $("b-gen"); busy(b, true, "Пишу…");
   const t0 = Date.now(), tick = setInterval(() => { $("g-status").textContent = `Claude пишет статью… ${Math.round((Date.now() - t0) / 1000)} с (обычно 1–3 мин)`; }, 1000);
   try {
     const d = await api("/admin/api/generate", {method: "POST", body: JSON.stringify({
       topic, keywords: $("g-keys").value, notes: $("g-notes").value, words: $("g-words").value, current_slug: null})});
+    if (!current) open(null);
     fill(d.article);
+    showEditor();
     if (pendingIdea && pendingIdea.topic === topic && pendingIdea.date) {
       $("f-status").value = "scheduled"; $("f-publish_at").value = pendingIdea.date; refresh();
       $("g-status").textContent = `Готово — новая статья, запланирована на ${fmtDate(pendingIdea.date)}. Проверьте текст и нажмите «Сохранить» — выйдет сама.`;
