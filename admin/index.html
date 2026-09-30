@@ -80,6 +80,8 @@ textarea.body { min-height: 520px; font-family: var(--mono); font-size: 13px; }
 .ideas { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
 .idea { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r); }
 .idea b { display: block; margin-bottom: 4px; }
+.idea.used { opacity: .55; }
+.idea.used .btn { display: none; }
 .idea .btn { flex: none; }
 .btn-go { background: #178a4c; border-color: #178a4c; color: #fff; }
 .btn-go:hover { background: #12723e; }
@@ -116,6 +118,11 @@ textarea.body { min-height: 520px; font-family: var(--mono); font-size: 13px; }
         <input type="text" id="i-focus" placeholder="На чём сфокусироваться (необязательно): например, TikTok или клиники" style="flex:1">
         <span class="ai-status" id="i-status"></span>
         <button class="btn btn-p" id="b-ideas">Предложить темы</button>
+      </div>
+      <div class="row hint" style="gap:8px;margin-top:10px;align-items:center">
+        <span>Ритм публикаций:</span>
+        <select id="i-week" style="width:auto"><option value="1">1 статья в неделю (вт)</option><option value="2" selected>2 статьи в неделю (вт, чт)</option><option value="3">3 статьи в неделю (пн, ср, пт)</option></select>
+        <span>Выход в 10:00. Поисковикам важна регулярность, а не залп статей в один день; для нового сайта 2 в неделю — хороший темп.</span>
       </div>
       <ul class="ideas" id="ideas"></ul>
     </section>
@@ -227,7 +234,7 @@ textarea.body { min-height: 520px; font-family: var(--mono); font-size: 13px; }
 <script>
 const $ = id => document.getElementById(id);
 const FIELDS = ["title", "slug", "seo_title", "description", "lead", "summary", "category", "body_md", "cover_path", "author", "read_min", "status", "publish_at"];
-let articles = [], current = null, filter = "all", dirty = false;
+let articles = [], current = null, filter = "all", dirty = false, pendingIdea = null;
 
 const TR = {а:"a",б:"b",в:"v",г:"g",д:"d",е:"e",ё:"e",ж:"zh",з:"z",и:"i",й:"y",к:"k",л:"l",м:"m",н:"n",о:"o",п:"p",р:"r",с:"s",т:"t",у:"u",ф:"f",х:"h",ц:"ts",ч:"ch",ш:"sh",щ:"sch",ъ:"",ы:"y",ь:"",э:"e",ю:"yu",я:"ya",ә:"a",ғ:"g",қ:"k",ң:"n",ө:"o",ұ:"u",ү:"u",һ:"h",і:"i"};
 const slugify = s => [...String(s).toLowerCase()].map(ch => TR[ch] ?? ch).join("").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80).replace(/-$/, "");
@@ -438,7 +445,11 @@ $("b-gen").onclick = async () => {
     const d = await api("/admin/api/generate", {method: "POST", body: JSON.stringify({
       topic, keywords: $("g-keys").value, notes: $("g-notes").value, words: $("g-words").value, current_slug: null})});
     fill(d.article);
-    $("g-status").textContent = "Готово — это новая статья. Проверьте текст и нажмите «Сохранить»: она сохранится черновиком.";
+    if (pendingIdea && pendingIdea.topic === topic && pendingIdea.date) {
+      $("f-status").value = "scheduled"; $("f-publish_at").value = pendingIdea.date; refresh();
+      $("g-status").textContent = `Готово — новая статья, запланирована на ${fmtDate(pendingIdea.date)}. Проверьте текст и нажмите «Сохранить» — выйдет сама.`;
+    } else $("g-status").textContent = "Готово — это новая статья. Проверьте текст и нажмите «Сохранить»: она сохранится черновиком.";
+    pendingIdea = null;
   } catch (e) { $("g-status").textContent = ""; toast(e.message, true); }
   clearInterval(tick); busy(b, false);
 };
@@ -476,8 +487,9 @@ const SERVICE_NAMES = {"target-facebook-instagram": "Таргет Instagram/Face
   "kontekstnaya-reklama": "Контекст", "seo-prodvizhenie": "SEO", "marketingovye-issledovaniya": "Исследования", "kompleksnyj-marketing": "Комплексный"};
 function renderIdeas(d) {
   const ideas = (d && d.ideas) || [];
-  $("ideas").innerHTML = ideas.map((i, n) => `<li class="idea">
+  $("ideas").innerHTML = ideas.map((i, n) => `<li class="idea${i.used ? " used" : ""}">
     <div><b>${esc(i.topic)}</b>
+      <div class="hint">${i.used ? "✓ по этой теме уже есть статья" : "📅 рекомендуемая дата выхода: <b style=\"display:inline\">" + esc(fmtDate(i.suggested_date)) + "</b>"}</div>
       <div class="hint">🔑 ${esc(i.main_keyword)} · ${esc(i.intent)}${i.service ? " · → " + esc(SERVICE_NAMES[i.service] || i.service) : ""}</div>
       <div class="hint">${esc(i.why)}</div>
       <div class="hint">Запросы: ${esc(i.keywords.join(", "))}</div></div>
@@ -488,19 +500,23 @@ function renderIdeas(d) {
 $("ideas").onclick = e => {
   const b = e.target.closest("[data-idea]"); if (!b) return;
   const i = $("ideas")._data[+b.dataset.idea];
+  pendingIdea = {topic: i.topic, date: i.suggested_date};
   $("g-topic").value = i.topic;
   $("g-keys").value = [i.main_keyword, ...i.keywords.filter(k => k !== i.main_keyword)].join("\n");
   $("g-topic").scrollIntoView({behavior: "smooth", block: "center"});
-  toast("Тема подставлена — нажмите «Сгенерировать черновик»");
+  toast("Тема подставлена — нажмите «Сгенерировать черновик». Дата выхода подставится сама.");
 };
 $("b-ideas").onclick = async () => {
   const b = $("b-ideas"); busy(b, true, "Собираю запросы…");
   const t0 = Date.now(), tick = setInterval(() => { $("i-status").textContent = `Собираю подсказки и думаю… ${Math.round((Date.now() - t0) / 1000)} с (обычно до минуты)`; }, 1000);
-  try { renderIdeas(await api("/admin/api/ideas", {method: "POST", body: JSON.stringify({focus: $("i-focus").value})})); }
+  try { renderIdeas(await api(ideasUrl(), {method: "POST", body: JSON.stringify({focus: $("i-focus").value})})); }
   catch (e) { $("i-status").textContent = ""; toast(e.message, true); }
   clearInterval(tick); busy(b, false);
 };
-api("/admin/api/ideas").then(renderIdeas).catch(() => {});
+const ideasUrl = () => "/admin/api/ideas?per_week=" + $("i-week").value;
+try { $("i-week").value = localStorage.getItem("per_week") || "2"; } catch (e) {}
+$("i-week").onchange = () => { try { localStorage.setItem("per_week", $("i-week").value); } catch (e) {} api(ideasUrl()).then(renderIdeas).catch(() => {}); };
+api(ideasUrl()).then(renderIdeas).catch(() => {});
 $("b-build").onclick = async () => {
   const b = $("b-build"); busy(b, true, "Собираю…");
   try { const d = await api("/admin/api/build", {method: "POST"}); toast(`Собрано. Статей на сайте: ${d.live}. Откройте /blog/`); } catch (e) { toast(e.message, true); }

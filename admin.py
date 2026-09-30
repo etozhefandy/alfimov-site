@@ -140,6 +140,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def do_DELETE(self):
         self.route("DELETE")
 
+    def per_week(self):
+        """?per_week=1|2|3 — сколько статей в неделю закладывать в план."""
+        from urllib.parse import parse_qs
+        try:
+            return int(parse_qs(urlparse(self.path).query).get("per_week", ["2"])[0])
+        except ValueError:
+            return 2
+
     # --- чтение
     def get(self, path):
         if path in ("/", "/admin"):
@@ -151,7 +159,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self.send(200, ADMIN_HTML.read_text(encoding="utf-8"), "text/html; charset=utf-8")
         if path == "/admin/api/ideas":
             import topic_ideas
-            return self.send(200, topic_ideas.cached() or {"ideas": []})
+            return self.send(200, topic_ideas.with_plan(topic_ideas.cached(), per_week=self.per_week()))
         if path == "/admin/api/articles":
             return self.send(200, {"articles": [article_view(a) for a in blog.load_all()],
                                    "now": blog.now().isoformat(timespec="minutes"),
@@ -200,7 +208,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             data = self.body()
             existing = [a["title"] for a in blog.load_all()]
             try:
-                return self.send(200, topic_ideas.run(existing, (data.get("focus") or "").strip()))
+                result = topic_ideas.run(existing, (data.get("focus") or "").strip())
+                return self.send(200, topic_ideas.with_plan(result, per_week=self.per_week()))
             except seo_writer.WriterError as ex:
                 return self.error(400, str(ex))
         if method == "POST" and path == "/admin/api/image":

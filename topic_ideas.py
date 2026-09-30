@@ -10,6 +10,7 @@
 """
 import json
 import ssl
+from datetime import timedelta
 import sys
 import time
 import urllib.parse
@@ -21,6 +22,7 @@ ROOT = Path(__file__).parent
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT))
 
+import blog  # noqa: E402
 import content_ru  # noqa: E402
 import seo_writer  # noqa: E402
 
@@ -33,6 +35,13 @@ SEEDS = [
     "маркетинговое агентство", "маркетинговое исследование", "маркетинг для бизнеса",
 ]
 PATTERNS = ["{s}", "{s} цена", "{s} алматы", "{s} астана", "сколько стоит {s}", "как {s}"]
+
+# Ритм публикаций: дни недели (пн=0) для 1, 2 и 3 статей в неделю; время выхода — 10:00 Алматы.
+# Регулярность важнее объёма: поисковики чаще заходят на сайт, который обновляется равномерно,
+# а владельцы бизнеса читают в будни утром. Жёсткого «правильного» числа у Google нет.
+SLOT_DAYS = {1: [1], 2: [1, 3], 3: [0, 2, 4]}
+SLOT_HOUR = 10
+DEFAULT_PER_WEEK = 2
 
 GOOGLE = "https://suggestqueries.google.com/complete/search?client=firefox&hl=ru&gl=kz&q={q}"
 YANDEX = "https://suggest.yandex.ru/suggest-ff.cgi?part={q}&lr=159&uil=ru"
@@ -120,7 +129,9 @@ def _prompt(queries, existing, focus):
         "главный запрос и запросы бери только из списка выше, ничего не выдумывай и не пиши частотность; "
         "не делай двух статей под один и тот же главный запрос; предпочитай запросы с деньгами и выбором "
         "(«сколько стоит», «как выбрать», город) и объясняющие темы, после которых естественно обратиться "
-        "в агентство. service — один slug из списка услуг."
+        "в агентство. service — один slug из списка услуг. "
+        "Отсортируй темы в порядке публикации: сначала с самым явным спросом и коммерческим интентом, "
+        "и чередуй услуги — две статьи подряд про одну услугу не ставь."
     )
     return "\n\n".join(parts)
 
@@ -178,6 +189,34 @@ def run(existing=(), focus=""):
     CACHE.parent.mkdir(exist_ok=True)
     CACHE.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     return result
+
+
+def with_plan(result, articles=None, per_week=DEFAULT_PER_WEEK, start=None):
+    """Добавляет к идеям used (по теме уже есть статья) и suggested_date — следующие свободные слоты.
+
+    Слоты: SLOT_DAYS[per_week] в 10:00, начиная с завтра; дни, на которые уже стоит статья, пропускаются.
+    """
+    if not result:
+        return {"ideas": [], "per_week": per_week}
+    articles = blog.load_all() if articles is None else articles
+    per_week = per_week if per_week in SLOT_DAYS else DEFAULT_PER_WEEK
+    known = {k.strip().lower() for a in articles for k in a.get("keywords", [])}
+    taken = {dt.date() for dt in (blog.parse_dt(a.get("publish_at")) for a in articles) if dt}
+    day = (start or blog.now()).replace(hour=SLOT_HOUR, minute=0, second=0, microsecond=0)
+    ideas = []
+    for idea in result.get("ideas", []):
+        idea = dict(idea)
+        idea["used"] = idea.get("main_keyword", "").strip().lower() in known
+        idea["suggested_date"] = ""
+        if not idea["used"]:
+            while True:
+                day += timedelta(days=1)
+                if day.weekday() in SLOT_DAYS[per_week] and day.date() not in taken:
+                    break
+            taken.add(day.date())
+            idea["suggested_date"] = day.strftime("%Y-%m-%dT%H:%M")
+        ideas.append(idea)
+    return {**result, "ideas": ideas, "per_week": per_week}
 
 
 def cached():
