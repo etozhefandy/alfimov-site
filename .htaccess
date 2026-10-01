@@ -16,6 +16,10 @@ ErrorDocument 404 /404.html
   RewriteRule ^ /%1 [L,R=301]
 
   # Блог и админка — PHP на хостинге (static/_blog/, static/admin/)
+  # Служебные файлы блога снаружи не открываются: 404 через rewrite, а не запрет доступа (Require) —
+  # отказы доступа попадают в лог ошибок, и fail2ban хостинга банит IP (так забанило нас самих).
+  RewriteCond %{THE_REQUEST} \s/+_blog/ [NC]
+  RewriteRule ^ - [R=404,L]
   RewriteRule ^blog$ /blog/ [L,R=301]
   RewriteRule ^blog/([a-z0-9-]+)$ /blog/$1/ [L,R=301]
   RewriteRule ^$ _blog/router.php?route=home [L]
