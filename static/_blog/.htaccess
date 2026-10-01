@@ -1,5 +1,0 @@
-# Код и данные блога: снаружи доступен только router.php (на него ведут правила из /.htaccess).
-Require all denied
-<Files "router.php">
-  Require all granted
-</Files>

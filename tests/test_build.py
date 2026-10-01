@@ -35,8 +35,11 @@ class BuildTest(unittest.TestCase):
         ht = (build.DIST / ".htaccess").read_text(encoding="utf-8")
         for rule in ("_blog/router.php?route=home", "route=article&slug=$1", "admin/api.php?r=$1/$2"):
             self.assertIn(rule, ht)
-        self.assertIn("Require all denied", (build.DIST / "_blog" / ".htaccess").read_text(encoding="utf-8"))
-        self.assertIn("Require all denied", (build.DIST / "admin" / ".htaccess").read_text(encoding="utf-8"))
+        self.assertIn("RewriteCond %{THE_REQUEST} \\s/+_blog/", ht)
+        # «Require all denied» пишет отказы в лог ошибок → fail2ban хостинга банит IP посетителя.
+        self.assertFalse((build.DIST / "_blog" / ".htaccess").exists())
+        self.assertFalse((build.DIST / "admin" / ".htaccess").exists())
+        self.assertNotIn("Require all denied", ht)
         robots = (build.DIST / "robots.txt").read_text(encoding="utf-8")
         self.assertIn("Disallow: /admin/", robots)
 
