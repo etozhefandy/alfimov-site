@@ -37,7 +37,7 @@ def _pages(dist):
     out = {}
     for f in sorted(dist.rglob("*.html")):
         rel = "/" + str(f.relative_to(dist)).replace("\\", "/")
-        if rel == "/404.html" or re.match(r"^/yandex_[0-9a-f]+\.html$", rel) or rel.startswith("/admin/"):
+        if rel == "/404.html" or re.match(r"^/yandex_[0-9a-f]+\.html$", rel) or rel.startswith("/admin/") or rel.startswith("/_scheduled/"):
             continue
         out[rel.removesuffix("index.html")] = f.read_text(encoding="utf-8")
     return out

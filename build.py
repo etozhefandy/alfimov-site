@@ -268,7 +268,7 @@ def footer(c):
       </ul>
     </div>
   </div>
-  <div class="wrap ftr-bottom"><span>© {date.today().year} ALFIMOV.KZ</span><span>{e(ui['rights'])}</span></div>
+  <div class="wrap ftr-bottom"><span>© {blog.now().year} ALFIMOV.KZ</span><span>{e(ui['rights'])}</span></div>
 </footer>"""
 
 
@@ -785,7 +785,7 @@ def build_article(a, posts):
 # ---------------------------------------------------------------- build
 
 def write(path, content):
-    target = DIST / path.lstrip("/")
+    target = OUT / path.lstrip("/")
     if path.endswith("/"):
         target = target / "index.html"
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -794,7 +794,7 @@ def write(path, content):
 
 def sitemap(paths, single=()):
     """paths — страницы с парой RU/KZ; single — [(путь, lastmod)] без перевода (блог)."""
-    today = date.today().isoformat()
+    today = blog.now().date().isoformat()
     ru_paths = [p for p in paths if not p.startswith("/kz/")]
     rows = []
     for ru in ru_paths:
@@ -820,7 +820,70 @@ def php_str(v):
     return "'" + v.replace("\\", "\\\\").replace("'", "\\'") + "'"
 
 
-def build():
+OUT = DIST  # куда пишет write(); для будущих версий сайта — временная папка
+
+# Выход по расписанию без этого компьютера: для каждой будущей даты статьи собираем «сайт в
+# момент T» и кладём отличия в dist/_scheduled/<T>-<hash>/ (закрыто .htaccess). На хостинге
+# Планировщик задач Plesk раз в 15 минут запускает _scheduled/publish.php — тот копирует
+# наступившие версии поверх сайта. Следующая обычная выкладка всё равно пересобирает сайт целиком.
+SCHEDULED = "_scheduled"
+
+
+def build(at=None, out=None, schedule=True, quiet=False):
+    global OUT
+    OUT = Path(out or DIST)
+    blog.freeze(at)
+    try:
+        return _build(OUT, schedule and at is None, quiet)
+    finally:
+        blog.freeze(None)
+        OUT = DIST
+
+
+def future_times(articles=None):
+    """Будущие моменты выхода запланированных статей (aware datetime), по возрастанию."""
+    articles = blog.load_all() if articles is None else articles
+    return sorted({blog.parse_dt(a["publish_at"]) for a in articles if blog.state(a) == "scheduled"})
+
+
+def build_scheduled(dist, times):
+    """Для каждого T: собрать сайт на момент T и сохранить отличия от dist (manifest.json + files/)."""
+
+    import tempfile
+    root = dist / SCHEDULED
+    made = []
+    for t in times:
+        with tempfile.TemporaryDirectory() as tmp:
+            build(at=t, out=tmp, schedule=False, quiet=True)
+            tmp = Path(tmp)
+            changed, digest = [], hashlib.sha256(t.isoformat().encode())
+            for f in sorted(tmp.rglob("*")):
+                rel = f.relative_to(tmp).as_posix()
+                if not f.is_file() or rel.startswith(SCHEDULED + "/"):
+                    continue
+                cur = dist / rel
+                data = f.read_bytes()
+                if not cur.is_file() or cur.read_bytes() != data:
+                    changed.append((rel, f))
+                    digest.update(rel.encode() + b"\0" + data)
+            gone = sorted(p.relative_to(dist).as_posix() for p in dist.rglob("*")
+                          if p.is_file() and not p.relative_to(dist).as_posix().startswith(SCHEDULED + "/")
+                          and not (tmp / p.relative_to(dist)).exists())
+            if not changed and not gone:
+                continue
+            key = t.strftime("%Y%m%d-%H%M") + "-" + digest.hexdigest()[:8]
+            for rel, f in changed:
+                target = root / key / "files" / rel
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(f, target)
+            manifest = {"at": t.isoformat(), "at_unix": int(t.timestamp()),
+                        "files": [rel for rel, _ in changed], "delete": gone}
+            (root / key / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=1), encoding="utf-8")
+            made.append((key, len(changed)))
+    return made
+
+
+def _build(DIST, schedule, quiet):
     if DIST.exists():
         shutil.rmtree(DIST)
     shutil.copytree(STATIC, DIST)
@@ -855,6 +918,11 @@ def build():
     (DIST / "api" / "config.php").write_text(
         f"<?php\nreturn ['tg_token' => {php_str(token)}, 'tg_chat' => {php_str(chat)}];\n", encoding="utf-8"
     )
+    if schedule:
+        for key, n in build_scheduled(DIST, future_times()):
+            print(f"  по расписанию: {key} ({n} файлов)")
+    if quiet:
+        return posts
     print(f"Built {len(paths)} pages + blog {len(posts)} → {DIST}")
     import seo_audit
     issues = seo_audit.audit(DIST)

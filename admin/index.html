@@ -435,8 +435,8 @@ function refresh() {
   else if (!a.publish_at) note.textContent = "Укажите дату выхода — или нажмите «Опубликовать сейчас» внизу.";
   else {
     const due = new Date(a.publish_at + ":00+05:00") <= new Date();
-    note.textContent = due ? "Дата наступила — статья попадёт на сайт при следующей публикации."
-      : `Выйдет автоматически в течение ~15 минут после ${fmtDate(a.publish_at)} (если Mac включён и автопубликация установлена), либо при ручной публикации.`;
+    note.textContent = due ? "Дата наступила — после «Сохранить» статья сразу выйдет на сайт (если уже вышла — правки выкладывает «Обновить на сайте»)."
+      : `Выйдет сама в течение ~15 минут после ${fmtDate(a.publish_at)} — с хостинга, компьютер может быть выключен. После «Сохранить» статья уходит в очередь на хостинге.`;
   }
   const cp = $("f-cover_path").value, img = $("cover-prev");
   img.classList.toggle("hidden", !cp); if (cp) img.src = cp;
@@ -466,7 +466,19 @@ async function save() {
 }
 $("b-save").onclick = async () => {
   const b = $("b-save"); busy(b, true, "Сохраняю…");
-  try { const a = await save(); toast("Сохранено · " + STATE[a.state][0]); } catch (e) { toast(e.message, true); }
+  try {
+    const was = current && current.state;
+    const a = await save();
+    // Запланированная статья (или снятая с плана) должна попасть в очередь на хостинге —
+    // выходит она оттуда сама, без этого компьютера.
+    if (a.state === "scheduled" || was === "scheduled" || (a.state === "live" && was !== "live")) {
+      busy(b, true, "Ставлю в очередь…");
+      const d = await api("/admin/api/publish", {method: "POST"});
+      const head = a.state === "scheduled" ? `Сохранено и поставлено в очередь на хостинге: выйдет ${fmtDate(a.publish_at)} сама`
+        : a.state === "live" ? `Дата уже наступила — статья выложена: alfimov.kz${a.path}` : "Сохранено, статья снята с очереди на хостинге";
+      toast(head + "\n" + d.log.join("\n"));
+    } else toast("Сохранено · " + STATE[a.state][0]);
+  } catch (e) { toast(e.message, true); }
   busy(b, false);
 };
 // Одной кнопкой: статус «Запланировано» + дата «сейчас» → сохранить → выложить сайт.
