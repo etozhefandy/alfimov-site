@@ -1,0 +1,5 @@
+# Снаружи доступны только вход (index.php) и API (api.php).
+Require all denied
+<FilesMatch "^(index|api)\.php$">
+  Require all granted
+</FilesMatch>

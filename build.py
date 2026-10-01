@@ -20,7 +20,6 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 import content_kz  # noqa: E402
 import content_ru  # noqa: E402
 
-import blog  # noqa: E402
 
 ROOT = Path(__file__).parent
 DIST = ROOT / "dist"
@@ -178,8 +177,8 @@ def header(c, alt_path):
         f'<li><a href="{url(c, s["slug"])}">{e(s["name"])}</a></li>' for s in c.SERVICES
     )
     cases_link = f'<a href="{url(c)}#cases">{e(c.HOME["cases_eyebrow"])}</a>' if c.CASES else ""
-    # Блог — только русский и только когда вышла хотя бы одна статья: пустой раздел в меню не нужен.
-    blog_link = f'<a href="{BLOG_PATH}">{e(BLOG_UI["nav"])}</a>' if c is content_ru and blog.live() else ""
+    # Блог — только русский (статьи на русском). Страницы блога собирает PHP на хостинге (_blog/).
+    blog_link = f'<a href="{BLOG_PATH}">{e(BLOG_UI["nav"])}</a>' if c is content_ru else ""
     return f"""
 <header class="hdr">
   <div class="wrap hdr-in">
@@ -268,7 +267,7 @@ def footer(c):
       </ul>
     </div>
   </div>
-  <div class="wrap ftr-bottom"><span>© {blog.now().year} ALFIMOV.KZ</span><span>{e(ui['rights'])}</span></div>
+  <div class="wrap ftr-bottom"><span>© {date.today().year} ALFIMOV.KZ</span><span>{e(ui['rights'])}</span></div>
 </footer>"""
 
 
@@ -406,18 +405,8 @@ def cases_block(c, num):
 # ---------------------------------------------------------------- pages
 
 def home_blog_block(c, n):
-    """Свежие статьи блога на главной (только RU: статьи на русском). Нет статей — нет блока."""
-    posts = blog.live() if c is content_ru else []
-    if not posts:
-        return ""
-    return f"""
-<section class="sec" id="blog">
-  <div class="wrap">
-    <div class="sec-head rv">{eyebrow(next(n), BLOG_UI['nav'])}<h2>{e(BLOG_UI['home_title'])}</h2><p>{e(BLOG_UI['lead'])}</p></div>
-    <div class="post-grid">{post_cards(posts[:3])}</div>
-    <p class="rv" style="margin:32px 0 0"><a class="tlink" href="{BLOG_PATH}">{e(BLOG_UI['all'])} {icon('arrow', 'ic ic-sm')}</a></p>
-  </div>
-</section>"""
+    """Свежие статьи на главной (только RU) подставляет PHP на хостинге вместо метки — см. _blog/lib.php."""
+    return f"<!--BLOG-HOME:{next(n)}-->" if c is content_ru else ""
 
 
 def build_home(c):
@@ -648,153 +637,41 @@ MONTHS = ("января", "февраля", "марта", "апреля", "ма�
           "августа", "сентября", "октября", "ноября", "декабря")
 
 
-def post_date(a, field="publish_at"):
-    dt = blog.parse_dt(a.get(field)) or blog.parse_dt(a.get("publish_at")) or blog.now()
-    return dt.date().isoformat()
-
-
-def human_date(iso):
-    d = date.fromisoformat(iso)
-    return f"{d.day} {MONTHS[d.month - 1]} {d.year}"
-
-
-def article_path(a):
-    return f"{BLOG_PATH}{a['slug']}/"
-
-
-def post_meta(a):
-    parts = [human_date(post_date(a)), f"{blog.read_minutes(a)} {BLOG_UI['read']}"]
-    if a.get("category"):
-        parts.insert(0, a["category"])
-    return " · ".join(e(p) for p in parts)
-
-
-def post_cards(posts):
-    return "".join(
-        f'<a class="post-card rv" href="{article_path(a)}">'
-        + (f'<img class="post-img" src="{e(a["cover_path"])}" alt="" loading="lazy">' if a["cover_path"] else "")
-        + f'<div class="post-body"><span class="post-meta">{post_meta(a)}</span>'
-        f'<h2>{e(a["title"])}</h2><p>{e(a["description"] or a["lead"])}</p>'
-        f'<span class="tlink">{e(content_ru.UI["more"])} {icon("arrow", "ic ic-sm")}</span></div></a>'
-        for a in posts
-    )
-
-
-def build_blog_index(posts):
-    c, ui = content_ru, content_ru.UI
-    body = f"""
-<section class="hero hero-svc">
-  <div class="wrap">
-    <nav class="crumbs rv" aria-label="breadcrumbs"><a href="{url(c)}">{e(ui['breadcrumbs_home'])}</a><span>/</span><span>{e(BLOG_UI['nav'])}</span></nav>
-    <h1 class="rv">{e(BLOG_UI['title'])}</h1>
-    <p class="hero-lead rv">{e(BLOG_UI['lead'])}</p>
-  </div>
-</section>
-<section class="sec sec-tight">
-  <div class="wrap"><div class="post-grid">{post_cards(posts)}</div></div>
-</section>
-{lead_form(c, 'blog', BLOG_UI['cta_title'], BLOG_UI['cta_lead'])}
-"""
-    schema = [
-        {"@type": "Blog", "@id": f"{SITE_URL}{BLOG_PATH}#blog", "name": BLOG_UI["title"], "url": f"{SITE_URL}{BLOG_PATH}",
-         "publisher": {"@id": f"{SITE_URL}/#org"}, "inLanguage": "ru-KZ",
-         "blogPost": [{"@type": "BlogPosting", "headline": a["title"], "url": f"{SITE_URL}{article_path(a)}",
-                       "datePublished": post_date(a)} for a in posts]},
-        breadcrumbs_schema([(ui["breadcrumbs_home"], url(c)), (BLOG_UI["nav"], BLOG_PATH)]),
-    ]
-    return page(c, path=BLOG_PATH, title=BLOG_UI["meta_title"], desc=BLOG_UI["meta_desc"], body=body, schema=schema, alt_path=None)
-
-
-def build_article(a, posts):
-    """Страница статьи. posts — вышедшие статьи (для «Читайте также»)."""
-    c, ui = content_ru, content_ru.UI
-    path = article_path(a)
-    body_html, toc = blog.markdown(a["body_md"])
-    others = [p for p in posts if p["slug"] != a["slug"]]
-    by_slug = {p["slug"]: p for p in others}
-    related = [by_slug[s] for s in a["related"] if s in by_slug]
-    related += [p for p in others if p not in related][: max(0, 3 - len(related))]
-
-    toc_html = ""
-    if len(toc) >= 2:
-        items = "".join(f'<li><a href="#{aid}">{e(t)}</a></li>' for aid, t in toc)
-        toc_html = f'<nav class="art-toc" aria-label="{e(BLOG_UI["toc"])}"><p class="eyebrow">{e(BLOG_UI["toc"])}</p><ol>{items}</ol></nav>'
-    cover = f'<img class="art-cover" src="{e(a["cover_path"])}" alt="{e(a["title"])}" loading="lazy">' if a["cover_path"] else ""
-    summary = (f'<aside class="art-summary"><p class="eyebrow"><span>→</span>{e(BLOG_UI["summary"])}</p>'
-               f'<p>{e(a["summary"])}</p></aside>') if a["summary"] else ""
-    author = f' · {e(a["author"])}' if a["author"] else ""
-    faq = faq_block(c, a["faq"], "?") if a["faq"] else ""
-    related_html = ""
-    if related:
-        related_html = f"""
-<section class="sec sec-soft">
-  <div class="wrap">
-    <div class="sec-head rv">{eyebrow('→', BLOG_UI['related'])}<h2>{e(BLOG_UI['related'])}</h2></div>
-    <div class="post-grid">{post_cards(related)}</div>
-    <p class="post-all"><a class="tlink" href="{BLOG_PATH}">{e(BLOG_UI['all'])} {icon('arrow', 'ic ic-sm')}</a></p>
-  </div>
-</section>"""
-
-    body = f"""
-<section class="hero hero-svc hero-art">
-  <div class="wrap">
-    <nav class="crumbs rv" aria-label="breadcrumbs"><a href="{url(c)}">{e(ui['breadcrumbs_home'])}</a><span>/</span><a href="{BLOG_PATH}">{e(BLOG_UI['nav'])}</a></nav>
-    <p class="post-meta rv">{post_meta(a)}{author}</p>
-    <h1 class="rv">{e(a['title'])}</h1>
-    {f'<p class="hero-lead rv">{e(a["lead"])}</p>' if a['lead'] else ''}
-  </div>
-</section>
-<section class="sec sec-tight">
-  <div class="wrap art{' art-has-toc' if toc_html else ''}">
-    {toc_html}
-    <article class="art-body">
-      {cover}
-      {summary}
-      <div class="md">{body_html}</div>
-    </article>
-  </div>
-</section>
-{faq}
-{related_html}
-{lead_form(c, 'blog:' + a['slug'], BLOG_UI['cta_title'], BLOG_UI['cta_lead'])}
-"""
-    image = a["cover_path"] or None
-    posting = {
-        "@type": "BlogPosting",
-        "headline": a["title"],
-        "description": a["description"],
-        "datePublished": post_date(a),
-        "dateModified": post_date(a, "updated_at"),
-        "inLanguage": "ru-KZ",
-        "mainEntityOfPage": f"{SITE_URL}{path}",
-        "image": f"{SITE_URL}{image or '/assets/og.png'}",
-        "author": {"@type": "Person", "name": a["author"]} if a["author"] else {"@id": f"{SITE_URL}/#org"},
-        "publisher": {"@id": f"{SITE_URL}/#org"},
+def blog_parts():
+    """Детали оформления для PHP-блога (_blog/parts.json): каркас страницы с метками %%…%%,
+    форма заявки, FAQ, иконки и подписи. Так шапка, подвал и стили блога всегда совпадают с сайтом."""
+    c = content_ru
+    shell = page(c, path="%%PATH%%", title="%%TITLE%%", desc="%%DESC%%", body="%%BODY%%", schema=["__SCHEMA__"],
+                 alt_path=None, og_type="%%OGTYPE%%", image="%%IMAGE%%")
+    faq_item = f'<details class="qa"><summary>%%Q%%{icon("plus", "ic qa-ic")}</summary><p>%%A%%</p></details>'
+    faq_wrap = faq_block(c, [], "%%NUM%%")
+    assert '<div class="faq rv"></div>' in faq_wrap
+    return {
+        "site_url": SITE_URL,
+        "blog_path": BLOG_PATH,
+        "shell": shell,
+        "lead_form": lead_form(c, "%%SOURCE%%", BLOG_UI["cta_title"], BLOG_UI["cta_lead"]),
+        "faq_item": faq_item,
+        "faq_wrap": faq_wrap.replace('<div class="faq rv"></div>', '<div class="faq rv">%%ITEMS%%</div>'),
+        "icon_arrow_sm": icon("arrow", "ic ic-sm"),
+        "ui": {**BLOG_UI, "breadcrumbs_home": c.UI["breadcrumbs_home"], "more": c.UI["more"]},
+        "services": [{"slug": x["slug"], "name": x["name"], "short": x["short"]} for x in c.SERVICES],
     }
-    if a["keywords"]:
-        posting["keywords"] = ", ".join(a["keywords"])
-    if a["category"]:
-        posting["articleSection"] = a["category"]
-    schema = [posting, breadcrumbs_schema([(ui["breadcrumbs_home"], url(c)), (BLOG_UI["nav"], BLOG_PATH), (a["title"], path)])]
-    if a["faq"]:
-        schema.append(faq_schema(a["faq"]))
-    return path, page(c, path=path, title=a["seo_title"] or f"{a['title']} | Alfimov", desc=a["description"] or a["lead"],
-                      body=body, schema=schema, alt_path=None, og_type="article", image=image)
 
 
 # ---------------------------------------------------------------- build
 
 def write(path, content):
-    target = OUT / path.lstrip("/")
+    target = DIST / path.lstrip("/")
     if path.endswith("/"):
         target = target / "index.html"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(content, encoding="utf-8")
 
 
-def sitemap(paths, single=()):
-    """paths — страницы с парой RU/KZ; single — [(путь, lastmod)] без перевода (блог)."""
-    today = blog.now().date().isoformat()
+def sitemap(paths):
+    """Страницы с парой RU/KZ. Статьи блога в карту добавляет PHP на хостинге (_blog/sitemap.tpl)."""
+    today = date.today().isoformat()
     ru_paths = [p for p in paths if not p.startswith("/kz/")]
     rows = []
     for ru in ru_paths:
@@ -806,8 +683,6 @@ def sitemap(paths, single=()):
                 f'<xhtml:link rel="alternate" hreflang="kk-KZ" href="{SITE_URL}{kz}"/>'
                 f'<xhtml:link rel="alternate" hreflang="x-default" href="{SITE_URL}{ru}"/></url>'
             )
-    for p, lastmod in single:
-        rows.append(f"<url><loc>{SITE_URL}{p}</loc><lastmod>{lastmod or today}</lastmod></url>")
     return (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n'
@@ -820,71 +695,7 @@ def php_str(v):
     return "'" + v.replace("\\", "\\\\").replace("'", "\\'") + "'"
 
 
-OUT = DIST  # куда пишет write(); для будущих версий сайта — временная папка
-
-# Выход по расписанию без этого компьютера: для каждой будущей даты статьи собираем «сайт в
-# момент T» и кладём отличия в dist/_scheduled/<T>-<hash>/ (закрыто .htaccess). На хостинге
-# Планировщик задач Plesk раз в 15 минут запускает _scheduled/publish.php — тот копирует
-# наступившие версии поверх сайта. Следующая обычная выкладка всё равно пересобирает сайт целиком.
-SCHEDULED = "_scheduled"
-
-
-def build(at=None, out=None, schedule=True, quiet=False):
-    global OUT
-    OUT = Path(out or DIST)
-    blog.freeze(at)
-    try:
-        return _build(OUT, schedule and at is None, quiet)
-    finally:
-        blog.freeze(None)
-        OUT = DIST
-
-
-def future_times(articles=None):
-    """Будущие моменты выхода запланированных статей (aware datetime), по возрастанию."""
-    articles = blog.load_all() if articles is None else articles
-    return sorted({blog.parse_dt(a["publish_at"]) for a in articles if blog.state(a) == "scheduled"})
-
-
-def build_scheduled(dist, times):
-    """Для каждого T: собрать сайт на момент T и сохранить отличия от dist (manifest.json + files/<номер>.snap)."""
-
-    import tempfile
-    root = dist / SCHEDULED
-    made = []
-    for t in times:
-        with tempfile.TemporaryDirectory() as tmp:
-            build(at=t, out=tmp, schedule=False, quiet=True)
-            tmp = Path(tmp)
-            changed, digest = [], hashlib.sha256(t.isoformat().encode())
-            for f in sorted(tmp.rglob("*")):
-                rel = f.relative_to(tmp).as_posix()
-                if not f.is_file() or rel.startswith(SCHEDULED + "/"):
-                    continue
-                cur = dist / rel
-                data = f.read_bytes()
-                if not cur.is_file() or cur.read_bytes() != data:
-                    changed.append((rel, f))
-                    digest.update(rel.encode() + b"\0" + data)
-            gone = sorted(p.relative_to(dist).as_posix() for p in dist.rglob("*")
-                          if p.is_file() and not p.relative_to(dist).as_posix().startswith(SCHEDULED + "/")
-                          and not (tmp / p.relative_to(dist)).exists())
-            if not changed and not gone:
-                continue
-            key = t.strftime("%Y%m%d-%H%M") + "-" + digest.hexdigest()[:8]
-            # Файлы лежат как files/<номер>.snap: nginx на хостинге сам отдаёт .html/.xml мимо
-            # .htaccess, а неизвестное расширение уходит в Apache, где папка закрыта.
-            (root / key / "files").mkdir(parents=True)
-            for i, (rel, f) in enumerate(changed):
-                shutil.copy2(f, root / key / "files" / f"{i}.snap")
-            manifest = {"at": t.isoformat(), "at_unix": int(t.timestamp()),
-                        "files": [rel for rel, _ in changed], "delete": gone}
-            (root / key / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=1), encoding="utf-8")
-            made.append((key, len(changed)))
-    return made
-
-
-def _build(DIST, schedule, quiet):
+def build():
     if DIST.exists():
         shutil.rmtree(DIST)
     shutil.copytree(STATIC, DIST)
@@ -896,18 +707,16 @@ def _build(DIST, schedule, quiet):
             paths.append(p)
     write("/404.html", build_404())
 
-    posts = blog.live()
-    single = []
-    if posts:
-        write(BLOG_PATH, build_blog_index(posts))
-        single.append((BLOG_PATH, max(post_date(a, "updated_at") for a in posts)))
-        for a in posts:
-            p, doc = build_article(a, posts)
-            write(p, doc)
-            single.append((p, post_date(a, "updated_at")))
-    (DIST / "sitemap.xml").write_text(sitemap(paths, single), encoding="utf-8")
+    # Блог и админка живут на хостинге (PHP, static/_blog/ и static/admin/); здесь — их оформление.
+    (DIST / "_blog" / "parts.json").write_text(json.dumps(blog_parts(), ensure_ascii=False), encoding="utf-8")
+    (DIST / "_blog" / "sitemap.tpl").write_text(sitemap(paths), encoding="utf-8")
+    # Статьи из репозитория — стартовый набор: админка один раз переносит их на хостинг при настройке.
+    seed = ROOT / "content" / "articles"
+    if seed.is_dir():
+        shutil.copytree(seed, DIST / "_blog" / "seed")
     (DIST / "robots.txt").write_text(
-        f"User-agent: *\nAllow: /\nDisallow: /api/\n\nSitemap: {SITE_URL}/sitemap.xml\nHost: {SITE_URL}\n",
+        f"User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin/\nDisallow: /_blog/\n\n"
+        f"Sitemap: {SITE_URL}/sitemap.xml\nHost: {SITE_URL}\n",
         encoding="utf-8",
     )
     # Какая сборка сейчас на хостинге: https://alfimov.kz/version.txt
@@ -919,12 +728,7 @@ def _build(DIST, schedule, quiet):
     (DIST / "api" / "config.php").write_text(
         f"<?php\nreturn ['tg_token' => {php_str(token)}, 'tg_chat' => {php_str(chat)}];\n", encoding="utf-8"
     )
-    if schedule:
-        for key, n in build_scheduled(DIST, future_times()):
-            print(f"  по расписанию: {key} ({n} файлов)")
-    if quiet:
-        return posts
-    print(f"Built {len(paths)} pages + blog {len(posts)} → {DIST}")
+    print(f"Built {len(paths)} pages → {DIST}")
     import seo_audit
     issues = seo_audit.audit(DIST)
     for i in issues:

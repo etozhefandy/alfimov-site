@@ -5,7 +5,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import blog  # noqa: E402
 import build  # noqa: E402
 import seo_audit  # noqa: E402
 
@@ -49,18 +48,17 @@ class AuditRulesTest(unittest.TestCase):
 
 
 class RealSiteTest(unittest.TestCase):
-    """Сайт в текущем виде (без статей блога) не должен давать critical и warning."""
+    """Статическая часть сайта не должна давать critical и warning (ссылки на /blog/ — живые, PHP)."""
 
     def test_site_is_clean(self):
         tmp = Path(tempfile.mkdtemp())
-        orig = (blog.ARTICLES_DIR, build.DIST)
-        blog.ARTICLES_DIR, build.DIST = tmp / "articles", tmp / "dist"
-        blog.ARTICLES_DIR.mkdir()
+        orig = build.DIST
+        build.DIST = tmp / "dist"
         try:
             build.build()
             bad = [str(i) for i in seo_audit.audit(build.DIST) if i.severity != "info"]
         finally:
-            blog.ARTICLES_DIR, build.DIST = orig
+            build.DIST = orig
         self.assertEqual(bad, [])
 
 

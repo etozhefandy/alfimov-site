@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Блог — админка alfimov.kz</title>
+<meta name="robots" content="noindex">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <style>
 :root {
@@ -20,7 +21,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .top h1 { font-size: 16px; margin: 0 auto 0 0; font-weight: 600; }
 .top h1 span { font-family: var(--mono); font-size: 12px; color: var(--muted); font-weight: 400; margin-left: 8px; }
 @media (max-width: 700px) { .top { flex-wrap: wrap; } .top h1 { width: 100%; } .top h1 span { display: none; } }
-.btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border: 1px solid var(--line-2); border-radius: var(--r); background: #fff; cursor: pointer; font-weight: 500; font-size: 14px; white-space: nowrap; text-decoration: none; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border: 1px solid var(--line-2); border-radius: var(--r); background: #fff; color: var(--ink); cursor: pointer; font-weight: 500; font-size: 14px; white-space: nowrap; text-decoration: none; }
 .btn:hover { border-color: var(--ink); }
 .btn-p { background: var(--blue); border-color: var(--blue); color: #fff; }
 .btn-p:hover { background: var(--blue-h); border-color: var(--blue-h); }
@@ -57,7 +58,7 @@ label.f { display: grid; gap: 5px; font-size: 13px; color: var(--ink-2); font-we
 label.f .hint { font-weight: 400; color: var(--muted); }
 .cnt { font-family: var(--mono); font-size: 11px; color: var(--muted); float: right; font-weight: 400; }
 .cnt.bad { color: var(--bad); } .cnt.ok { color: var(--ok); }
-input[type=text], input[type=number], input[type=datetime-local], select, textarea {
+input[type=text], input[type=password], input[type=number], input[type=datetime-local], select, textarea {
   width: 100%; padding: 9px 11px; border: 1px solid var(--line-2); border-radius: var(--r); background: #fff; font-size: 14px;
 }
 input:focus, select:focus, textarea:focus { outline: 2px solid var(--blue); outline-offset: -1px; border-color: var(--blue); }
@@ -92,7 +93,10 @@ textarea.body { min-height: 520px; font-family: var(--mono); font-size: 13px; }
 /* два экрана: главный (статьи, идеи, ИИ) и редактор */
 .page { max-width: 1280px; margin: 0 auto; padding: 20px; }
 .home, .editor { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-content: start; }
-body.view-edit .home, body:not(.view-edit) .editor { display: none; }
+.settings { display: none; gap: 16px; align-content: start; }
+body.view-edit .home, body:not(.view-edit) .editor, body.view-settings .home { display: none; }
+body.view-settings .settings { display: grid; }
+.warn-card { background: #fff8e6; border-color: #f0d9a8; font-size: 14px; }
 .acards { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
 .acard { border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; cursor: pointer; background: #fff; display: flex; flex-direction: column; transition: border-color .15s; }
 .acard:hover { border-color: var(--blue); }
@@ -117,21 +121,51 @@ input.big { font-size: 20px; font-weight: 600; padding: 12px 14px; }
 details.more summary { cursor: pointer; font-size: 13px; color: var(--ink-2); }
 details.more input { margin-top: 8px; }
 
-.foot-actions { display: flex; gap: 8px; flex-wrap: wrap; position: sticky; bottom: 0; padding: 12px 0; background: var(--soft); }
 .spacer { flex: 1; }
+
+/* ---------- телефон: одна колонка, крупные поля, кнопки действий внизу под большим пальцем */
+@media (max-width: 700px) {
+  body { font-size: 16px; }
+  input[type=text], input[type=password], input[type=number], input[type=datetime-local], select, textarea { font-size: 16px; }
+  .top { padding: 10px 12px; gap: 8px; }
+  .top h1 { font-size: 15px; }
+  .top .btn { flex: 1; justify-content: center; padding: 8px 10px; }
+  .page { padding: 12px; }
+  .card { padding: 16px 14px; }
+  .acards { grid-template-columns: 1fr; }
+  .idea { flex-direction: column; gap: 10px; }
+  .idea .btn { width: 100%; justify-content: center; }
+  .row > .btn, .row > label.btn { flex: 1; justify-content: center; }
+  textarea.body { min-height: 60vh; }
+  .ebar { top: 0; position: static; flex-wrap: wrap; box-shadow: none; }
+  .ebar-t { order: -1; width: 100%; flex-basis: 100%; }
+  .ebar #b-back { flex: 1; justify-content: center; }
+  .ebar .spacer, .ebar #b-save, .ebar #b-now { display: none; }
+  .ebar #b-preview { flex: 1; justify-content: center; }
+  .mbar { display: flex !important; }
+  body.view-edit .page { padding-bottom: 88px; }
+  .toast { left: 12px; right: 12px; bottom: 84px; max-width: none; }
+}
+.mbar { display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; gap: 8px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  background: #fff; border-top: 1px solid var(--line); box-shadow: 0 -4px 16px rgba(0,0,0,.06); }
+.mbar .btn { flex: 1; justify-content: center; padding: 12px; font-size: 15px; }
+body:not(.view-edit) .mbar { display: none !important; }
 </style>
 </head>
 <body>
 <header class="top">
   <h1>Блог alfimov.kz <span id="now"></span></h1>
-  <button class="btn" id="b-build" title="Собрать dist/ локально — посмотреть сайт целиком">Собрать</button>
-  <a class="btn" href="/blog/" target="_blank" title="Собранный блог (после «Собрать»)">Открыть /blog/</a>
-  <button class="btn btn-p" id="b-publish">Опубликовать на сайт</button>
+  <a class="btn" href="/blog/" target="_blank">Открыть блог</a>
+  <button class="btn" id="b-settings">Настройки</button>
+  <button class="btn" id="b-logout">Выйти</button>
 </header>
 <div class="page">
 
   <!-- ===== ГЛАВНЫЙ ЭКРАН: статьи, идеи, ИИ ===== -->
   <div class="home">
+    <section class="card warn-card hidden" id="keys-warn">
+      ИИ пока выключен: вставьте ключи Claude и OpenAI в <a href="#" id="keys-link">Настройках</a>. Писать и публиковать статьи вручную можно и без них.
+    </section>
     <section class="card">
       <div class="row" style="margin-bottom:14px">
         <h2 style="margin:0">Статьи</h2>
@@ -184,6 +218,30 @@ details.more input { margin-top: 8px; }
         </div>
       </div>
     </section>
+  </div>
+
+  <!-- ===== НАСТРОЙКИ ===== -->
+  <div class="settings">
+    <div class="ebar"><button class="btn" id="s-back">← Назад</button><div class="ebar-t"><b>Настройки</b></div></div>
+    <section class="card">
+      <h2>Ключи ИИ <small>хранятся на хостинге вне сайта, в браузер не возвращаются</small></h2>
+      <div class="grid">
+        <label class="f">Ключ Claude (статьи и идеи тем) <span class="hint" id="s-ant-cur"></span>
+          <input type="password" id="s-ant" placeholder="sk-ant-…" autocomplete="off" spellcheck="false"></label>
+        <label class="f">Ключ OpenAI (картинки) <span class="hint" id="s-oai-cur"></span>
+          <input type="password" id="s-oai" placeholder="sk-…" autocomplete="off" spellcheck="false"></label>
+        <p class="hint">Пустое поле — ключ не меняется. Ключи берутся на console.anthropic.com и platform.openai.com → API keys.</p>
+      </div>
+    </section>
+    <section class="card">
+      <h2>Пароль <small id="s-login"></small></h2>
+      <div class="grid g2">
+        <label class="f">Текущий пароль<input type="password" id="s-pass-cur" autocomplete="current-password"></label>
+        <label class="f">Новый пароль (от 10 символов)<input type="password" id="s-pass-new" autocomplete="new-password"></label>
+      </div>
+    </section>
+    <div class="row"><button class="btn btn-p" id="s-save">Сохранить настройки</button><span class="spacer"></span>
+      <a class="btn" href="/admin/api/export">Скачать копию всех статей</a></div>
   </div>
 
   <!-- ===== РЕДАКТОР СТАТЬИ ===== -->
@@ -250,9 +308,9 @@ details.more input { margin-top: 8px; }
           <select id="img-mode" style="margin-top:8px" title="Сюжет картинки"><option value="auto">Сюжет: авто (иногда с людьми)</option><option value="people">Сюжет: с людьми</option><option value="abstract">Сюжет: абстракция, без людей</option></select>
           <div class="row" style="margin-top:8px">
             <button class="btn btn-p" type="button" id="b-cover-ai">Сгенерировать (ИИ)</button>
-            <label class="btn">Загрузить свою<input type="file" id="f-file" accept=".jpg,.jpeg,.png,.webp" hidden></label>
+            <label class="btn">Загрузить свою<input type="file" id="f-file" accept="image/jpeg,image/png,image/webp" hidden></label>
           </div>
-          <details class="more"><summary>Путь к файлу</summary><input type="text" id="f-cover_path" placeholder="/assets/blog/…"></details>
+          <details class="more"><summary>Путь к файлу</summary><input type="text" id="f-cover_path" placeholder="/blog/media/…"></details>
         </section>
 
         <section class="card">
@@ -282,6 +340,7 @@ details.more input { margin-top: 8px; }
     </div>
   </div>
 </div>
+<div class="mbar"><button class="btn btn-p" id="m-save">Сохранить</button><button class="btn btn-go" id="m-now">Опубликовать сейчас</button></div>
 <div class="toast hidden" id="toast"></div>
 
 <script>
@@ -299,10 +358,26 @@ function toast(msg, err) {
   clearTimeout(t._h); t._h = setTimeout(() => t.classList.add("hidden"), err ? 9000 : 4000);
 }
 async function api(path, opts = {}) {
-  const r = await fetch(path, {headers: {"Content-Type": "application/json"}, ...opts});
+  const r = await fetch(path, {headers: {"Content-Type": "application/json", "X-Admin": "1"}, credentials: "same-origin", ...opts});
+  if (r.status === 401) { dirty = false; location.reload(); throw new Error("Сессия закончилась — войдите снова"); }
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(data.error || ("Ошибка " + r.status));
   return data;
+}
+// Долгие операции ИИ: создать задачу → запустить → опрашивать, пока не готово.
+// Если запуск оборвётся по сети (телефон, туннель), задача всё равно доработает на хостинге.
+async function runJob(path, body) {
+  const {job} = await api(path, {method: "POST", body: JSON.stringify(body)});
+  let done = null;
+  api("/admin/api/run", {method: "POST", body: JSON.stringify({job})}).then(d => { done = d; }).catch(() => {});
+  const t0 = Date.now();
+  while (Date.now() - t0 < 11 * 60 * 1000) {
+    await new Promise(r => setTimeout(r, 3000));
+    const d = done || await api("/admin/api/job?id=" + job).catch(() => null);
+    if (d && d.status === "done") return d.result;
+    if (d && d.status === "error") throw new Error(d.error);
+  }
+  throw new Error("Нет ответа больше 10 минут — попробуйте ещё раз");
 }
 function busy(btn, on, label) {
   if (on) { btn._t = btn.textContent; btn.disabled = true; if (label) btn.textContent = label; }
@@ -333,9 +408,9 @@ function renderList() {
 }
 function showHome() {
   current = null; dirty = false;
-  document.body.classList.remove("view-edit"); renderList(); window.scrollTo(0, 0);
+  document.body.classList.remove("view-edit", "view-settings"); renderList(); window.scrollTo(0, 0);
 }
-function showEditor() { document.body.classList.add("view-edit"); window.scrollTo(0, 0); }
+function showEditor() { document.body.classList.remove("view-settings"); document.body.classList.add("view-edit"); window.scrollTo(0, 0); }
 $("list").onclick = e => {
   const li = e.target.closest("li[data-slug]"); if (!li) return;
   open(articles.find(a => a.slug === li.dataset.slug));
@@ -357,7 +432,7 @@ function open(a) {
   $("ed-title").textContent = a ? a.title : "Новая статья";
   const [label, cls] = STATE[a ? a.state : "draft"];
   $("ed-badge").textContent = label; $("ed-badge").className = "badge " + cls;
-  $("b-now").textContent = a && a.state === "live" ? "Обновить на сайте" : "Опубликовать сейчас";
+  $("b-now").textContent = $("m-now").textContent = a && a.state === "live" ? "Сохранить на сайте" : "Опубликовать сейчас";
   $("b-del").classList.toggle("hidden", !a);
   showEditor();
   if (!a) { $("g-topic").value = ""; $("g-keys").value = ""; $("g-notes").value = ""; }
@@ -435,8 +510,8 @@ function refresh() {
   else if (!a.publish_at) note.textContent = "Укажите дату выхода — или нажмите «Опубликовать сейчас» внизу.";
   else {
     const due = new Date(a.publish_at + ":00+05:00") <= new Date();
-    note.textContent = due ? "Дата наступила — после «Сохранить» статья сразу выйдет на сайт (если уже вышла — правки выкладывает «Обновить на сайте»)."
-      : `Выйдет сама в течение ~15 минут после ${fmtDate(a.publish_at)} — с хостинга, компьютер может быть выключен. После «Сохранить» статья уходит в очередь на хостинге.`;
+    note.textContent = due ? "Дата наступила — после «Сохранить» статья сразу на сайте; правки опубликованной статьи видны сразу после сохранения."
+      : `Появится на сайте сама ${fmtDate(a.publish_at)} — ничего нажимать не нужно, кроме «Сохранить».`;
   }
   const cp = $("f-cover_path").value, img = $("cover-prev");
   img.classList.toggle("hidden", !cp); if (cp) img.src = cp;
@@ -464,39 +539,34 @@ async function save() {
   await load(d.article.slug);
   return d.article;
 }
-$("b-save").onclick = async () => {
-  const b = $("b-save"); busy(b, true, "Сохраняю…");
+async function onSave(b) {
+  busy(b, true, "Сохраняю…");
   try {
-    const was = current && current.state;
     const a = await save();
-    // Запланированная статья (или снятая с плана) должна попасть в очередь на хостинге —
-    // выходит она оттуда сама, без этого компьютера.
-    if (a.state === "scheduled" || was === "scheduled" || (a.state === "live" && was !== "live")) {
-      busy(b, true, "Ставлю в очередь…");
-      const d = await api("/admin/api/publish", {method: "POST"});
-      const head = a.state === "scheduled" ? `Сохранено и поставлено в очередь на хостинге: выйдет ${fmtDate(a.publish_at)} сама`
-        : a.state === "live" ? `Дата уже наступила — статья выложена: alfimov.kz${a.path}` : "Сохранено, статья снята с очереди на хостинге";
-      toast(head + "\n" + d.log.join("\n"));
-    } else toast("Сохранено · " + STATE[a.state][0]);
+    toast(a.state === "scheduled" ? `Сохранено · выйдет сама ${fmtDate(a.publish_at)}`
+      : a.state === "live" ? `Сохранено · на сайте: alfimov.kz${a.path}` : "Сохранено · черновик, на сайте не виден");
   } catch (e) { toast(e.message, true); }
   busy(b, false);
-};
-// Одной кнопкой: статус «Запланировано» + дата «сейчас» → сохранить → выложить сайт.
+}
+$("b-save").onclick = () => onSave($("b-save"));
+$("m-save").onclick = () => onSave($("m-save"));
+// Одной кнопкой: статус «Запланировано» + дата «сейчас» → сохранить (статья сразу на сайте).
 const almatyNow = () => new Date(Date.now() - 60000).toLocaleString("sv-SE", {timeZone: "Asia/Almaty"}).slice(0, 16).replace(" ", "T");
-$("b-now").onclick = async () => {
+async function onNow(b) {
   const title = $("f-title").value.trim() || "без заголовка";
   const isLive = current && current.state === "live";
-  if (!confirm(isLive ? `Сохранить правки и обновить статью «${title}» на сайте?` : `Опубликовать статью «${title}» на alfimov.kz прямо сейчас?`)) return;
-  const b = $("b-now"); busy(b, true, "Публикую…");
+  if (!confirm(isLive ? `Сохранить правки статьи «${title}» на сайте?` : `Опубликовать статью «${title}» на alfimov.kz прямо сейчас?`)) return;
+  busy(b, true, "Публикую…");
   try {
-    if (!(current && current.state === "live")) { $("f-status").value = "scheduled"; $("f-publish_at").value = almatyNow(); }
+    if (!isLive) { $("f-status").value = "scheduled"; $("f-publish_at").value = almatyNow(); }
     dirty = true;
     const a = await save();
-    const d = await api("/admin/api/publish", {method: "POST"});
-    toast(`Опубликовано: alfimov.kz${a.path}\n` + d.log.join("\n"));
+    toast(`Опубликовано: alfimov.kz${a.path}`);
   } catch (e) { toast(e.message, true); }
   busy(b, false);
-};
+}
+$("b-now").onclick = () => onNow($("b-now"));
+$("m-now").onclick = () => onNow($("m-now"));
 $("b-back").onclick = () => {
   if (dirty && !confirm("Есть несохранённые изменения. Выйти без сохранения?")) return;
   showHome();
@@ -507,7 +577,7 @@ $("b-preview").onclick = async () => {
   catch (e) { w.close(); toast(e.message, true); }
 };
 $("b-del").onclick = async () => {
-  if (!current || !confirm(`Удалить статью «${current.title}»? Файл удалится; если она уже на сайте — пропадёт после следующей публикации.`)) return;
+  if (!current || !confirm(`Удалить статью «${current.title}»? Если она на сайте — сразу пропадёт оттуда. Отменить нельзя.`)) return;
   try { await api("/admin/api/articles/" + current.slug, {method: "DELETE"}); dirty = false; await load(null); toast("Удалено"); }
   catch (e) { toast(e.message, true); }
 };
@@ -524,8 +594,7 @@ $("b-gen").onclick = async () => {
   const b = $("b-gen"); busy(b, true, "Пишу…");
   const t0 = Date.now(), tick = setInterval(() => { $("g-status").textContent = `Claude пишет статью… ${Math.round((Date.now() - t0) / 1000)} с (обычно 1–3 мин)`; }, 1000);
   try {
-    const d = await api("/admin/api/generate", {method: "POST", body: JSON.stringify({
-      topic, keywords: $("g-keys").value, notes: $("g-notes").value, words: $("g-words").value, current_slug: null})});
+    const d = await runJob("/admin/api/generate", {topic, keywords: $("g-keys").value, notes: $("g-notes").value, words: $("g-words").value});
     if (!current) open(null);
     fill(d.article);
     showEditor();
@@ -540,7 +609,9 @@ $("b-gen").onclick = async () => {
 $("f-file").onchange = async e => {
   const file = e.target.files[0]; if (!file) return;
   const data = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result.split(",")[1]); r.readAsDataURL(file); });
-  try { const d = await api("/admin/api/upload", {method: "POST", body: JSON.stringify({filename: file.name, data})}); $("f-cover_path").value = d.path; dirty = true; refresh(); toast("Обложка загружена"); }
+  if (file.size > 20 * 1024 * 1024) { toast("Файл больше 20 МБ", true); e.target.value = ""; return; }
+  toast("Загружаю…");
+  try { const d = await api("/admin/api/upload", {method: "POST", body: JSON.stringify({filename: file.name, data})}); $("f-cover_path").value = d.path; dirty = true; refresh(); toast("Обложка загружена — не забудьте сохранить статью"); }
   catch (err) { toast(err.message, true); }
   e.target.value = "";
 };
@@ -548,8 +619,8 @@ async function aiImage(kind, idea, btn, label) {
   busy(btn, true, label);
   const t0 = Date.now(), tick = setInterval(() => { btn.textContent = `${label} ${Math.round((Date.now() - t0) / 1000)} с`; }, 1000);
   try {
-    return (await api("/admin/api/image", {method: "POST", body: JSON.stringify({
-      kind, idea, mode: $("img-mode").value, title: $("f-title").value, lead: $("f-lead").value, slug: $("f-slug").value})})).path;
+    return (await runJob("/admin/api/image", {
+      kind, idea, mode: $("img-mode").value, title: $("f-title").value, lead: $("f-lead").value, slug: $("f-slug").value})).path;
   } catch (e) { toast(e.message, true); return null; }
   finally { clearInterval(tick); busy(btn, false); }
 }
@@ -593,7 +664,7 @@ $("ideas").onclick = e => {
 $("b-ideas").onclick = async () => {
   const b = $("b-ideas"); busy(b, true, "Собираю запросы…");
   const t0 = Date.now(), tick = setInterval(() => { $("i-status").textContent = `Собираю подсказки и думаю… ${Math.round((Date.now() - t0) / 1000)} с (обычно до минуты)`; }, 1000);
-  try { renderIdeas(await api(ideasUrl(), {method: "POST", body: JSON.stringify({focus: $("i-focus").value})})); }
+  try { renderIdeas(await runJob(ideasUrl(), {focus: $("i-focus").value})); }
   catch (e) { $("i-status").textContent = ""; toast(e.message, true); }
   clearInterval(tick); busy(b, false);
 };
@@ -601,19 +672,43 @@ const ideasUrl = () => "/admin/api/ideas?per_week=" + $("i-week").value;
 try { $("i-week").value = localStorage.getItem("per_week") || "2"; } catch (e) {}
 $("i-week").onchange = () => { try { localStorage.setItem("per_week", $("i-week").value); } catch (e) {} api(ideasUrl()).then(renderIdeas).catch(() => {}); };
 api(ideasUrl()).then(renderIdeas).catch(() => {});
-$("b-build").onclick = async () => {
-  const b = $("b-build"); busy(b, true, "Собираю…");
-  try { const d = await api("/admin/api/build", {method: "POST"}); toast(`Собрано. Статей на сайте: ${d.live}. Откройте /blog/`); } catch (e) { toast(e.message, true); }
+// ---------- настройки и выход
+async function showSettings() {
+  if (dirty && !confirm("Есть несохранённые изменения. Уйти без сохранения?")) return;
+  dirty = false;
+  document.body.classList.remove("view-edit"); document.body.classList.add("view-settings"); window.scrollTo(0, 0);
+  try {
+    const s = await api("/admin/api/settings");
+    $("s-ant-cur").textContent = s.anthropic_key ? `— сейчас ${s.anthropic_key}` : "— не задан";
+    $("s-oai-cur").textContent = s.openai_key ? `— сейчас ${s.openai_key}` : "— не задан";
+    $("s-login").textContent = "логин: " + s.login;
+  } catch (e) { toast(e.message, true); }
+}
+$("b-settings").onclick = showSettings;
+$("keys-link").onclick = e => { e.preventDefault(); showSettings(); };
+$("s-back").onclick = () => { document.body.classList.remove("view-settings"); checkKeys(); };
+$("s-save").onclick = async () => {
+  const b = $("s-save"); busy(b, true, "Сохраняю…");
+  try {
+    const d = await api("/admin/api/settings", {method: "POST", body: JSON.stringify({
+      anthropic_key: $("s-ant").value, openai_key: $("s-oai").value,
+      password_current: $("s-pass-cur").value, password_new: $("s-pass-new").value})});
+    ["s-ant", "s-oai", "s-pass-cur", "s-pass-new"].forEach(id => { $(id).value = ""; });
+    toast(d.changed.length ? "Сохранено: " + d.changed.join(", ") : "Ничего не изменилось");
+    await showSettings();
+  } catch (e) { toast(e.message, true); }
   busy(b, false);
 };
-$("b-publish").onclick = async () => {
-  if (dirty) { toast("Сначала сохраните статью", true); return; }
-  const live = articles.filter(a => a.state === "live").length;
-  if (!confirm(`Опубликовать сайт? На сайте будет статей: ${live}.\n\nСтатьи закоммитятся и отправятся на GitHub, затем ./deploy-git.sh обновит ветку deploy.`)) return;
-  const b = $("b-publish"); busy(b, true, "Публикую…");
-  try { const d = await api("/admin/api/publish", {method: "POST"}); toast(d.log.join("\n")); } catch (e) { toast(e.message, true); }
-  busy(b, false);
+$("b-logout").onclick = async () => {
+  if (dirty && !confirm("Есть несохранённые изменения. Выйти?")) return;
+  dirty = false;
+  await api("/admin/api/logout", {method: "POST"}).catch(() => {});
+  location.reload();
 };
+async function checkKeys() {
+  try { const s = await api("/admin/api/settings"); $("keys-warn").classList.toggle("hidden", !!(s.anthropic_key && s.openai_key)); } catch (e) {}
+}
+checkKeys();
 
 load(null).catch(e => toast(e.message, true));
 </script>

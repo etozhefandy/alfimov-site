@@ -37,7 +37,7 @@ def _pages(dist):
     out = {}
     for f in sorted(dist.rglob("*.html")):
         rel = "/" + str(f.relative_to(dist)).replace("\\", "/")
-        if rel == "/404.html" or re.match(r"^/yandex_[0-9a-f]+\.html$", rel) or rel.startswith("/admin/") or rel.startswith("/_scheduled/"):
+        if rel == "/404.html" or re.match(r"^/yandex_[0-9a-f]+\.html$", rel) or rel.startswith(("/admin/", "/_blog/")):
             continue
         out[rel.removesuffix("index.html")] = f.read_text(encoding="utf-8")
     return out
@@ -48,7 +48,13 @@ def _main_html(doc):
     return m.group(1) if m else doc
 
 
+# Блог собирает PHP на хостинге — в dist/ этих страниц нет, ссылки на них не битые.
+DYNAMIC = re.compile(r"^/blog/([a-z0-9-]+/)?$")
+
+
 def _exists(dist, href):
+    if DYNAMIC.match(href):
+        return True
     target = dist / href.lstrip("/")
     return target.is_file() or (target / "index.html").is_file()
 
