@@ -1,6 +1,8 @@
 User-agent: *
 Allow: /
 Disallow: /api/
+Disallow: /admin/
+Disallow: /_blog/
 
 Sitemap: https://alfimov.kz/sitemap.xml
 Host: https://alfimov.kz
