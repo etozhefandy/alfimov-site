@@ -847,7 +847,7 @@ def future_times(articles=None):
 
 
 def build_scheduled(dist, times):
-    """Для каждого T: собрать сайт на момент T и сохранить отличия от dist (manifest.json + files/)."""
+    """Для каждого T: собрать сайт на момент T и сохранить отличия от dist (manifest.json + files/<номер>.snap)."""
 
     import tempfile
     root = dist / SCHEDULED
@@ -872,10 +872,11 @@ def build_scheduled(dist, times):
             if not changed and not gone:
                 continue
             key = t.strftime("%Y%m%d-%H%M") + "-" + digest.hexdigest()[:8]
-            for rel, f in changed:
-                target = root / key / "files" / rel
-                target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(f, target)
+            # Файлы лежат как files/<номер>.snap: nginx на хостинге сам отдаёт .html/.xml мимо
+            # .htaccess, а неизвестное расширение уходит в Apache, где папка закрыта.
+            (root / key / "files").mkdir(parents=True)
+            for i, (rel, f) in enumerate(changed):
+                shutil.copy2(f, root / key / "files" / f"{i}.snap")
             manifest = {"at": t.isoformat(), "at_unix": int(t.timestamp()),
                         "files": [rel for rel, _ in changed], "delete": gone}
             (root / key / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=1), encoding="utf-8")

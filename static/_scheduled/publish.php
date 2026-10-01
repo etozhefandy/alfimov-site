@@ -3,7 +3,7 @@
 // Plesk → Планировщик задач → «Выполнить PHP-скрипт» httpdocs/_scheduled/publish.php, каждые 15 минут.
 //
 // build.py заранее собирает «сайт в момент T» для каждой запланированной статьи и кладёт
-// отличия в _scheduled/<T>-<hash>/ (manifest.json + files/). Здесь копируем наступившие версии
+// отличия в _scheduled/<T>-<hash>/ (manifest.json + files/<номер>.snap). Здесь копируем наступившие версии
 // поверх сайта. Применённые запоминаем в .applied, чтобы не копировать их каждые 15 минут.
 if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
 
@@ -30,9 +30,9 @@ uasort($due, function ($a, $b) { return $a['at_unix'] <=> $b['at_unix']; });
 
 foreach ($due as $key => $m) {
     $n = 0;
-    foreach ($m['files'] ?? [] as $rel) {
+    foreach ($m['files'] ?? [] as $i => $rel) {
         if (!$safe($rel)) continue;
-        $src = "$dir/$key/files/$rel";
+        $src = "$dir/$key/files/$i.snap";
         $dst = "$site/$rel";
         if (!is_file($src)) continue;
         if (!is_dir(dirname($dst))) mkdir(dirname($dst), 0755, true);
