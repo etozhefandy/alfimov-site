@@ -91,11 +91,12 @@ function execute(array $job): array
             return ['article' => write_article((string) $in['topic'], $in['keywords'], (string) $in['notes'], (int) $in['words'], $existing,
                 null, job_source($in['source'] ?? null))];
         case 'image':
-            $raw = generate_image($in['kind'], (string) $in['title'], (string) $in['lead'], (string) $in['idea'], (string) $in['mode']);
+            $img = generate_image($in['kind'], (string) $in['title'], (string) $in['lead'], (string) $in['idea'], (string) $in['mode'],
+                ['summary' => (string) ($in['summary'] ?? ''), 'body' => (string) ($in['body'] ?? '')]);
             $name = media_name(($in['slug'] ?: $in['title'] ?: 'image') . '-' . ($in['kind'] === 'cover' ? 'cover' : 'img'), 'webp');
             if (!is_dir(media_dir())) mkdir(media_dir(), 0750, true);
-            write_file(media_dir() . "/$name", $raw);
-            return ['path' => "/blog/media/$name"];
+            write_file(media_dir() . "/$name", $img['bin']);
+            return ['path' => "/blog/media/$name", 'main_idea' => $img['main_idea'], 'scene' => $img['scene']];
         case 'ideas':
             return ideas_with_plan(propose_ideas((string) $in['focus']), (int) $in['per_week']);
     }
@@ -253,6 +254,7 @@ try {
             'kind' => ($d['kind'] ?? '') === 'inline' ? 'inline' : 'cover',
             'title' => (string) ($d['title'] ?? ''), 'lead' => (string) ($d['lead'] ?? ''), 'idea' => (string) ($d['idea'] ?? ''),
             'slug' => (string) ($d['slug'] ?? ''), 'mode' => in_array($d['mode'] ?? '', IMG_MODES, true) ? $d['mode'] : 'auto',
+            'summary' => mb_substr((string) ($d['summary'] ?? ''), 0, 1000), 'body' => mb_substr((string) ($d['body'] ?? ''), 0, 6000),
         ]));
     }
     if ($method === 'POST' && $route === 'api/ideas') {

@@ -293,7 +293,7 @@ body:not(.view-edit) .mbar { display: none !important; }
           <textarea class="body" id="f-body_md"></textarea>
           <div class="row" style="margin-top:10px;gap:8px;align-items:center">
             <button class="btn" type="button" id="b-inline-img">🖼 Иллюстрация в текст (ИИ)</button>
-            <span class="hint">Картинка вставится туда, где стоит курсор. ~30–60 с.</span>
+            <span class="hint">Картинка вставится туда, где стоит курсор. ~40–80 с.</span>
           </div>
         </section>
 
@@ -329,7 +329,8 @@ body:not(.view-edit) .mbar { display: none !important; }
             <img class="cover-prev hidden" id="cover-prev" alt="">
             <div class="cover-empty" id="cover-empty">Обложки нет</div>
           </div>
-          <input type="text" id="img-idea" placeholder="Идея картинки (необязательно)" style="margin-top:10px">
+          <input type="text" id="img-idea" placeholder="Идея картинки (необязательно — иначе ИИ возьмёт главную мысль статьи)" style="margin-top:10px">
+          <p class="hint" id="img-note" style="margin:8px 0 0"></p>
           <select id="img-mode" style="margin-top:8px" title="Сюжет картинки"><option value="auto">Сюжет: авто (иногда с людьми)</option><option value="people">Сюжет: с людьми</option><option value="abstract">Сюжет: абстракция, без людей</option></select>
           <div class="row" style="margin-top:8px">
             <button class="btn btn-p" type="button" id="b-cover-ai">Сгенерировать (ИИ)</button>
@@ -459,6 +460,7 @@ function open(a) {
   $("ed-badge").textContent = label; $("ed-badge").className = "badge " + cls;
   $("b-now").textContent = $("m-now").textContent = a && a.state === "live" ? "Сохранить на сайте" : "Опубликовать сейчас";
   $("b-del").classList.toggle("hidden", !a);
+  $("img-note").textContent = "";
   showEditor();
   if (!a) { $("g-topic").value = ""; $("g-keys").value = ""; $("g-notes").value = ""; }
   dirty = false; renderList(); refresh();
@@ -675,8 +677,11 @@ async function aiImage(kind, idea, btn, label) {
   busy(btn, true, label);
   const t0 = Date.now(), tick = setInterval(() => { btn.textContent = `${label} ${Math.round((Date.now() - t0) / 1000)} с`; }, 1000);
   try {
-    return (await runJob("/admin/api/image", {
-      kind, idea, mode: $("img-mode").value, title: $("f-title").value, lead: $("f-lead").value, slug: $("f-slug").value})).path;
+    const r = await runJob("/admin/api/image", {
+      kind, idea, mode: $("img-mode").value, title: $("f-title").value, lead: $("f-lead").value, slug: $("f-slug").value,
+      summary: $("f-summary").value, body: $("f-body_md").value.slice(0, 6000)});
+    if (kind === "cover") $("img-note").textContent = r.main_idea ? "Мысль картинки: " + r.main_idea : "";
+    return r.path;
   } catch (e) { toast(e.message, true); return null; }
   finally { clearInterval(tick); busy(btn, false); }
 }
