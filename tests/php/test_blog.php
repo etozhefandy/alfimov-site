@@ -85,6 +85,26 @@ $plan = ideas_with_plan(['ideas' => [['topic' => 'A', 'main_keyword' => 'x'], ['
     new DateTimeImmutable('2026-10-01T09:00', tz()));
 check(array_column($plan['ideas'], 'suggested_date') === ['2026-10-06T10:00', '2026-10-08T10:00', '2026-10-13T10:00'], 'план: вт и чт в 10:00, занятые дни пропущены');
 
+echo "статья по источнику\n";
+$html = '<html><head><meta charset="utf-8"><title>Сайт</title><meta property="og:title" content="Meta меняет правила рекламы в Казахстане">'
+    . '<meta property="og:image" content="https://cdn.example/x.jpg"></head><body><nav>Меню Главная Контакты</nav>'
+    . '<article><h1>Заголовок</h1><p>' . str_repeat('С 1 ноября реклама в Instagram для бизнеса в Казахстане требует новых документов. ', 12)
+    . '</p><script>alert(1)</script></article><footer>© подвал</footer></body></html>';
+$src = extract_source($html);
+check($src['title'] === 'Meta меняет правила рекламы в Казахстане' && str_contains($src['text'], 'С 1 ноября'), 'статья: заголовок и текст');
+check(!str_contains($src['text'], 'Меню') && !str_contains($src['text'], 'alert') && !str_contains($src['text'], 'подвал'), 'статья: без меню, скриптов и подвала');
+check(insta_caption('1,234 likes, 56 comments - shop.kz on October 1, 2026: "Новое правило: реклама \"с ценой\" только так"') === 'Новое правило: реклама \"с ценой\" только так', 'Instagram: подпись поста из og:description');
+check(!public_url('http://127.0.0.1/admin') && !public_url('http://192.168.1.1/') && !public_url('file:///etc/passwd') && !public_url('ftp://x.kz/'), 'ссылки во внутреннюю сеть запрещены');
+$sent = null;
+write_article('', [], '', 1500, [], function ($body) use ($sse, &$sent) { $sent = $body; return [200, $sse]; },
+    ['url' => 'https://example.kz/news', 'title' => 'Новость', 'text' => 'Текст новости', 'images' => [['image/jpeg', 'QUJD']]]);
+$content = $sent['messages'][0]['content'];
+check(is_array($content) && $content[0]['type'] === 'image' && $content[0]['source']['data'] === 'QUJD', 'скриншоты уходят в Claude картинками');
+$last = end($content)['text'];
+check(str_contains($last, 'https://example.kz/news') && str_contains($last, 'Текст новости') && str_contains($last, 'выбери сам'), 'источник и «тему выбери сам» в запросе');
+check(str_contains($sent['system'], 'Не копируй текст источника'), 'правила: своя статья, не пересказ');
+check(throws(fn() => write_article('', [], '', 1500, []), 'источник'), 'без темы и источника — понятная ошибка');
+
 echo "вход\n";
 check(!is_configured() && try_setup('неверный', 'andrey', 'supersecret1', 'supersecret1') === 'Неверный код настройки', 'без кода настройки не войти');
 check(password_problem('short') !== '' && password_problem('long-enough-pass') === '', 'пароль от 10 символов');

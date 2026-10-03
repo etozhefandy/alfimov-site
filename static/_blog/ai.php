@@ -45,7 +45,6 @@ function claude(array $body, ?callable $post = null): array
         $raw = curl_exec($ch);
         $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err = curl_error($ch);
-        curl_close($ch);
         if ($raw === false) throw new AiError('Нет связи с Claude API: ' . $err);
     }
     if ($code !== 200) {
@@ -141,7 +140,7 @@ TXT;
 
 function writer_user_prompt(string $topic, array $keywords, string $notes, int $words, array $existing): string
 {
-    $lines = ['Тема статьи: ' . trim($topic)];
+    $lines = [trim($topic) !== '' ? 'Тема статьи: ' . trim($topic) : 'Тема статьи: выбери сам по источнику — то, что полезно владельцу бизнеса.'];
     if ($keywords) $lines[] = 'Поисковые запросы (первый — главный): ' . implode('; ', $keywords);
     $lines[] = "Объём тела: около $words слов.";
     if (trim($notes) !== '') $lines[] = 'Пожелания редактора: ' . trim($notes);
@@ -151,17 +150,28 @@ function writer_user_prompt(string $topic, array $keywords, string $notes, int $
     return implode("\n", $lines);
 }
 
-/** Черновик статьи: все SEO-поля + тело. Публикует всегда человек. */
-function write_article(string $topic, array $keywords, string $notes, int $words, array $existing, ?callable $post = null): array
+/** Черновик статьи: все SEO-поля + тело. Публикует всегда человек.
+ *  $source — материал-повод (статья, пост в Instagram): ['url','title','text','images' => [[mime, base64], …]]. */
+function write_article(string $topic, array $keywords, string $notes, int $words, array $existing, ?callable $post = null, ?array $source = null): array
 {
-    if (trim($topic) === '') throw new AiError('Укажите тему статьи');
+    $has_source = $source && (trim((string) ($source['text'] ?? '')) !== '' || !empty($source['images']));
+    if (trim($topic) === '' && !$has_source) throw new AiError('Укажите тему статьи или источник');
     $keywords = str_list($keywords);
+    $text = writer_user_prompt($topic, $keywords, $notes, $words, $existing);
+    $content = $text;
+    if ($has_source) {
+        $content = [];
+        foreach ($source['images'] ?? [] as [$mime, $b64]) {
+            $content[] = ['type' => 'image', 'source' => ['type' => 'base64', 'media_type' => $mime, 'data' => $b64]];
+        }
+        $content[] = ['type' => 'text', 'text' => source_prompt($source) . "\n\n" . $text];
+    }
     $data = claude_json([
         'max_tokens' => 32000,
         'thinking' => ['type' => 'adaptive'],
         'output_config' => ['effort' => 'high', 'format' => ['type' => 'json_schema', 'schema' => ARTICLE_SCHEMA]],
-        'system' => writer_system_prompt(),
-        'messages' => [['role' => 'user', 'content' => writer_user_prompt($topic, $keywords, $notes, $words, $existing)]],
+        'system' => writer_system_prompt() . ($has_source ? "\n" . SOURCE_RULES : ''),
+        'messages' => [['role' => 'user', 'content' => $content]],
     ], $post);
     $known = array_column($existing, 'slug');
     $data['faq'] = array_map(fn($f) => [$f['q'] ?? '', $f['a'] ?? ''], $data['faq'] ?? []);
@@ -169,6 +179,155 @@ function write_article(string $topic, array $keywords, string $notes, int $words
     $data['keywords'] = ($data['keywords'] ?? []) ?: $keywords;
     if (!preg_match(SLUG_RE, (string) ($data['slug'] ?? ''))) $data['slug'] = slugify((string) ($data['slug'] ?? $data['title'] ?? ''));
     return $data;
+}
+
+// ---------------------------------------------------------------- статья по источнику
+
+// Свежий материал (новость, пост в Instagram) — повод для статьи «в повестке». Свой текст, а не пересказ:
+// поисковики не ранжируют копии, а чужой текст целиком брать нельзя.
+const SOURCE_RULES = <<<TXT
+Статья по источнику. Пользователь прислал материал (статью, пост, скриншоты) — это информационный повод.
+- Напиши СВОЮ статью для владельца бизнеса в Казахстане: что произошло, что это меняет для бизнеса, что делать
+  на практике. Повод — во вступлении и в одном из разделов, остальное — полезный разбор от агентства.
+- Не копируй текст источника и не пересказывай его абзац за абзацем; дословно — максимум одна короткая цитата в кавычках.
+- Факты, цифры, даты и имена бери только из источника и подавай со ссылкой на него («по данным …»).
+  Не додумывай подробности, которых в источнике нет. Если источник — мнение или реклама, так и скажи.
+- В тексте одна внешняя ссылка markdown на источник (если есть адрес): [название источника](адрес).
+- Тему и поисковые запросы выбери сам по содержанию, если пользователь их не задал: то, что ищут владельцы бизнеса
+  в Казахстане по этой теме; главный запрос — в начале списка keywords.
+TXT;
+
+function source_prompt(array $source): string
+{
+    $lines = ['ИСТОЧНИК (информационный повод для статьи):'];
+    if (!empty($source['url'])) $lines[] = 'Адрес: ' . $source['url'];
+    if (!empty($source['title'])) $lines[] = 'Заголовок: ' . $source['title'];
+    if (!empty($source['images'])) $lines[] = 'Скриншоты/картинки источника приложены выше — прочитай текст на них.';
+    if (trim((string) ($source['text'] ?? '')) !== '') $lines[] = "Текст:\n" . mb_substr(trim($source['text']), 0, 20000);
+    return implode("\n", $lines);
+}
+
+/** Только публичные адреса: сервер не должен ходить во внутреннюю сеть хостинга. */
+function public_url(string $url): bool
+{
+    $p = parse_url($url);
+    if (!in_array(strtolower($p['scheme'] ?? ''), ['http', 'https'], true) || empty($p['host'])) return false;
+    $ips = filter_var($p['host'], FILTER_VALIDATE_IP) ? [$p['host']] : (gethostbynamel($p['host']) ?: []);
+    foreach ($ips as $ip) {
+        if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) return false;
+    }
+    return (bool) $ips;
+}
+
+function http_get(string $url, string $ua, int $max = 3_000_000): array
+{
+    $ch = curl_init($url);
+    $buf = '';
+    curl_setopt_array($ch, [
+        CURLOPT_FOLLOWLOCATION => false, CURLOPT_TIMEOUT => 20, CURLOPT_CONNECTTIMEOUT => 8, CURLOPT_USERAGENT => $ua,
+        CURLOPT_HTTPHEADER => ['Accept-Language: ru-RU,ru;q=0.9,kk;q=0.8,en;q=0.5'], CURLOPT_ENCODING => '',
+        CURLOPT_WRITEFUNCTION => function ($c, $chunk) use (&$buf, $max) {
+            $buf .= $chunk;
+            return strlen($buf) > $max ? 0 : strlen($chunk);
+        },
+    ]);
+    curl_exec($ch);
+    $info = ['code' => (int) curl_getinfo($ch, CURLINFO_HTTP_CODE), 'type' => (string) curl_getinfo($ch, CURLINFO_CONTENT_TYPE),
+        'location' => (string) curl_getinfo($ch, CURLINFO_REDIRECT_URL)];
+    return [$buf, $info];
+}
+
+/** Скачивает страницу по ссылке (редиректы — вручную, с проверкой каждого адреса). */
+function fetch_page(string $url, string $ua): array
+{
+    for ($hop = 0; $hop < 5; $hop++) {
+        if (!public_url($url)) throw new AiError('Ссылка не открывается: нужен обычный адрес сайта http(s)://…');
+        [$body, $info] = http_get($url, $ua);
+        if ($info['code'] >= 300 && $info['code'] < 400 && $info['location']) { $url = $info['location']; continue; }
+        if ($info['code'] !== 200 || $body === '') throw new AiError("Сайт по ссылке не отдал страницу (код {$info['code']}) — вставьте текст или скриншот");
+        return [$body, $info['type'], $url];
+    }
+    throw new AiError('Слишком много перенаправлений по ссылке');
+}
+
+function to_utf8(string $html, string $ctype): string
+{
+    if (preg_match('/charset=([\w-]+)/i', $ctype, $m) || preg_match('/<meta[^>]+charset=["\']?([\w-]+)/i', $html, $m)) {
+        $cs = strtoupper($m[1]);
+        if ($cs !== 'UTF-8' && $cs !== 'UTF8') $html = (string) @mb_convert_encoding($html, 'UTF-8', $cs);
+    }
+    return mb_check_encoding($html, 'UTF-8') ? $html : (string) mb_convert_encoding($html, 'UTF-8', 'Windows-1251');
+}
+
+function meta_tag(string $html, string $name): string
+{
+    foreach (['property', 'name'] as $attr) {
+        if (preg_match('/<meta[^>]+' . $attr . '=["\']' . preg_quote($name, '/') . '["\'][^>]*content=["\']([^"\']*)/i', $html, $m)
+            || preg_match('/<meta[^>]+content=["\']([^"\']*)["\'][^>]*' . $attr . '=["\']' . preg_quote($name, '/') . '["\']/i', $html, $m)) {
+            return trim(html_entity_decode($m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        }
+    }
+    return '';
+}
+
+/** HTML статьи → заголовок и основной текст (без меню, скриптов и подвала). */
+function extract_source(string $html): array
+{
+    $title = meta_tag($html, 'og:title');
+    if ($title === '' && preg_match('#<title[^>]*>(.*?)</title>#is', $html, $m)) $title = trim(html_entity_decode($m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    $desc = meta_tag($html, 'og:description') ?: meta_tag($html, 'description');
+    $body = $html;
+    foreach (['article', 'main'] as $tag) {
+        if (preg_match_all("#<$tag\b[^>]*>(.*?)</$tag>#is", $html, $m)) {
+            usort($m[1], fn($a, $b) => strlen($b) - strlen($a));
+            if (strlen(strip_tags($m[1][0])) > 500) { $body = $m[1][0]; break; }
+        }
+    }
+    $body = preg_replace(['#<!--.*?-->#s', '#<(script|style|noscript|svg|nav|header|footer|aside|form|iframe)\b.*?</\1>#is'], ' ', $body);
+    $body = preg_replace('#<(br|/p|/h[1-6]|/li|/div|/tr)\b[^>]*>#i', "\n", $body);
+    $text = html_entity_decode(strip_tags($body), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    $text = trim(preg_replace(["/[ \t\x{00A0}]+/u", "/\n\s*\n+/"], [' ', "\n\n"], $text));
+    if (mb_strlen($text) < 200 && $desc !== '') $text = $desc . ($text !== '' ? "\n\n$text" : '');
+    return ['title' => $title, 'text' => mb_substr($text, 0, 20000), 'image_url' => meta_tag($html, 'og:image')];
+}
+
+/** Картинка по ссылке → [mime, base64] для Claude (до ~4 МБ), иначе null. */
+function fetch_image(string $url): ?array
+{
+    if ($url === '' || !public_url($url)) return null;
+    [$bin, $info] = http_get($url, 'Mozilla/5.0', 4_500_000);
+    $mime = strtolower(trim(explode(';', $info['type'])[0]));
+    if ($info['code'] !== 200 || !in_array($mime, ['image/jpeg', 'image/png', 'image/webp', 'image/gif'], true) || strlen($bin) > 4_400_000) return null;
+    return [$mime, base64_encode($bin)];
+}
+
+/** og:description поста: «12 likes, 3 comments - user on October 1, 2026: "подпись"» → подпись. */
+function insta_caption(string $desc): string
+{
+    return trim(preg_match('/^[^:]{0,200}:\s*["“](.*)["”]\s*\.?$/su', $desc, $m) ? $m[1] : $desc);
+}
+
+/**
+ * Источник по ссылке. Instagram отдаёт подпись поста и картинку только «превью-роботам» (как при
+ * отправке ссылки в мессенджер), поэтому для него — заголовок facebookexternalhit и разбор og-тегов.
+ */
+function fetch_source(string $url): array
+{
+    $url = trim($url);
+    $insta = (bool) preg_match('#^https?://(www\.)?instagram\.com/#i', $url);
+    $ua = $insta ? 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)'
+        : 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36';
+    [$html, $ctype, $final] = fetch_page($url, $ua);
+    $src = extract_source(to_utf8($html, $ctype));
+    if ($insta) {
+        $src['text'] = insta_caption(meta_tag($html, 'og:description'));
+        if ($src['text'] === '') throw new AiError('Instagram не отдал текст поста — сделайте скриншоты поста и прикрепите их');
+    }
+    $src['url'] = $final;
+    $src['images'] = [];
+    if ($insta && ($img = fetch_image($src['image_url']))) $src['images'][] = $img;
+    if (mb_strlen($src['text']) < 80 && !$src['images']) throw new AiError('По ссылке почти нет текста — вставьте текст или скриншот');
+    return $src;
 }
 
 // ---------------------------------------------------------------- картинки
@@ -256,7 +415,6 @@ function openai_image(array $payload, string $key): string
     $raw = curl_exec($ch);
     $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $err = curl_error($ch);
-    curl_close($ch);
     if ($raw === false) throw new AiError('Нет связи с OpenAI: ' . $err);
     $data = json_decode((string) $raw, true);
     if ($code !== 200) throw new AiError(image_error($code, (string) ($data['error']['message'] ?? '')));
@@ -352,7 +510,6 @@ function collect_queries(): array
                 if ($k !== '') $found[$k][$engine] = 1;
             }
             curl_multi_remove_handle($mh, $ch);
-            curl_close($ch);
         }
         curl_multi_close($mh);
     }

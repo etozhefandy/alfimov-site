@@ -196,6 +196,31 @@ body:not(.view-edit) .mbar { display: none !important; }
       <ul class="ideas" id="ideas"></ul>
     </section>
 
+    <section class="card ai" id="src-card">
+      <h2>Статья по источнику <small>новость, статья или пост в Instagram → своя статья в повестке</small></h2>
+      <div class="grid">
+        <label class="f">Ссылка <span class="hint">— статья на сайте или пост в Instagram</span>
+          <input type="text" id="s-url" inputmode="url" autocapitalize="off" spellcheck="false" placeholder="https://www.instagram.com/p/… или https://…">
+        </label>
+        <div class="row" style="gap:8px">
+          <label class="btn">📎 Скриншоты<input type="file" id="s-files" accept="image/*" multiple hidden></label>
+          <span class="hint" id="s-files-info">для карусели или если ссылка не открывается — до 6 шт.</span>
+          <button class="x hidden" type="button" id="s-files-clear" title="Убрать скриншоты">×</button>
+        </div>
+        <details class="more"><summary>Вставить текст вручную</summary>
+          <textarea id="s-text" rows="4" style="margin-top:8px" placeholder="Текст поста или статьи, если ссылка не открывается"></textarea>
+        </details>
+        <label class="f">Пожелания <span class="hint">— необязательно: акцент, для кого, какую услугу показать</span>
+          <input type="text" id="s-notes" placeholder="Например: для владельцев салонов, показать, что делать после нового правила">
+        </label>
+        <div class="row">
+          <span class="spacer"></span>
+          <span class="ai-status" id="s-status"></span>
+          <button class="btn btn-p" id="b-src">Написать статью по источнику</button>
+        </div>
+      </div>
+    </section>
+
     <section class="card ai" id="ai-card">
       <h2>Написать статью с ИИ <small id="model"></small></h2>
       <div class="grid">
@@ -581,30 +606,61 @@ $("b-del").onclick = async () => {
   try { await api("/admin/api/articles/" + current.slug, {method: "DELETE"}); dirty = false; await load(null); toast("Удалено"); }
   catch (e) { toast(e.message, true); }
 };
-$("b-gen").onclick = async () => {
-  const topic = $("g-topic").value.trim();
-  if (!topic) { toast("Впишите тему статьи", true); $("g-topic").focus(); return; }
-  // ИИ всегда пишет НОВУЮ статью: сохранённую (тем более опубликованную) он не перезаписывает.
-  if (current) {
-    if (dirty && !confirm(`В редакторе открыта статья «${current.title}» с несохранёнными правками. Они пропадут, а ИИ напишет новую статью. Продолжить?`)) return;
-    const ai = {topic: $("g-topic").value, keys: $("g-keys").value, notes: $("g-notes").value};
-    delete $("f-slug").dataset.touched; open(null);  // open(null) очищает поля ИИ — возвращаем их
-    $("g-topic").value = ai.topic; $("g-keys").value = ai.keys; $("g-notes").value = ai.notes;
+// ИИ всегда пишет НОВУЮ статью: сохранённую (тем более опубликованную) он не перезаписывает.
+async function generate(body, btn, statusEl, label) {
+  if (current || dirty) {
+    if (dirty && !confirm(current ? `В редакторе открыта статья «${current.title}» с несохранёнными правками. Они пропадут, а ИИ напишет новую статью. Продолжить?`
+      : "В редакторе есть несохранённая статья. Она пропадёт, а ИИ напишет новую. Продолжить?")) return;
+    const keep = {topic: $("g-topic").value, keys: $("g-keys").value, notes: $("g-notes").value};
+    delete $("f-slug").dataset.touched; open(null); showHome();  // open(null) очищает поля ИИ — возвращаем их
+    $("g-topic").value = keep.topic; $("g-keys").value = keep.keys; $("g-notes").value = keep.notes;
   }
-  const b = $("b-gen"); busy(b, true, "Пишу…");
-  const t0 = Date.now(), tick = setInterval(() => { $("g-status").textContent = `Claude пишет статью… ${Math.round((Date.now() - t0) / 1000)} с (обычно 1–3 мин)`; }, 1000);
+  busy(btn, true, label);
+  const t0 = Date.now(), tick = setInterval(() => { statusEl.textContent = `Claude пишет статью… ${Math.round((Date.now() - t0) / 1000)} с (обычно 1–3 мин)`; }, 1000);
   try {
-    const d = await runJob("/admin/api/generate", {topic, keywords: $("g-keys").value, notes: $("g-notes").value, words: $("g-words").value});
-    if (!current) open(null);
+    const d = await runJob("/admin/api/generate", body);
+    open(null);
     fill(d.article);
     showEditor();
+    const topic = body.topic || "";
     if (pendingIdea && pendingIdea.topic === topic && pendingIdea.date) {
       $("f-status").value = "scheduled"; $("f-publish_at").value = pendingIdea.date; refresh();
-      $("g-status").textContent = `Готово — новая статья, запланирована на ${fmtDate(pendingIdea.date)}. Проверьте текст и нажмите «Сохранить» — выйдет сама.`;
-    } else $("g-status").textContent = "Готово — это новая статья. Проверьте текст и нажмите «Сохранить»: она сохранится черновиком.";
+      toast(`Готово — новая статья, запланирована на ${fmtDate(pendingIdea.date)}. Проверьте текст и нажмите «Сохранить» — выйдет сама.`);
+    } else toast("Готово — это новая статья. Проверьте текст и нажмите «Сохранить»: она сохранится черновиком.");
+    statusEl.textContent = "";
     pendingIdea = null;
-  } catch (e) { $("g-status").textContent = ""; toast(e.message, true); }
-  clearInterval(tick); busy(b, false);
+    return true;
+  } catch (e) { statusEl.textContent = ""; toast(e.message, true); return false; }
+  finally { clearInterval(tick); busy(btn, false); }
+}
+$("b-gen").onclick = () => {
+  const topic = $("g-topic").value.trim();
+  if (!topic) { toast("Впишите тему статьи", true); $("g-topic").focus(); return; }
+  generate({topic, keywords: $("g-keys").value, notes: $("g-notes").value, words: $("g-words").value}, $("b-gen"), $("g-status"), "Пишу…");
+};
+// ---------- статья по источнику
+let srcShots = [];
+const fileB64 = file => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(",")[1]); r.onerror = rej; r.readAsDataURL(file); });
+function renderShots() {
+  $("s-files-info").textContent = srcShots.length ? `прикреплено скриншотов: ${srcShots.length}` : "для карусели или если ссылка не открывается — до 6 шт.";
+  $("s-files-clear").classList.toggle("hidden", !srcShots.length);
+}
+$("s-files").onchange = async e => {
+  const files = [...e.target.files].slice(0, 6 - srcShots.length);
+  for (const f of files) {
+    if (f.size > 20 * 1024 * 1024) { toast(`${f.name}: больше 20 МБ`, true); continue; }
+    srcShots.push(await fileB64(f));
+  }
+  e.target.value = ""; renderShots();
+};
+$("s-files-clear").onclick = () => { srcShots = []; renderShots(); };
+$("b-src").onclick = async () => {
+  const url = $("s-url").value.trim(), text = $("s-text").value.trim();
+  if (!url && !text && !srcShots.length) { toast("Вставьте ссылку, текст или скриншоты", true); $("s-url").focus(); return; }
+  if (url && !/^https?:\/\//i.test(url)) { toast("Ссылка должна начинаться с https://", true); return; }
+  const ok = await generate({source_url: url, source_text: text, source_images: srcShots, notes: $("s-notes").value, words: $("g-words").value},
+    $("b-src"), $("s-status"), "Читаю источник…");
+  if (ok) { $("s-url").value = ""; $("s-text").value = ""; $("s-notes").value = ""; srcShots = []; renderShots(); }
 };
 $("f-file").onchange = async e => {
   const file = e.target.files[0]; if (!file) return;

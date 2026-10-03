@@ -71,7 +71,7 @@ function new_job(string $type, array $input): array
     $id = bin2hex(random_bytes(8));
     $job = ['id' => $id, 'type' => $type, 'input' => $input, 'status' => 'queued', 'created' => time()];
     write_json(job_file($id), $job);
-    foreach (glob(DATA_DIR . '/jobs/*.json') ?: [] as $f) {  // старше суток — убрать
+    foreach (glob(DATA_DIR . '/jobs/*') ?: [] as $f) {  // задачи и скриншоты старше суток — убрать
         if (filemtime($f) < time() - 86400) @unlink($f);
     }
     return ['job' => $id];
@@ -88,7 +88,8 @@ function execute(array $job): array
     switch ($job['type']) {
         case 'generate':
             $existing = array_map(fn($a) => ['slug' => $a['slug'], 'title' => $a['title']], load_all());
-            return ['article' => write_article((string) $in['topic'], $in['keywords'], (string) $in['notes'], (int) $in['words'], $existing)];
+            return ['article' => write_article((string) $in['topic'], $in['keywords'], (string) $in['notes'], (int) $in['words'], $existing,
+                null, job_source($in['source'] ?? null))];
         case 'image':
             $raw = generate_image($in['kind'], (string) $in['title'], (string) $in['lead'], (string) $in['idea'], (string) $in['mode']);
             $name = media_name(($in['slug'] ?: $in['title'] ?: 'image') . '-' . ($in['kind'] === 'cover' ? 'cover' : 'img'), 'webp');
@@ -99,6 +100,42 @@ function execute(array $job): array
             return ideas_with_plan(propose_ideas((string) $in['focus']), (int) $in['per_week']);
     }
     throw new RuntimeException('Неизвестная задача');
+}
+
+/** Источник для статьи: ссылка (скачиваем здесь, в задаче) + вставленный текст + скриншоты. */
+function job_source(?array $in): ?array
+{
+    if (!$in) return null;
+    $src = ['url' => '', 'title' => '', 'text' => '', 'images' => []];
+    if (($in['url'] ?? '') !== '') {
+        try {
+            $src = fetch_source($in['url']);
+        } catch (AiError $ex) {
+            // ссылка не открылась, но есть текст или скриншоты — пишем по ним, адрес оставляем для ссылки
+            if (trim($in['text'] ?? '') === '' && empty($in['images'])) throw $ex;
+            $src['url'] = $in['url'];
+        }
+    }
+    if (trim($in['text'] ?? '') !== '') $src['text'] = trim(($src['text'] ? $src['text'] . "\n\n" : '') . $in['text']);
+    foreach ($in['images'] ?? [] as $f) {
+        if (is_file($f)) $src['images'][] = ['image/jpeg', base64_encode((string) file_get_contents($f))];
+    }
+    return $src;
+}
+
+/** Скриншот источника → jpeg до 1568 px (больше Claude всё равно уменьшит) во временной папке задач. */
+function store_source_image(string $raw): string
+{
+    $img = @imagecreatefromstring($raw);
+    if (!$img) throw new InvalidArgumentException('Скриншот не читается — нужен jpg, png или webp');
+    $w = imagesx($img);
+    $h = imagesy($img);
+    $k = min(1, 1568 / max($w, $h));
+    if ($k < 1) $img = imagescale($img, (int) round($w * $k), (int) round($h * $k), IMG_BICUBIC);
+    if (!is_dir(DATA_DIR . '/jobs')) mkdir(DATA_DIR . '/jobs', 0750, true);
+    $file = DATA_DIR . '/jobs/src-' . bin2hex(random_bytes(6)) . '.jpg';
+    if (!imagejpeg($img, $file, 85)) throw new RuntimeException('Не удалось сохранить скриншот');
+    return $file;
 }
 
 /** Запускает задачу один раз (повторный /run того же id ничего не делает). */
@@ -187,9 +224,24 @@ try {
     }
     if ($method === 'POST' && $route === 'api/generate') {
         $d = body();
-        if (trim((string) ($d['topic'] ?? '')) === '') fail('Впишите тему статьи');
+        $source = null;
+        $s_url = trim((string) ($d['source_url'] ?? ''));
+        $s_text = trim((string) ($d['source_text'] ?? ''));
+        $shots = array_slice(is_array($d['source_images'] ?? null) ? $d['source_images'] : [], 0, 6);
+        if ($s_url !== '' || $s_text !== '' || $shots) {
+            if ($s_url !== '' && !preg_match('#^https?://#i', $s_url)) fail('Ссылка должна начинаться с http:// или https://');
+            $files = [];
+            foreach ($shots as $b64) {
+                $raw = base64_decode((string) $b64, true);
+                if (!$raw || strlen($raw) > MAX_UPLOAD) fail('Скриншот пустой или больше 20 МБ');
+                $files[] = store_source_image($raw);
+            }
+            $source = ['url' => $s_url, 'text' => mb_substr($s_text, 0, 20000), 'images' => $files];
+        }
+        if (trim((string) ($d['topic'] ?? '')) === '' && !$source) fail('Впишите тему статьи или добавьте источник');
         reply(new_job('generate', [
-            'topic' => (string) $d['topic'],
+            'source' => $source,
+            'topic' => (string) ($d['topic'] ?? ''),
             'keywords' => preg_split('/[\n,;]+/u', (string) ($d['keywords'] ?? ''), -1, PREG_SPLIT_NO_EMPTY),
             'notes' => (string) ($d['notes'] ?? ''),
             'words' => max(500, min(4000, (int) ($d['words'] ?? 1500) ?: 1500)),
