@@ -81,6 +81,18 @@ check(throws(fn() => write_article('Т', [], '', 1500, [], fn() => [200, "data: 
 $prompt = image_prompt('cover', 'Заголовок', 'лид', '', 'people');
 check(!preg_match('/#[0-9a-f]{3,6}\b/i', $prompt) && str_contains($prompt, 'PEOPLE:') && str_contains($prompt, 'cobalt-blue'), 'картинка: люди, синий элемент, без hex-кодов');
 check(str_contains(image_prompt('cover', 'З', '', '', 'abstract'), 'NO PEOPLE'), 'картинка: абстракция без людей');
+$scene_sse = fn(string $json) => "data: " . json_encode(['type' => 'content_block_delta', 'delta' => ['type' => 'text_delta', 'text' => $json]]) . "\n"
+    . "data: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"}}\n";
+$asked = null;
+$img = generate_image('cover', 'Таргет или контекст', 'Разница', '', 'abstract', ['summary' => 'Контекст ловит спрос, таргет создаёт.', 'body' => 'Текст статьи'],
+    function ($body) use ($scene_sse, &$asked) { $asked = $body; return [200, $scene_sse('{"main_idea":"Контекст ловит готовый спрос","scene":"Two paths on a white floor, a cobalt-blue slab #1769ff marks the shorter one."}')]; });
+$q = $asked['messages'][0]['content'];
+check($img['main_idea'] === 'Контекст ловит готовый спрос' && str_contains($img['prompt'], 'Two paths on a white floor'), 'картинка: сначала мысль, потом сцена из неё');
+check(str_contains($q, 'Контекст ловит спрос') && str_contains($q, 'Людей нет') && str_contains($q, 'Приём съёмки'), 'в запрос сцены — статья, сюжет и приём съёмки');
+check(!preg_match('/#[0-9a-f]{3,8}\b/i', $img['prompt']) && str_contains($img['prompt'], 'cobalt-blue'), 'сцена: hex-коды вычищены, стиль сайта на месте');
+$img = generate_image('cover', 'Заголовок', '', '', 'people', [], fn() => [529, '{}']);
+check(str_contains($img['prompt'], 'PEOPLE:') && $img['main_idea'] === '', 'Claude недоступен — запасной промпт, картинка всё равно рисуется');
+check(throws(fn() => generate_image('cover', '', '', '', 'auto', [], fn() => [200, '']), 'Опишите картинку'), 'без заголовка и идеи — понятная ошибка');
 $plan = ideas_with_plan(['ideas' => [['topic' => 'A', 'main_keyword' => 'x'], ['topic' => 'B', 'main_keyword' => 'y'], ['topic' => 'C', 'main_keyword' => 'z']]], 2,
     new DateTimeImmutable('2026-10-01T09:00', tz()));
 check(array_column($plan['ideas'], 'suggested_date') === ['2026-10-06T10:00', '2026-10-08T10:00', '2026-10-13T10:00'], 'план: вт и чт в 10:00, занятые дни пропущены');

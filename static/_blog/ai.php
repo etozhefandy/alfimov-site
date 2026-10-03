@@ -377,19 +377,76 @@ const TECHNIQUES = [
 ];
 const IMG_MODES = ['auto', 'people', 'abstract'];
 
-/** Промпт = тема + сюжет (люди/абстракция) + приём съёмки + стиль. auto — люди примерно в половине картинок. */
-function image_prompt(string $kind, string $title, string $lead, string $idea, string $mode = 'auto'): string
+/** Запасной промпт без Claude: тема + шаблонный сюжет + приём съёмки + стиль. */
+function image_prompt(string $kind, string $title, string $lead, string $idea, string $mode = 'auto', ?bool $people = null): string
 {
     [$idea, $title, $lead] = [trim($idea), trim($title), trim($lead)];
     if ($idea !== '') $topic = "Idea to show: $idea.";
     elseif ($title !== '') $topic = "A visual metaphor for an article titled «{$title}»" . ($lead !== '' ? " — $lead" : '') . '.';
     else throw new AiError('Опишите картинку или сначала заполните заголовок статьи');
-    $people = $mode === 'people' || ($mode !== 'abstract' && random_int(0, 1) === 1);
+    $people ??= pick_people($mode);
     $scene = $people
         ? 'Scene: ' . PEOPLE_SCENES[array_rand(PEOPLE_SCENES)] . ', connected to the idea above. ' . PEOPLE_RULE
         : 'Scene: an abstract still life of objects and materials expressing the idea. ' . NO_PEOPLE_RULE;
-    $frame = $kind === 'cover' ? 'Wide 3:2 cover image.' : 'Wide 3:2 in-article illustration that explains the idea at a glance.';
-    return "$topic $scene Camera: " . TECHNIQUES[array_rand(TECHNIQUES)] . ". $frame " . IMG_STYLE . ' ' . IMG_BANS;
+    return "$topic $scene Camera: " . TECHNIQUES[array_rand(TECHNIQUES)] . '. ' . image_frame($kind) . ' ' . IMG_STYLE . ' ' . IMG_BANS;
+}
+
+function pick_people(string $mode): bool
+{
+    return $mode === 'people' || ($mode !== 'abstract' && random_int(0, 1) === 1);
+}
+
+function image_frame(string $kind): string
+{
+    return $kind === 'cover' ? 'Wide 3:2 cover image.' : 'Wide 3:2 in-article illustration that explains the idea at a glance.';
+}
+
+// Сначала мысль, потом сцена: Claude формулирует основную мысль статьи (или берёт идею пользователя)
+// и придумывает под неё конкретную сцену — картинка объясняет статью, а не просто «про маркетинг».
+const SCENE_SCHEMA = [
+    'type' => 'object',
+    'properties' => [
+        'main_idea' => ['type' => 'string', 'description' => 'основная мысль одним коротким предложением (до 20 слов), по-русски'],
+        'scene' => ['type' => 'string', 'description' => 'описание сцены для генератора картинок, по-английски, 60–110 слов'],
+    ],
+    'required' => ['main_idea', 'scene'],
+    'additionalProperties' => false,
+];
+
+/** → ['main_idea' => …, 'scene' => …]. $article: title, lead, summary, body (что есть). */
+function image_scene(string $kind, array $article, string $idea, bool $people, string $technique, ?callable $post = null): array
+{
+    $ctx = [];
+    foreach (['title' => 'Заголовок', 'lead' => 'Лид', 'summary' => 'Коротко', 'body' => 'Текст (начало)'] as $k => $label) {
+        $v = trim((string) ($article[$k] ?? ''));
+        if ($v !== '') $ctx[] = "$label: " . mb_substr($v, 0, $k === 'body' ? 5000 : 600);
+    }
+    if (!$ctx && trim($idea) === '') throw new AiError('Опишите картинку или сначала заполните заголовок статьи');
+    $task = $kind === 'cover' ? 'обложку статьи блога' : 'иллюстрацию внутрь статьи';
+    $prompt = implode("\n", [
+        "Ты арт-директор блога маркетингового агентства ALFIMOV.KZ (Казахстан). Нужна $task.",
+        $ctx ? "Статья:\n" . implode("\n", $ctx) : '',
+        trim($idea) !== '' ? "Идея картинки от редактора (главное, опирайся на неё): " . trim($idea) : '',
+        '',
+        'Шаг 1. main_idea — основная мысль ' . (trim($idea) !== '' ? 'картинки (по идее редактора)' : 'статьи') . ': одно короткое предложение (до 20 слов), что читатель должен понять.',
+        'Шаг 2. scene — одна конкретная сцена, которая с первого взгляда передаёт эту мысль: визуальная метафора или ситуация, '
+        . 'конкретные предметы, место, свет и композиция. Без абстрактных слов вроде «успех» и «рост» — только то, что можно нарисовать.',
+        'Обязательно: в кадре ровно один насыщенный кобальтово-синий геометрический элемент (куб, плита, сфера, лента, панель '
+        . 'или луч синего света), и он несёт смысл — на нём держится метафора; всё остальное белое, светло-серое и почти чёрное.',
+        'Приём съёмки (встрои в сцену): ' . $technique . '.',
+        $people ? 'Люди: ' . PEOPLE_RULE : 'Людей нет: ' . NO_PEOPLE_RULE,
+        'Нельзя: текст, буквы и цифры в кадре, логотипы и значки брендов, экраны с интерфейсом и графиками, '
+        . 'ракеты, мишени, мегафоны, курсоры, рукопожатия, стрелки вверх, неон. Цвета называй словами, без кодов.',
+        'scene пиши по-английски, 60–110 слов, без вступлений.',
+    ]);
+    $data = claude_json([
+        'max_tokens' => 2000,
+        'output_config' => ['effort' => 'low', 'format' => ['type' => 'json_schema', 'schema' => SCENE_SCHEMA]],
+        'messages' => [['role' => 'user', 'content' => $prompt]],
+    ], $post);
+    $scene = trim((string) ($data['scene'] ?? ''));
+    if ($scene === '') throw new AiError('Claude не придумал сцену');
+    return ['main_idea' => trim((string) ($data['main_idea'] ?? '')), 'scene' => preg_replace('/#[0-9a-f]{3,8}\b/i', '', $scene)];
 }
 
 function image_error(int $status, string $msg): string
@@ -423,24 +480,38 @@ function openai_image(array $payload, string $key): string
     return $bin;
 }
 
-/** → байты webp. */
-function generate_image(string $kind, string $title, string $lead, string $idea, string $mode): string
+/** → ['bin' => байты webp, 'main_idea' => …, 'scene' => …]. Без ключа Claude — запасной шаблонный промпт. */
+function generate_image(string $kind, string $title, string $lead, string $idea, string $mode, array $context = [], ?callable $post = null): array
 {
     $key = trim((string) (settings()['openai_key'] ?? ''));
-    if ($key === '') throw new AiError('Нет ключа OpenAI — вставьте его в «Настройках» админки');
+    if ($key === '' && !$post) throw new AiError('Нет ключа OpenAI — вставьте его в «Настройках» админки');
     @set_time_limit(600);
-    $payload = ['model' => IMAGE_MODEL, 'prompt' => image_prompt($kind, $title, $lead, $idea, in_array($mode, IMG_MODES, true) ? $mode : 'auto'),
-        'size' => '1536x1024', 'n' => 1, 'output_format' => 'webp', 'output_compression' => 82, 'quality' => IMAGE_QUALITY];
+    $mode = in_array($mode, IMG_MODES, true) ? $mode : 'auto';
+    $people = pick_people($mode);
+    $technique = TECHNIQUES[array_rand(TECHNIQUES)];
+    $meta = ['main_idea' => '', 'scene' => ''];
     try {
-        return openai_image($payload, $key);
+        $meta = image_scene($kind, ['title' => $title, 'lead' => $lead] + $context, $idea, $people, $technique, $post);
+        $prompt = $meta['scene'] . ' ' . image_frame($kind) . ' ' . IMG_STYLE . ' ' . IMG_BANS;
+    } catch (AiError $ex) {
+        if (str_contains($ex->getMessage(), 'Опишите картинку')) throw $ex;
+        error_log('image scene fallback: ' . $ex->getMessage());
+        $prompt = image_prompt($kind, $title, $lead, $idea, $mode, $people);
+    }
+    if ($post) return ['bin' => '', 'prompt' => $prompt] + $meta;  // тесты: без похода в OpenAI
+    $payload = ['model' => IMAGE_MODEL, 'prompt' => $prompt, 'size' => '1536x1024', 'n' => 1,
+        'output_format' => 'webp', 'output_compression' => 82, 'quality' => IMAGE_QUALITY];
+    try {
+        $bin = openai_image($payload, $key);
     } catch (AiError $first) {
         if (str_contains($first->getMessage(), 'ключ') || str_contains($first->getMessage(), 'средства')) throw $first;
         try {
-            return openai_image(['model' => IMAGE_FALLBACK] + $payload, $key);
+            $bin = openai_image(['model' => IMAGE_FALLBACK] + $payload, $key);
         } catch (AiError $ignored) {
             throw $first;
         }
     }
+    return ['bin' => $bin] + $meta;
 }
 
 // ---------------------------------------------------------------- идеи тем
