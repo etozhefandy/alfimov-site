@@ -212,7 +212,7 @@ def contact_links():
         f'<a class="clink" href="tel:{PHONE_TEL}">{icon("phone")}{PHONE_DISPLAY}</a>'
         f'<a class="clink" href="{WHATSAPP_URL}" target="_blank" rel="noopener">{icon("whatsapp")}WhatsApp</a>'
         + tg
-        + f'<a class="clink" href="{INSTAGRAM_URL}" target="_blank" rel="noopener">{icon("instagram")}Instagram @{INSTAGRAM}</a>'
+        + f'<a class="clink" href="{INSTAGRAM_URL}" target="_blank" rel="noopener" aria-label="Instagram @{INSTAGRAM}">{icon("instagram")}@{INSTAGRAM}</a>'
     )
 
 
