@@ -33,9 +33,11 @@ WHATSAPP_URL = "https://wa.me/77769026669"
 TELEGRAMS = ["fandylol"]
 INSTAGRAM = "etozhefandy"
 INSTAGRAM_URL = f"https://www.instagram.com/{INSTAGRAM}/"
+# Шрифты: заголовки с засечками Source Serif 4 + текст IBM Plex Sans + цифры и метки IBM Plex Mono.
+# Все три полностью покрывают казахский (ә ғ қ ң ө ұ ү һ і) — проверено по таблицам символов шрифтов.
 FONT_URL = (
-    "https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700"
-    "&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    "https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600"
+    "&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
 )
 ASSET_VER = hashlib.md5(
     b"".join((STATIC / "assets" / f).read_bytes() for f in ("style.css", "main.js"))

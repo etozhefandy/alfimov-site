@@ -19,9 +19,9 @@
   --wrap: 1280px;
   --gutter: 20px;
   --sec: 96px;
-  --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-head: "Inter Tight", "Inter", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-head: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --ease: cubic-bezier(.2, .7, .2, 1);
 }
 @media (min-width: 720px) { :root { --gutter: 40px; --sec: 136px; } }
@@ -34,10 +34,10 @@ body {
 }
 img, svg { display: block; max-width: 100%; }
 a { color: inherit; }
-h1, h2, h3 { font-family: var(--font-head); margin: 0; letter-spacing: -0.02em; line-height: 1.1; font-weight: 600; }
-h1 { font-size: clamp(40px, 7.2vw, 96px); letter-spacing: -0.03em; line-height: 1; font-weight: 600; }
-h2 { font-size: clamp(30px, 4.2vw, 56px); letter-spacing: -0.025em; line-height: 1.04; }
-h3 { font-size: 20px; letter-spacing: -0.01em; line-height: 1.25; }
+h1, h2, h3 { font-family: var(--font-head); margin: 0; letter-spacing: -0.012em; line-height: 1.1; font-weight: 600; }
+h1 { font-size: clamp(40px, 7.2vw, 96px); letter-spacing: -0.02em; line-height: 1.02; font-weight: 600; }
+h2 { font-size: clamp(30px, 4.2vw, 56px); letter-spacing: -0.015em; line-height: 1.06; }
+h3 { font-size: 21px; letter-spacing: -0.005em; line-height: 1.25; }
 p { margin: 0 0 1em; }
 .muted { color: var(--muted); }
 .wrap { max-width: var(--wrap); margin: 0 auto; padding: 0 var(--gutter); }
@@ -298,7 +298,7 @@ section[id] { scroll-margin-top: 72px; }
 }
 @media (min-width: 900px) { .row-link { grid-template-columns: 80px 4fr 5fr 2fr auto; gap: 32px; } }
 .row-n { font-family: var(--font-mono); font-size: 13px; color: var(--muted); }
-.row-t { font-family: var(--font-head); font-size: 22px; font-weight: 600; letter-spacing: -0.015em; transition: color .2s ease; }
+.row-t { font-family: var(--font-head); font-size: 22px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.2; transition: color .2s ease; }
 .row-d { color: var(--muted); font-size: 15px; grid-column: 2; }
 @media (min-width: 900px) { .row-d { grid-column: auto; } }
 .row-arrow { color: var(--blue); grid-row: 1; grid-column: 3; transition: transform .25s var(--ease); }
