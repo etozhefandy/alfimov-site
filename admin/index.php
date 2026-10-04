@@ -40,10 +40,11 @@ $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
 <meta name="robots" content="noindex">
 <title>Вход — админка alfimov.kz</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
 * { box-sizing: border-box; }
 body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 16px; background: #f5f6f7; color: #0c1011;
-  font: 16px/1.5 "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  font: 16px/1.5 "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 form { width: 100%; max-width: 380px; background: #fff; border: 1px solid #e3e5e8; border-radius: 10px; padding: 28px 24px; display: grid; gap: 14px; }
 h1 { font-size: 20px; margin: 0; }
 p { margin: 0; color: #6b7178; font-size: 14px; }

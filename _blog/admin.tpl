@@ -6,13 +6,14 @@
 <title>Блог — админка alfimov.kz</title>
 <meta name="robots" content="noindex">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400&display=swap">
 <style>
 :root {
   --bg: #fff; --soft: #f5f6f7; --ink: #0c1011; --ink-2: #3d434a; --muted: #6b7178;
   --line: #e3e5e8; --line-2: #cfd3d8; --blue: #1769ff; --blue-h: #0f57e0;
   --ok: #0f8a4f; --warn: #b26a00; --bad: #c62828; --r: 6px;
-  --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
 * { box-sizing: border-box; }
 body { margin: 0; font: 15px/1.5 var(--font); color: var(--ink); background: var(--soft); }
