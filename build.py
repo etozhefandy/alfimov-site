@@ -125,6 +125,9 @@ def org_schema():
         "priceRange": "$$",
         "address": {"@type": "PostalAddress", "addressCountry": "KZ"},
         "areaServed": {"@type": "Country", "name": "Kazakhstan"},
+        "contactPoint": {"@type": "ContactPoint", "telephone": PHONE_TEL, "contactType": "sales",
+                         "areaServed": "KZ", "availableLanguage": ["ru", "kk"]},
+        "knowsAbout": [s["name"] for s in content_ru.SERVICES],
         "sameAs": [INSTAGRAM_URL, *(f"https://t.me/{t}" for t in TELEGRAMS)],
     }
 
@@ -693,6 +696,37 @@ def sitemap(paths):
     )
 
 
+# Роботы ИИ-поиска (ChatGPT, Perplexity, Claude, Gemini, Apple, Яндекс) — пускаем явно: на сайт
+# ссылаются в ответах нейросетей только если их робот может его прочитать.
+AI_BOTS = ["OAI-SearchBot", "ChatGPT-User", "GPTBot", "PerplexityBot", "Perplexity-User", "ClaudeBot",
+           "Claude-SearchBot", "Claude-User", "Google-Extended", "Applebot-Extended", "YandexAdditional", "Bingbot"]
+ROBOTS_RULES = "Allow: /\nDisallow: /api/\nDisallow: /admin/\nDisallow: /_blog/\n"
+# IndexNow: мгновенное уведомление Bing (→ ChatGPT, Copilot) и Яндекса о новых и изменённых страницах.
+INDEXNOW_KEY = "c4a1f0e2b7d94e1f8a3c6b5d2e9f7a10"
+
+
+def robots_txt():
+    groups = ["User-agent: *\n" + ROBOTS_RULES] + [f"User-agent: {b}\n" + ROBOTS_RULES for b in AI_BOTS]
+    return "\n".join(groups) + f"\nSitemap: {SITE_URL}/sitemap.xml\nHost: {SITE_URL}\n"
+
+
+def llms_txt():
+    """/llms.txt — краткая справка о сайте для нейросетей (формат llmstxt.org). Статьи дописывает PHP."""
+    c = content_ru
+    svc = "\n".join(f"- [{s['name']}]({SITE_URL}{url(c, s['slug'])}): {s['short']} Цена: {price_text(c, s['slug'])}."
+                    for s in c.SERVICES)
+    return (
+        f"# ALFIMOV.KZ — маркетинговое агентство в Казахстане\n\n"
+        f"> {c.HOME['hero_lead']} Работаем со всем Казахстаном удалённо (Алматы, Астана, Шымкент и другие города). "
+        f"Клиенты: {', '.join(c.CLIENTS)}.\n\n"
+        f"Контакты: телефон и WhatsApp {PHONE_DISPLAY}, Telegram @{TELEGRAMS[0]}, Instagram @{INSTAGRAM}, "
+        f"[форма заявки]({SITE_URL}/kontakty/). Сайт на русском и казахском ({SITE_URL}/kz/).\n\n"
+        f"## Услуги\n\n{svc}\n\n"
+        f"Рекламный бюджет оплачивается отдельно от работы агентства.\n\n"
+        f"## Блог\n\n%%ARTICLES%%\n"
+    )
+
+
 def php_str(v):
     return "'" + v.replace("\\", "\\\\").replace("'", "\\'") + "'"
 
@@ -716,11 +750,9 @@ def build():
     seed = ROOT / "content" / "articles"
     if seed.is_dir():
         shutil.copytree(seed, DIST / "_blog" / "seed")
-    (DIST / "robots.txt").write_text(
-        f"User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin/\nDisallow: /_blog/\n\n"
-        f"Sitemap: {SITE_URL}/sitemap.xml\nHost: {SITE_URL}\n",
-        encoding="utf-8",
-    )
+    (DIST / "robots.txt").write_text(robots_txt(), encoding="utf-8")
+    (DIST / "_blog" / "llms.tpl").write_text(llms_txt(), encoding="utf-8")
+    (DIST / f"{INDEXNOW_KEY}.txt").write_text(INDEXNOW_KEY, encoding="utf-8")
     # Какая сборка сейчас на хостинге: https://alfimov.kz/version.txt
     import subprocess
     sha = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()

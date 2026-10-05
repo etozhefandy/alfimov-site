@@ -540,6 +540,8 @@ function render_article(array $a, array $posts, bool $noindex = false): string
     $cover = $a['cover_path'] !== '' ? '<img class="art-cover" src="' . e($a['cover_path']) . '" alt="' . e($a['title']) . '" loading="lazy">' : '';
     $summary = $a['summary'] !== '' ? '<aside class="art-summary"><p class="eyebrow"><span>→</span>' . e(ui('summary')) . '</p><p>' . e($a['summary']) . '</p></aside>' : '';
     $author = $a['author'] !== '' ? ' · ' . e($a['author']) : '';
+    // «обновлено» видно читателю и поисковикам: свежесть — один из сигналов для ИИ-ответов
+    if (post_date($a, 'updated_at') > post_date($a)) $author .= ' · обновлено ' . e(human_date(post_date($a, 'updated_at')));
     $faq = $a['faq'] ? faq_block($a['faq'], '?') : '';
     $related_html = '';
     if ($related) {
@@ -620,3 +622,44 @@ function render_sitemap(string $base, array $posts): string
     }
     return str_replace('</urlset>', implode("\n", $rows) . "\n</urlset>", $base);
 }
+
+
+// ---------------------------------------------------------------- для нейросетей и поисковиков
+
+/** /llms.txt: справка о сайте из build.py + список вышедших статей. */
+function render_llms(string $tpl, array $posts): string
+{
+    $site = parts()['site_url'];
+    $list = $posts
+        ? implode("\n", array_map(fn($a) => '- [' . $a['title'] . '](' . $site . article_path($a) . ')' . ($a['description'] !== '' ? ': ' . $a['description'] : ''), $posts))
+        : 'Статей пока нет.';
+    return str_replace('%%ARTICLES%%', $list, $tpl);
+}
+
+const INDEXNOW_KEY = 'c4a1f0e2b7d94e1f8a3c6b5d2e9f7a10';  // тот же ключ, что в build.py (файл /<ключ>.txt)
+
+/**
+ * IndexNow: сообщает Bing (на нём поиск ChatGPT и Copilot) и Яндексу о новой или изменённой статье,
+ * чтобы её проиндексировали за часы, а не недели. Каждую версию статьи — один раз.
+ */
+function indexnow_article(array $a, ?callable $send = null): bool
+{
+    if (!is_live($a)) return false;
+    $site = parts()['site_url'];
+    $url = $site . article_path($a);
+    $file = DATA_DIR . '/indexnow.json';
+    $sent = read_json($file) ?? [];
+    if (($sent[$url] ?? '') === $a['updated_at']) return false;
+    $sent[$url] = $a['updated_at'];
+    write_json($file, $sent);
+    $body = json_encode(['host' => parse_url($site, PHP_URL_HOST), 'key' => INDEXNOW_KEY,
+        'keyLocation' => "$site/" . INDEXNOW_KEY . '.txt', 'urlList' => [$url, $site . blog_path(), "$site/"]], JSON_UNESCAPED_SLASHES);
+    if ($send) return $send($body);
+    $ch = curl_init('https://api.indexnow.org/indexnow');
+    curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $body, CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 4, CURLOPT_CONNECTTIMEOUT => 3, CURLOPT_HTTPHEADER => ['Content-Type: application/json; charset=utf-8']]);
+    curl_exec($ch);
+    $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    return $code >= 200 && $code < 300;
+}
+

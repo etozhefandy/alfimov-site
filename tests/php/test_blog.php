@@ -66,6 +66,22 @@ $sm = render_sitemap((string) file_get_contents("$root/dist/_blog/sitemap.tpl"),
 check(str_contains($sm, 'https://alfimov.kz/blog/due/') && !str_contains($sm, '/blog/later/'), 'sitemap: вышедшие есть, будущих нет');
 check(str_contains(render_article(get_article('later'), [], true), 'content="noindex"'), 'предпросмотр закрыт от индекса');
 
+echo "ИИ-поиск: llms.txt и IndexNow\n";
+$llms = render_llms((string) file_get_contents("$root/dist/_blog/llms.tpl"), live_articles());
+check(str_contains($llms, '# ALFIMOV.KZ') && str_contains($llms, 'Цена: от 200') && str_contains($llms, 'https://alfimov.kz/blog/due/') && !str_contains($llms, 'later'), 'llms.txt: услуги с ценами и только вышедшие статьи');
+$pings = [];
+$send = function ($body) use (&$pings) { $pings[] = json_decode($body, true); return true; };
+indexnow_article(get_article('due'), $send);
+indexnow_article(get_article('due'), $send);
+indexnow_article(get_article('later'), $send);
+check(count($pings) === 1 && $pings[0]['urlList'][0] === 'https://alfimov.kz/blog/due/' && $pings[0]['key'] === INDEXNOW_KEY, 'IndexNow: вышедшая статья — один раз на версию, будущая — нет');
+putenv('ALFIMOV_NOW=2026-10-01T12:05:00+05:00');
+save_article(get_article('due'), 'due');
+putenv('ALFIMOV_NOW=2026-10-01T12:00:00+05:00');
+indexnow_article(get_article('due'), $send);
+check(count($pings) === 2, 'IndexNow: после правки статьи — снова');
+check(str_contains(file_get_contents("$root/dist/" . INDEXNOW_KEY . '.txt'), INDEXNOW_KEY), 'IndexNow: файл ключа на сайте');
+
 echo "ИИ (без сети)\n";
 $sse = "event: message_start\ndata: {\"type\":\"message_start\"}\n\n"
     . "data: {\"type\":\"content_block_delta\",\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\"...\"}}\n"

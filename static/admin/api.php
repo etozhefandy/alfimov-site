@@ -219,6 +219,7 @@ try {
     if ($method === 'POST' && $route === 'api/articles') {
         $d = body();
         $a = save_article(is_array($d['article'] ?? null) ? $d['article'] : [], ($d['old_slug'] ?? null) ?: null);
+        try { indexnow_article($a); } catch (Throwable $ex) { error_log('indexnow: ' . $ex->getMessage()); }
         reply(['article' => article_view($a)]);
     }
     if ($method === 'DELETE' && preg_match('#^api/articles/([a-z0-9-]+)$#', $route, $m)) {

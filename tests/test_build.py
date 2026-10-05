@@ -42,6 +42,10 @@ class BuildTest(unittest.TestCase):
         self.assertNotIn("Require all denied", ht)
         robots = (build.DIST / "robots.txt").read_text(encoding="utf-8")
         self.assertIn("Disallow: /admin/", robots)
+        for bot in ("OAI-SearchBot", "PerplexityBot", "ClaudeBot", "Google-Extended"):
+            self.assertIn(f"User-agent: {bot}\nAllow: /", robots)
+        self.assertIn("route=llms", ht)
+        self.assertTrue((build.DIST / f"{build.INDEXNOW_KEY}.txt").is_file())
 
     @unittest.skipUnless(shutil.which("php"), "нужен php")
     def test_php_suite(self):
