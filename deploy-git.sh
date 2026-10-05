@@ -29,6 +29,16 @@ fi
 git -c user.name="deploy" -c user.email="deploy@alfimov.kz" commit -q -m "build from $SRC_SHA"
 git push -q origin deploy
 echo "Ветка deploy обновлена (сборка из $SRC_SHA)"
+# Страховка: если Plesk пропустил уведомление GitHub (бывает), через минуту отправляем его повторно.
+(
+  sleep 60
+  if [ "$(curl -s -m 10 https://alfimov.kz/version.txt)" != "$SRC_SHA" ] && command -v gh >/dev/null; then
+    REPO_GH=$(git -C "$REPO" remote get-url origin | sed -E 's#.*github.com[:/]##; s#\.git$##')
+    HOOK=$(gh api "repos/$REPO_GH/hooks" --jq '.[0].id' 2>/dev/null)
+    ID=$(gh api "repos/$REPO_GH/hooks/$HOOK/deliveries" --jq '.[0].id' 2>/dev/null)
+    [ -n "$ID" ] && gh api -X POST "repos/$REPO_GH/hooks/$HOOK/deliveries/$ID/attempts" >/dev/null 2>&1
+  fi
+) >/dev/null 2>&1 &
 # IndexNow: сообщить Bing (поиск ChatGPT/Copilot) и Яндексу об обновлённых страницах. Plesk забирает
 # сборку ~10 секунд — пингуем в фоне чуть позже, чтобы роботы пришли уже на новую версию.
 KEY=$(python3 -c "import sys; sys.path.insert(0, '$REPO'); import build; print(build.INDEXNOW_KEY)" 2>/dev/null || true)
