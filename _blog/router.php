@@ -5,6 +5,7 @@
 //   /blog/<slug>/  → статья (только если её время наступило)
 //   /blog/media/*  → картинки, загруженные из админки
 //   /sitemap.xml   → карта сайта вместе со статьями
+//   /llms.txt      → справка о сайте для нейросетей (llmstxt.org) со списком статей
 declare(strict_types=1);
 require __DIR__ . '/lib.php';
 
@@ -50,9 +51,16 @@ try {
             $a = get_article((string) ($_GET['slug'] ?? ''));
             if (!$a || !is_live($a)) not_found();
             send_html(render_article($a, live_articles()));
+            // статья вышла по расписанию или обновилась — сообщить Bing и Яндексу (один раз на версию)
+            try { indexnow_article($a); } catch (Throwable $ex) { error_log('indexnow: ' . $ex->getMessage()); }
             break;
         case 'media':
             send_media((string) ($_GET['f'] ?? ''));
+            break;
+        case 'llms':
+            header('Content-Type: text/plain; charset=utf-8');
+            header('Cache-Control: public, max-age=3600');
+            echo render_llms((string) file_get_contents(__DIR__ . '/llms.tpl'), live_articles());
             break;
         case 'sitemap':
             header('Content-Type: application/xml; charset=utf-8');
