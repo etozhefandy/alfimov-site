@@ -546,11 +546,11 @@ const IDEAS_SCHEMA = [
 ];
 
 /** Подсказки Google (gl=kz) и Яндекса (регион Казахстан) параллельно → [запрос => ['google'=>1,'yandex'=>1]]. */
-function collect_queries(): array
+function collect_queries(array $seeds = SEEDS, array $patterns = PATTERNS): array
 {
     $jobs = [];
-    foreach (SEEDS as $s) {
-        foreach (PATTERNS as $p) {
+    foreach ($seeds as $s) {
+        foreach ($patterns as $p) {
             $q = rawurlencode(sprintf($p, $s));
             $jobs[] = ['google', "https://suggestqueries.google.com/complete/search?client=firefox&hl=ru&gl=kz&ie=utf-8&oe=utf-8&q=$q"];
             $jobs[] = ['yandex', "https://suggest.yandex.ru/suggest-ff.cgi?part=$q&lr=159&uil=ru"];
@@ -629,6 +629,78 @@ function propose_ideas(string $focus, ?callable $post = null, ?array $queries = 
     }, $data['ideas'] ?? []);
     $result = ['ideas' => $ideas, 'queries' => count($queries), 'focus' => $focus, 'created' => now()->format('Y-m-d H:i')];
     write_json(DATA_DIR . '/ideas.json', $result);
+    return $result;
+}
+
+// ---------------------------------------------------------------- спрос по нише
+
+// «Дать вектор»: владелец пишет нишу или идею («продвижение мебельного бизнеса»), мы смотрим, что люди
+// реально ищут вокруг неё в Google и Яндексе (Казахстан), и Claude предлагает темы под этот спрос.
+const NICHE_PATTERNS = ['%s', 'как %s', '%s алматы', '%s астана', '%s казахстан'];
+
+const TRENDS_SCHEMA = [
+    'type' => 'object',
+    'properties' => [
+        'summary' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => '3–5 пунктов: что именно ищут люди по этой теме'],
+        'relevant' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'до 30 запросов из списка, относящихся к теме, — самые показательные'],
+        'ideas' => IDEAS_SCHEMA['properties']['ideas'],
+    ],
+    'required' => ['summary', 'ideas'],
+    'additionalProperties' => false,
+];
+
+/** Ниша → 6–10 коротких поисковых фраз, как их набирают люди. */
+function niche_seeds(string $vector, ?callable $post = null): array
+{
+    $data = claude_json([
+        'max_tokens' => 1500,
+        'output_config' => ['effort' => 'low', 'format' => ['type' => 'json_schema', 'schema' => [
+            'type' => 'object', 'properties' => ['seeds' => ['type' => 'array', 'items' => ['type' => 'string']]],
+            'required' => ['seeds'], 'additionalProperties' => false]]],
+        'messages' => [['role' => 'user', 'content' => "Ниша или идея от маркетингового агентства в Казахстане: «{$vector}».\n"
+            . 'Дай 6–10 коротких поисковых фраз (2–4 слова, по-русски, строчными), которые набирают в Google и Яндексе '
+            . 'владельцы такого бизнеса или его клиенты: продвижение, реклама, как продавать, как выбрать, цены. '
+            . 'Без кавычек, городов и брендов — это затравки для поисковых подсказок.']],
+    ], $post);
+    $seeds = array_values(array_unique(array_filter(array_map(fn($x) => mb_strtolower(trim((string) $x)), $data['seeds'] ?? []))));
+    return array_slice($seeds ?: [mb_strtolower(trim($vector))], 0, 10);
+}
+
+/** Спрос по нише: затравки → подсказки Google/Яндекса → что ищут + темы статей (с датами по плану). */
+function niche_trends(string $vector, ?callable $post = null, ?array $queries = null): array
+{
+    $vector = trim($vector);
+    if (mb_strlen($vector) < 3) throw new AiError('Опишите нишу или идею, например: «продвижение мебельного бизнеса»');
+    $seeds = $queries === null ? niche_seeds($vector, $post) : [];
+    $queries ??= collect_queries($seeds, NICHE_PATTERNS);
+    if (count($queries) < 5) throw new AiError('По этой теме почти нет поисковых подсказок — попробуйте сформулировать шире');
+    $existing = array_map(fn($a) => $a['title'], load_all());
+    $prompt = ideas_prompt($queries, $existing, '') . "\n\n"
+        . "НАПРАВЛЕНИЕ ОТ ВЛАДЕЛЬЦА АГЕНТСТВА: «{$vector}». Все темы — в этом направлении.\n"
+        . 'summary: 3–5 коротких пунктов, что именно люди ищут по этой теме (группы вопросов), опираясь только на запросы выше. '
+        . 'relevant: до 30 запросов из списка дословно, которые относятся к теме (без мусора вроде игр и чужих брендов). '
+        . 'Среди тем обязательно один подробный практический разбор «как продвигать … : инструменты, бюджет, план по шагам». '
+        . 'Кейсы с результатами агентства не выдумывай: вместо «кейса» — разбор с примером расчёта, явно помеченным как пример.';
+    $data = claude_json([
+        'max_tokens' => 16000,
+        'thinking' => ['type' => 'adaptive'],
+        'output_config' => ['effort' => 'medium', 'format' => ['type' => 'json_schema', 'schema' => TRENDS_SCHEMA]],
+        'messages' => [['role' => 'user', 'content' => $prompt]],
+    ], $post);
+    $slugs = array_column(services(), 'slug');
+    $ideas = array_map(function ($i) use ($slugs) {
+        if (!in_array($i['service'] ?? '', $slugs, true)) $i['service'] = '';
+        return $i;
+    }, $data['ideas'] ?? []);
+    // показательные запросы по теме (Claude отсеял мусор вроде игр); только из реально найденных,
+    // сначала те, что есть и в Google, и в Яндексе
+    $pick = array_values(array_filter(array_map(fn($q) => mb_strtolower(trim((string) $q)), $data['relevant'] ?? []), fn($q) => isset($queries[$q])));
+    if (!$pick) $pick = array_keys($queries);
+    usort($pick, fn($a, $b) => (count($queries[$b]) <=> count($queries[$a])) ?: strcmp($a, $b));
+    $top = array_map(fn($q) => ['q' => $q, 'both' => count($queries[$q]) > 1], array_slice(array_unique($pick), 0, 30));
+    $result = ['vector' => $vector, 'seeds' => $seeds, 'summary' => array_values(array_map('strval', $data['summary'] ?? [])),
+        'top_queries' => $top, 'ideas' => $ideas, 'queries' => count($queries), 'created' => now()->format('Y-m-d H:i')];
+    write_json(DATA_DIR . '/trends.json', $result);
     return $result;
 }
 
