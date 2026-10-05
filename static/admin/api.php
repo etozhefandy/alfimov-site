@@ -97,6 +97,8 @@ function execute(array $job): array
             if (!is_dir(media_dir())) mkdir(media_dir(), 0750, true);
             write_file(media_dir() . "/$name", $img['bin']);
             return ['path' => "/blog/media/$name", 'main_idea' => $img['main_idea'], 'scene' => $img['scene']];
+        case 'trends':
+            return ideas_with_plan(niche_trends((string) $in['vector']), (int) $in['per_week']);
         case 'ideas':
             return ideas_with_plan(propose_ideas((string) $in['focus']), (int) $in['per_week']);
     }
@@ -260,6 +262,15 @@ try {
     if ($method === 'POST' && $route === 'api/ideas') {
         $d = body();
         reply(new_job('ideas', ['focus' => trim((string) ($d['focus'] ?? '')), 'per_week' => (int) ($_GET['per_week'] ?? 2)]));
+    }
+    if ($method === 'POST' && $route === 'api/trends') {
+        $d = body();
+        $vector = trim((string) ($d['vector'] ?? ''));
+        if (mb_strlen($vector) < 3) fail('Опишите нишу или идею, например: «продвижение мебельного бизнеса»');
+        reply(new_job('trends', ['vector' => mb_substr($vector, 0, 300), 'per_week' => (int) ($_GET['per_week'] ?? 2)]));
+    }
+    if ($method === 'GET' && $route === 'api/trends') {
+        reply(ideas_with_plan(read_json(DATA_DIR . '/trends.json'), (int) ($_GET['per_week'] ?? 2)));
     }
     if ($method === 'GET' && $route === 'api/ideas') {
         reply(ideas_with_plan(read_json(DATA_DIR . '/ideas.json'), (int) ($_GET['per_week'] ?? 2)));

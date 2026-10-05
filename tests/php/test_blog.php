@@ -97,6 +97,18 @@ $plan = ideas_with_plan(['ideas' => [['topic' => 'A', 'main_keyword' => 'x'], ['
     new DateTimeImmutable('2026-10-01T09:00', tz()));
 check(array_column($plan['ideas'], 'suggested_date') === ['2026-10-06T10:00', '2026-10-08T10:00', '2026-10-13T10:00'], 'план: вт и чт в 10:00, занятые дни пропущены');
 
+echo "спрос по нише\n";
+$asked = [];
+$seeds = niche_seeds('продвижение мебельного бизнеса', function ($b) use ($scene_sse, &$asked) { $asked[] = $b; return [200, $scene_sse('{"seeds":["Реклама мебели "," реклама мебели","мебельный магазин маркетинг"]}')]; });
+check($seeds === ['реклама мебели', 'мебельный магазин маркетинг'], 'затравки: строчные, без повторов');
+$tr = niche_trends('продвижение мебельного бизнеса', function ($b) use ($scene_sse, &$asked) { $asked[] = $b; return [200, $scene_sse(json_encode(['summary' => ['Как продвигать мебель в Instagram'], 'relevant' => ['реклама мебели алматы', 'продвижение мебели', 'выдуманный запрос'],
+    'ideas' => [['topic' => 'Как продвигать мебельный бизнес', 'main_keyword' => 'продвижение мебели', 'keywords' => ['продвижение мебели'], 'intent' => 'коммерческий', 'service' => 'nope', 'why' => 'спрос']]], JSON_UNESCAPED_UNICODE))]; },
+    ['продвижение мебели' => ['google' => 1, 'yandex' => 1], 'реклама мебели алматы' => ['google' => 1], 'мебель инстаграм' => ['yandex' => 1], 'как продать мебель' => ['google' => 1], 'мебельный бизнес' => ['google' => 1, 'yandex' => 1]]);
+$q = end($asked)['messages'][0]['content'];
+check(str_contains($q, 'продвижение мебельного бизнеса') && str_contains($q, 'Кейсы с результатами агентства не выдумывай'), 'ниша и запрет выдуманных кейсов в запросе');
+check(array_column($tr['top_queries'], 'q') === ['продвижение мебели', 'реклама мебели алматы'] && $tr['top_queries'][0]['both'] && $tr['ideas'][0]['service'] === '', 'итог: только найденные запросы по теме, сначала из обоих поисковиков, чужие slug отброшены');
+check(throws(fn() => niche_trends('аб'), 'нишу'), 'пустая ниша — понятная ошибка');
+
 echo "статья по источнику\n";
 $html = '<html><head><meta charset="utf-8"><title>Сайт</title><meta property="og:title" content="Meta меняет правила рекламы в Казахстане">'
     . '<meta property="og:image" content="https://cdn.example/x.jpg"></head><body><nav>Меню Главная Контакты</nav>'
