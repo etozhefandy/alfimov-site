@@ -79,6 +79,18 @@ textarea.body { min-height: 520px; font-family: var(--mono); font-size: 13px; }
 .checks li.ok::before { content: "✓"; color: var(--ok); }
 .checks li.warn::before { content: "!"; color: var(--warn); }
 .checks li.bad::before { content: "✕"; color: var(--bad); }
+.tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; }
+@media (max-width: 900px) { .tabs { grid-template-columns: 1fr 1fr; } }
+.tabs button { text-align: left; border: 1px solid var(--line-2); background: #fff; border-radius: var(--r); padding: 10px 12px; cursor: pointer; display: grid; gap: 2px; }
+.tabs button b { font-weight: 600; font-size: 14px; }
+.tabs button span { font-size: 12px; color: var(--muted); }
+.tabs button:hover { border-color: var(--ink); }
+.tabs button.on { border-color: var(--blue); background: #f2f6ff; box-shadow: inset 0 0 0 1px var(--blue); }
+.pane { display: none; }
+.pane.on { display: block; }
+.new-foot { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); gap: 12px; }
+label.f.inline { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+label.f.inline select { width: auto; }
 .t-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 14px; }
 @media (max-width: 700px) { .t-cols { grid-template-columns: 1fr; } }
 .t-h { font-size: 14px; margin: 0 0 8px; }
@@ -174,6 +186,84 @@ body:not(.view-edit) .mbar { display: none !important; }
     <section class="card warn-card hidden" id="keys-warn">
       ИИ пока выключен: вставьте ключи Claude и OpenAI в <a href="#" id="keys-link">Настройках</a>. Писать и публиковать статьи вручную можно и без них.
     </section>
+    <!-- Новая статья: сначала выбираем источник темы, потом пишем -->
+    <section class="card ai" id="new-card">
+      <h2>Новая статья <small id="model"></small></h2>
+      <p class="hint" style="margin:-6px 0 12px">Откуда берём тему?</p>
+      <div class="tabs" id="src-tabs" role="tablist">
+        <button type="button" data-tab="post" role="tab"><b>📎 Из поста или ссылки</b><span>новость, статья, пост в Instagram</span></button>
+        <button type="button" data-tab="demand" role="tab"><b>🔎 Из запросов</b><span>что ищут в Google и Яндексе</span></button>
+        <button type="button" data-tab="own" role="tab"><b>✍️ Своя тема</b><span>знаю, о чём написать</span></button>
+        <button type="button" data-tab="auto" role="tab"><b>✨ Придумай сам</b><span>ИИ выберет тему по спросу</span></button>
+      </div>
+
+      <div class="pane" data-pane="post">
+        <div class="grid">
+          <label class="f">Ссылка <span class="hint">— статья на сайте или пост в Instagram</span>
+            <input type="text" id="s-url" inputmode="url" autocapitalize="off" spellcheck="false" placeholder="https://www.instagram.com/p/… или https://…">
+          </label>
+          <div class="row" style="gap:8px">
+            <label class="btn">📎 Скриншоты<input type="file" id="s-files" accept="image/*" multiple hidden></label>
+            <span class="hint" id="s-files-info">для карусели или если ссылка не открывается — до 6 шт.</span>
+            <button class="x hidden" type="button" id="s-files-clear" title="Убрать скриншоты">×</button>
+          </div>
+          <details class="more"><summary>Вставить текст вручную</summary>
+            <textarea id="s-text" rows="4" style="margin-top:8px" placeholder="Текст поста или статьи, если ссылка не открывается"></textarea>
+          </details>
+          <label class="f">Пожелания <span class="hint">— необязательно: акцент, для кого, какую услугу показать</span>
+            <input type="text" id="s-notes" placeholder="Например: для владельцев салонов, показать, что делать после нового правила">
+          </label>
+          <div class="row"><span class="spacer"></span><button class="btn btn-p" id="b-src">Написать статью по источнику</button></div>
+        </div>
+      </div>
+
+      <div class="pane" data-pane="demand">
+        <div class="row" style="gap:8px">
+          <input type="text" id="t-vector" placeholder="Ниша или идея (необязательно): например, продвижение мебельного бизнеса" style="flex:1">
+          <button class="btn btn-p" id="b-trends">Найти темы</button>
+        </div>
+        <p class="hint" style="margin:8px 0 0">Пусто — темы по всем услугам агентства. С нишей — что ищут именно по ней. Частотности нет: это подсказки поисковиков, то есть то, что люди набирают.</p>
+        <p class="ai-status" id="t-status" style="margin:8px 0 0"></p>
+        <div id="t-result" class="hidden">
+          <div class="t-cols" id="t-cols">
+            <div><h3 class="t-h">Что ищут</h3><ul class="t-sum" id="t-summary"></ul></div>
+            <div><h3 class="t-h">Реальные запросы <span class="hint">· <b class="both">●</b> есть и в Google, и в Яндексе</span></h3><div class="chips" id="t-queries"></div></div>
+          </div>
+          <h3 class="t-h" style="margin-top:16px">Темы статей</h3>
+          <ul class="ideas" id="t-ideas"></ul>
+        </div>
+      </div>
+
+      <div class="pane" data-pane="own">
+        <div class="grid">
+          <label class="f">Тема статьи
+            <input type="text" id="g-topic" placeholder="Сколько стоит таргетированная реклама в Instagram в Казахстане">
+          </label>
+          <div class="grid g2">
+            <label class="f">Поисковые запросы <span class="hint">— необязательно; через запятую, первый — главный</span>
+              <textarea id="g-keys" rows="3" placeholder="таргетированная реклама алматы, стоимость таргета, таргетолог цена"></textarea>
+            </label>
+            <label class="f">Пожелания <span class="hint">— аудитория, акценты, что обязательно упомянуть</span>
+              <textarea id="g-notes" rows="3" placeholder="Для владельцев кофеен и салонов. Показать пример расчёта бюджета."></textarea>
+            </label>
+          </div>
+          <div class="row"><span class="spacer"></span><button class="btn btn-p" id="b-gen">Написать статью</button></div>
+        </div>
+      </div>
+
+      <div class="pane" data-pane="auto">
+        <p style="margin:0 0 12px">ИИ посмотрит, что ищут в Google и Яндексе по услугам агентства и что уже есть в блоге, выберет самую нужную тему, напишет статью и поставит дату выхода по ритму публикаций.</p>
+        <div class="row"><span class="hint" id="auto-note"></span><span class="spacer"></span><button class="btn btn-p" id="b-auto">Придумай тему и напиши</button></div>
+      </div>
+
+      <div class="row new-foot">
+        <label class="f inline">Объём<select id="g-words"><option value="1000">~1000 слов</option><option value="1500" selected>~1500 слов</option><option value="2000">~2000 слов</option><option value="2500">~2500 слов</option></select></label>
+        <label class="f inline">Ритм<select id="i-week"><option value="1">1 в неделю (вт)</option><option value="2" selected>2 в неделю (вт, чт)</option><option value="3">3 в неделю (пн, ср, пт)</option></select></label>
+        <span class="spacer"></span>
+        <span class="ai-status" id="g-status"></span>
+      </div>
+    </section>
+
     <section class="card">
       <div class="row" style="margin-bottom:14px">
         <h2 style="margin:0">Статьи</h2>
@@ -184,89 +274,9 @@ body:not(.view-edit) .mbar { display: none !important; }
           <button data-f="live">На сайте</button>
         </div>
         <span class="spacer"></span>
-        <button class="btn" id="b-new">+ Новая статья вручную</button>
+        <button class="btn" id="b-new">+ Вручную, без ИИ</button>
       </div>
       <ul class="acards" id="list"></ul>
-    </section>
-
-    <section class="card ai" id="trends-card">
-      <h2>Спрос по нише <small>дайте направление — покажем, что реально ищут, и предложим статьи</small></h2>
-      <div class="row" style="gap:8px">
-        <input type="text" id="t-vector" placeholder="Например: продвижение мебельного бизнеса" style="flex:1">
-        <button class="btn btn-p" id="b-trends">Проверить спрос</button>
-      </div>
-      <p class="ai-status" id="t-status" style="margin:8px 0 0"></p>
-      <div id="t-result" class="hidden">
-        <div class="t-cols">
-          <div><h3 class="t-h">Что ищут</h3><ul class="t-sum" id="t-summary"></ul></div>
-          <div><h3 class="t-h">Реальные запросы <span class="hint">· <b class="both">●</b> есть и в Google, и в Яндексе</span></h3><div class="chips" id="t-queries"></div></div>
-        </div>
-        <h3 class="t-h" style="margin-top:16px">Статьи под этот спрос</h3>
-        <ul class="ideas" id="t-ideas"></ul>
-      </div>
-    </section>
-
-    <section class="card ai" id="ideas-card">
-      <h2>Идеи тем <small>живые запросы из подсказок Google и Яндекса по Казахстану → Claude</small></h2>
-      <div class="row" style="gap:8px">
-        <input type="text" id="i-focus" placeholder="На чём сфокусироваться (необязательно): например, TikTok или клиники" style="flex:1">
-        <span class="ai-status" id="i-status"></span>
-        <button class="btn btn-p" id="b-ideas">Предложить темы</button>
-      </div>
-      <div class="row hint" style="gap:8px;margin-top:10px;align-items:center">
-        <span>Ритм публикаций:</span>
-        <select id="i-week" style="width:auto"><option value="1">1 статья в неделю (вт)</option><option value="2" selected>2 статьи в неделю (вт, чт)</option><option value="3">3 статьи в неделю (пн, ср, пт)</option></select>
-        <span>Выход в 10:00. Поисковикам важна регулярность, а не залп статей в один день; для нового сайта 2 в неделю — хороший темп.</span>
-      </div>
-      <ul class="ideas" id="ideas"></ul>
-    </section>
-
-    <section class="card ai" id="src-card">
-      <h2>Статья по источнику <small>новость, статья или пост в Instagram → своя статья в повестке</small></h2>
-      <div class="grid">
-        <label class="f">Ссылка <span class="hint">— статья на сайте или пост в Instagram</span>
-          <input type="text" id="s-url" inputmode="url" autocapitalize="off" spellcheck="false" placeholder="https://www.instagram.com/p/… или https://…">
-        </label>
-        <div class="row" style="gap:8px">
-          <label class="btn">📎 Скриншоты<input type="file" id="s-files" accept="image/*" multiple hidden></label>
-          <span class="hint" id="s-files-info">для карусели или если ссылка не открывается — до 6 шт.</span>
-          <button class="x hidden" type="button" id="s-files-clear" title="Убрать скриншоты">×</button>
-        </div>
-        <details class="more"><summary>Вставить текст вручную</summary>
-          <textarea id="s-text" rows="4" style="margin-top:8px" placeholder="Текст поста или статьи, если ссылка не открывается"></textarea>
-        </details>
-        <label class="f">Пожелания <span class="hint">— необязательно: акцент, для кого, какую услугу показать</span>
-          <input type="text" id="s-notes" placeholder="Например: для владельцев салонов, показать, что делать после нового правила">
-        </label>
-        <div class="row">
-          <span class="spacer"></span>
-          <span class="ai-status" id="s-status"></span>
-          <button class="btn btn-p" id="b-src">Написать статью по источнику</button>
-        </div>
-      </div>
-    </section>
-
-    <section class="card ai" id="ai-card">
-      <h2>Написать статью с ИИ <small id="model"></small></h2>
-      <div class="grid">
-        <label class="f">Тема статьи
-          <input type="text" id="g-topic" placeholder="Сколько стоит таргетированная реклама в Instagram в Казахстане">
-        </label>
-        <div class="grid g2">
-          <label class="f">Поисковые запросы <span class="hint">— через запятую или с новой строки, первый — главный</span>
-            <textarea id="g-keys" rows="3" placeholder="таргетированная реклама алматы, стоимость таргета, таргетолог цена"></textarea>
-          </label>
-          <label class="f">Пожелания <span class="hint">— аудитория, акценты, что обязательно упомянуть</span>
-            <textarea id="g-notes" rows="3" placeholder="Для владельцев кофеен и салонов. Показать пример расчёта бюджета."></textarea>
-          </label>
-        </div>
-        <div class="row">
-          <label class="f" style="width:140px">Объём, слов<input type="number" id="g-words" value="1500" min="500" max="4000" step="100"></label>
-          <span class="spacer"></span>
-          <span class="ai-status" id="g-status"></span>
-          <button class="btn btn-p" id="b-gen">Сгенерировать черновик</button>
-        </div>
-      </div>
     </section>
   </div>
 
@@ -634,38 +644,44 @@ $("b-del").onclick = async () => {
   catch (e) { toast(e.message, true); }
 };
 // ИИ всегда пишет НОВУЮ статью: сохранённую (тем более опубликованную) он не перезаписывает.
-async function generate(body, btn, statusEl, label) {
+async function generate(body, btn, label, date) {
   if (current || dirty) {
     if (dirty && !confirm(current ? `В редакторе открыта статья «${current.title}» с несохранёнными правками. Они пропадут, а ИИ напишет новую статью. Продолжить?`
-      : "В редакторе есть несохранённая статья. Она пропадёт, а ИИ напишет новую. Продолжить?")) return;
-    const keep = {topic: $("g-topic").value, keys: $("g-keys").value, notes: $("g-notes").value};
-    delete $("f-slug").dataset.touched; open(null); showHome();  // open(null) очищает поля ИИ — возвращаем их
-    $("g-topic").value = keep.topic; $("g-keys").value = keep.keys; $("g-notes").value = keep.notes;
+      : "В редакторе есть несохранённая статья. Она пропадёт, а ИИ напишет новую. Продолжить?")) return false;
+    delete $("f-slug").dataset.touched; showHome();
   }
+  const st = $("g-status");
   busy(btn, true, label);
-  const t0 = Date.now(), tick = setInterval(() => { statusEl.textContent = `Claude пишет статью… ${Math.round((Date.now() - t0) / 1000)} с (обычно 1–3 мин)`; }, 1000);
+  const t0 = Date.now(), tick = setInterval(() => { st.textContent = `Claude пишет статью… ${Math.round((Date.now() - t0) / 1000)} с (обычно 1–3 мин)`; }, 1000);
   try {
-    const d = await runJob("/admin/api/generate", body);
+    const d = await runJob("/admin/api/generate", {words: $("g-words").value, ...body});
     open(null);
     fill(d.article);
     showEditor();
-    const topic = body.topic || "";
-    if (pendingIdea && pendingIdea.topic === topic && pendingIdea.date) {
-      $("f-status").value = "scheduled"; $("f-publish_at").value = pendingIdea.date; refresh();
-      toast(`Готово — новая статья, запланирована на ${fmtDate(pendingIdea.date)}. Проверьте текст и нажмите «Сохранить» — выйдет сама.`);
+    if (date) {
+      $("f-status").value = "scheduled"; $("f-publish_at").value = date; refresh();
+      toast(`Готово — новая статья, дата выхода ${fmtDate(date)}. Проверьте текст и нажмите «Сохранить» — выйдет сама.`);
     } else toast("Готово — это новая статья. Проверьте текст и нажмите «Сохранить»: она сохранится черновиком.");
-    statusEl.textContent = "";
-    pendingIdea = null;
     return true;
-  } catch (e) { statusEl.textContent = ""; toast(e.message, true); return false; }
-  finally { clearInterval(tick); busy(btn, false); }
+  } catch (e) { toast(e.message, true); return false; }
+  finally { clearInterval(tick); st.textContent = ""; busy(btn, false); }
 }
+// ---------- вкладки «откуда тема»
+function showTab(t) {
+  [...$("src-tabs").children].forEach(b => b.classList.toggle("on", b.dataset.tab === t));
+  document.querySelectorAll("#new-card .pane").forEach(p => p.classList.toggle("on", p.dataset.pane === t));
+  try { localStorage.setItem("src_tab", t); } catch (e) {}
+}
+$("src-tabs").onclick = e => { const b = e.target.closest("[data-tab]"); if (b) showTab(b.dataset.tab); };
+showTab((() => { try { return localStorage.getItem("src_tab"); } catch (e) {} })() || "post");
+// ---------- своя тема
 $("b-gen").onclick = () => {
   const topic = $("g-topic").value.trim();
   if (!topic) { toast("Впишите тему статьи", true); $("g-topic").focus(); return; }
-  generate({topic, keywords: $("g-keys").value, notes: $("g-notes").value, words: $("g-words").value}, $("b-gen"), $("g-status"), "Пишу…");
+  generate({topic, keywords: $("g-keys").value, notes: $("g-notes").value}, $("b-gen"), "Пишу…")
+    .then(ok => { if (ok) { $("g-topic").value = ""; $("g-keys").value = ""; $("g-notes").value = ""; } });
 };
-// ---------- статья по источнику
+// ---------- из поста или ссылки
 let srcShots = [];
 const fileB64 = file => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(",")[1]); r.onerror = rej; r.readAsDataURL(file); });
 function renderShots() {
@@ -685,8 +701,7 @@ $("b-src").onclick = async () => {
   const url = $("s-url").value.trim(), text = $("s-text").value.trim();
   if (!url && !text && !srcShots.length) { toast("Вставьте ссылку, текст или скриншоты", true); $("s-url").focus(); return; }
   if (url && !/^https?:\/\//i.test(url)) { toast("Ссылка должна начинаться с https://", true); return; }
-  const ok = await generate({source_url: url, source_text: text, source_images: srcShots, notes: $("s-notes").value, words: $("g-words").value},
-    $("b-src"), $("s-status"), "Читаю источник…");
+  const ok = await generate({source_url: url, source_text: text, source_images: srcShots, notes: $("s-notes").value}, $("b-src"), "Читаю источник…");
   if (ok) { $("s-url").value = ""; $("s-text").value = ""; $("s-notes").value = ""; srcShots = []; renderShots(); }
 };
 $("f-file").onchange = async e => {
@@ -726,59 +741,80 @@ $("b-inline-img").onclick = async () => {
 };
 const SERVICE_NAMES = {"target-facebook-instagram": "Таргет Instagram/Facebook", "target-tiktok": "Таргет TikTok", "smm": "SMM",
   "kontekstnaya-reklama": "Контекст", "seo-prodvizhenie": "SEO", "marketingovye-issledovaniya": "Исследования", "kompleksnyj-marketing": "Комплексный"};
-function renderIdeas(d, listId = "ideas") {
+function renderIdeas(d) {
   const ideas = (d && d.ideas) || [];
-  $(listId).innerHTML = ideas.map((i, n) => `<li class="idea${i.used ? " used" : ""}">
+  $("t-ideas").innerHTML = ideas.map((i, n) => `<li class="idea${i.used ? " used" : ""}">
     <div><b>${esc(i.topic)}</b>
       <div class="hint">${i.used ? "✓ по этой теме уже есть статья" : "📅 рекомендуемая дата выхода: <b style=\"display:inline\">" + esc(fmtDate(i.suggested_date)) + "</b>"}</div>
       <div class="hint">🔑 ${esc(i.main_keyword)} · ${esc(i.intent)}${i.service ? " · → " + esc(SERVICE_NAMES[i.service] || i.service) : ""}</div>
       <div class="hint">${esc(i.why)}</div>
       <div class="hint">Запросы: ${esc(i.keywords.join(", "))}</div></div>
     <button class="btn" data-idea="${n}">Написать статью</button></li>`).join("");
-  $(listId)._data = ideas;
-  if (listId === "ideas" && d && d.created) $("i-status").textContent = `${ideas.length} тем из ${d.queries} запросов · ${d.created}`;
+  $("t-ideas")._data = ideas;
 }
-function renderTrends(d) {
-  if (!d || !d.ideas || !d.ideas.length) return;
+// Последний результат «Из запросов»: по нише (trends) или по всем услугам (ideas) — что свежее.
+let demand = {ideas: null, trends: null};
+function renderDemand() {
+  const {ideas, trends} = demand;
+  const d = [trends, ideas].filter(x => x && x.ideas && x.ideas.length).sort((a, b) => (b.created || "").localeCompare(a.created || ""))[0];
+  if (!d) return;
   $("t-result").classList.remove("hidden");
-  if (!$("t-vector").value) $("t-vector").value = d.vector || "";
-  $("t-summary").innerHTML = (d.summary || []).map(x => `<li>${esc(x)}</li>`).join("");
-  $("t-queries").innerHTML = (d.top_queries || []).map(q => `<span class="${q.both ? "both" : ""}">${esc(q.q)}</span>`).join("");
-  renderIdeas(d, "t-ideas");
-  $("t-status").textContent = `«${d.vector}» · ${d.queries} реальных запросов · ${d.created}. Частотности нет — это подсказки поисковиков, то есть то, что люди набирают.`;
+  const niche = d === trends;
+  if (niche && !$("t-vector").value) $("t-vector").value = d.vector || "";
+  $("t-cols").classList.toggle("hidden", !niche);
+  if (niche) {
+    $("t-summary").innerHTML = (d.summary || []).map(x => `<li>${esc(x)}</li>`).join("");
+    $("t-queries").innerHTML = (d.top_queries || []).map(q => `<span class="${q.both ? "both" : ""}">${esc(q.q)}</span>`).join("");
+  }
+  renderIdeas(d);
+  $("t-status").textContent = (niche ? `«${d.vector}» · ` : "По всем услугам · ") + `${d.queries} реальных запросов · ${d.created}`;
 }
-const ideaClick = e => {
+$("t-ideas").onclick = e => {
   const b = e.target.closest("[data-idea]"); if (!b) return;
-  const i = e.currentTarget._data[+b.dataset.idea];
-  pendingIdea = {topic: i.topic, date: i.suggested_date};
-  $("g-topic").value = i.topic;
-  $("g-keys").value = [i.main_keyword, ...i.keywords.filter(k => k !== i.main_keyword)].join("\n");
-  $("g-topic").scrollIntoView({behavior: "smooth", block: "center"});
-  toast("Тема подставлена — нажмите «Сгенерировать черновик». Дата выхода подставится сама.");
+  const i = $("t-ideas")._data[+b.dataset.idea];
+  generate({topic: i.topic, keywords: [i.main_keyword, ...i.keywords.filter(k => k !== i.main_keyword)].join("\n")}, b, "Пишу…", i.suggested_date);
 };
-$("ideas").onclick = ideaClick;
-$("t-ideas").onclick = ideaClick;
-$("b-trends").onclick = async () => {
-  const vector = $("t-vector").value.trim();
-  if (vector.length < 3) { toast("Опишите нишу или идею", true); $("t-vector").focus(); return; }
-  const b = $("b-trends"); busy(b, true, "Смотрю спрос…");
+const week = () => $("i-week").value;
+async function findTopics(vector) {
+  const b = $("b-trends"); busy(b, true, "Ищу…");
   const t0 = Date.now(), tick = setInterval(() => { $("t-status").textContent = `Собираю запросы Google и Яндекса и анализирую… ${Math.round((Date.now() - t0) / 1000)} с (обычно до минуты)`; }, 1000);
-  try { renderTrends(await runJob("/admin/api/trends?per_week=" + $("i-week").value, {vector})); }
-  catch (e) { $("t-status").textContent = ""; toast(e.message, true); }
-  clearInterval(tick); busy(b, false);
+  try {
+    if (vector) demand.trends = await runJob("/admin/api/trends?per_week=" + week(), {vector});
+    else demand.ideas = await runJob("/admin/api/ideas?per_week=" + week(), {focus: ""});
+    clearInterval(tick); renderDemand();
+  } catch (e) { clearInterval(tick); $("t-status").textContent = ""; toast(e.message, true); }
+  busy(b, false);
+}
+$("b-trends").onclick = () => {
+  const v = $("t-vector").value.trim();
+  if (v && v.length < 3) { toast("Опишите нишу подробнее", true); return; }
+  findTopics(v);
 };
-$("b-ideas").onclick = async () => {
-  const b = $("b-ideas"); busy(b, true, "Собираю запросы…");
-  const t0 = Date.now(), tick = setInterval(() => { $("i-status").textContent = `Собираю подсказки и думаю… ${Math.round((Date.now() - t0) / 1000)} с (обычно до минуты)`; }, 1000);
-  try { renderIdeas(await runJob(ideasUrl(), {focus: $("i-focus").value})); }
-  catch (e) { $("i-status").textContent = ""; toast(e.message, true); }
-  clearInterval(tick); busy(b, false);
+// ---------- придумай сам: лучшая свободная тема из спроса по услугам → сразу пишем
+$("b-auto").onclick = async () => {
+  const b = $("b-auto");
+  let d = demand.ideas;
+  const fresh = d && d.created && (Date.now() - new Date(d.created.replace(" ", "T") + ":00+05:00")) < 7 * 864e5;
+  let idea = fresh && (d.ideas || []).find(i => !i.used);
+  if (!idea) {
+    busy(b, true, "Выбираю тему…");
+    $("auto-note").textContent = "Смотрю спрос в Google и Яндексе… обычно до минуты";
+    try { d = demand.ideas = await runJob("/admin/api/ideas?per_week=" + week(), {focus: ""}); renderDemand(); }
+    catch (e) { busy(b, false); $("auto-note").textContent = ""; toast(e.message, true); return; }
+    busy(b, false);
+    idea = (d.ideas || []).find(i => !i.used);
+  }
+  if (!idea) { $("auto-note").textContent = ""; toast("Свободных тем не нашлось — попробуйте «Из запросов» с нишей", true); return; }
+  $("auto-note").textContent = "Тема: " + idea.topic;
+  await generate({topic: idea.topic, keywords: [idea.main_keyword, ...idea.keywords.filter(k => k !== idea.main_keyword)].join("\n")}, b, "Пишу…", idea.suggested_date);
 };
-const ideasUrl = () => "/admin/api/ideas?per_week=" + $("i-week").value;
 try { $("i-week").value = localStorage.getItem("per_week") || "2"; } catch (e) {}
-$("i-week").onchange = () => { try { localStorage.setItem("per_week", $("i-week").value); } catch (e) {} api(ideasUrl()).then(d => renderIdeas(d)).catch(() => {}); api("/admin/api/trends?per_week=" + $("i-week").value).then(renderTrends).catch(() => {}); };
-api("/admin/api/trends?per_week=" + $("i-week").value).then(renderTrends).catch(() => {});
-api(ideasUrl()).then(d => renderIdeas(d)).catch(() => {});
+function loadDemand() {
+  Promise.all([api("/admin/api/ideas?per_week=" + week()).catch(() => null), api("/admin/api/trends?per_week=" + week()).catch(() => null)])
+    .then(([i, t]) => { demand = {ideas: i, trends: t}; renderDemand(); });
+}
+$("i-week").onchange = () => { try { localStorage.setItem("per_week", week()); } catch (e) {} loadDemand(); };
+loadDemand();
 // ---------- настройки и выход
 async function showSettings() {
   if (dirty && !confirm("Есть несохранённые изменения. Уйти без сохранения?")) return;
