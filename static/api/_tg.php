@@ -1,8 +1,8 @@
 <?php
 // Telegram-бот заявок: общие функции для send.php (заявки), tg-hook.php (вебхук бота) и админки.
 //
-// Куда слать заявки: по умолчанию — владельцу в личку (tg_chat из tg-config.php рядом с httpdocs).
-// Владелец может привязать группу: просит у бота PIN в личке (/pin), добавляет бота в группу и пишет
+// Куда слать заявки: всегда владельцу в личку (tg_chat из tg-config.php рядом с httpdocs) и,
+// если привязана, ещё в группу. Владелец привязывает группу так: просит у бота PIN в личке (/pin), добавляет бота в группу и пишет
 // там «/link PIN». Привязка и вебхук хранятся в alfimov-data/telegram.json (вне сайта).
 declare(strict_types=1);
 
@@ -40,12 +40,8 @@ function tg_save_state(array $s): void
 /** Владелец бота — тот, кому заявки шли изначально (личный чат, положительный id). */
 function tg_owner(): string { return (string) (tg_cfg()['tg_chat'] ?? ''); }
 
-/** Куда сейчас слать заявки. */
-function tg_destination(): string
-{
-    $s = tg_state();
-    return (string) (($s['lead_chat'] ?? '') ?: tg_owner());
-}
+/** Привязанная группа (или '' — заявки только в личку). */
+function tg_group(): string { return (string) (tg_state()['lead_chat'] ?? ''); }
 
 /** Вызов Bot API → ответ Telegram (массив) или ['ok' => false]. $call — подмена для тестов. */
 function tg_api(string $method, array $params, ?callable $call = null): array
@@ -67,13 +63,15 @@ function tg_send(string $chat, string $text, ?callable $call = null): array
 }
 
 /**
- * Заявка: в привязанную группу; группа стала супергруппой — переносим привязку и повторяем;
- * бота убрали из группы — отвязываем и шлём владельцу в личку. Заявка не теряется.
+ * Заявка: всегда владельцу в личку и, если привязана, ещё в группу. Группа стала супергруппой —
+ * переносим привязку и повторяем; бота убрали из группы — отвязываем и предупреждаем в личке.
  */
 function tg_send_lead(string $text, ?callable $call = null): bool
 {
-    $dest = tg_destination();
-    $r = tg_send($dest, $text, $call);
+    $ok = !empty(tg_send(tg_owner(), $text, $call)['ok']);
+    $group = (string) (tg_state()['lead_chat'] ?? '');
+    if ($group === '' || $group === tg_owner()) return $ok;
+    $r = tg_send($group, $text, $call);
     $new = $r['parameters']['migrate_to_chat_id'] ?? null;
     if (!$r['ok'] && $new) {
         $s = tg_state();
@@ -81,15 +79,13 @@ function tg_send_lead(string $text, ?callable $call = null): bool
         tg_save_state($s);
         $r = tg_send((string) $new, $text, $call);
     }
-    if (!$r['ok'] && $dest !== tg_owner()) {
-        $s = tg_state();
-        $title = $s['lead_title'] ?? 'группа';
-        unset($s['lead_chat'], $s['lead_title']);
-        tg_save_state($s);
-        $r = tg_send(tg_owner(), $text . "\n\n⚠️ Не удалось отправить в «" . htmlspecialchars($title) . "» — бота, видимо, убрали из группы. "
-            . "Заявки снова приходят сюда; чтобы вернуть группу — /pin.", $call);
+    if (!$r['ok']) {
+        $title = (string) (tg_state()['lead_title'] ?? 'группа');
+        tg_unlink();
+        tg_send(tg_owner(), "⚠️ Не удалось отправить заявку в группу «" . htmlspecialchars($title) . "» — бота, видимо, убрали. "
+            . "Группа отвязана, заявки приходят только сюда. Привязать снова — /pin.", $call);
     }
-    return !empty($r['ok']);
+    return $ok || !empty($r['ok']);
 }
 
 /** Новый одноразовый PIN владельцу в личку. */
@@ -181,12 +177,12 @@ function tg_handle_update(array $u, ?callable $call = null): void
         if (preg_match('#^/(pin|link)\b#', $text)) { tg_issue_pin($call); return; }
         if (preg_match('#^/unlink\b#', $text)) {
             tg_unlink();
-            tg_send($chat, '✅ Заявки снова приходят сюда, в личку.', $call);
+            tg_send($chat, '✅ Группа отвязана: заявки приходят только сюда, в личку.', $call);
             return;
         }
         $s = tg_state();
-        tg_send($chat, "Заявки сейчас приходят: " . (!empty($s['lead_chat']) ? "в группу «" . htmlspecialchars((string) $s['lead_title']) . "»" : 'сюда, в личку')
-            . ".\n\n/pin — получить PIN, чтобы привязать группу\n/unlink — вернуть заявки в личку", $call);
+        tg_send($chat, "Заявки сейчас приходят: сюда, в личку" . (!empty($s['lead_chat']) ? " и в группу «" . htmlspecialchars((string) $s['lead_title']) . "»" : '')
+            . ".\n\n/pin — получить PIN, чтобы привязать группу\n/unlink — отвязать группу", $call);
         return;
     }
     if (in_array($type, ['group', 'supergroup'], true)
@@ -194,8 +190,8 @@ function tg_handle_update(array $u, ?callable $call = null): void
         if (tg_check_pin($mm[1])) {
             $title = (string) ($m['chat']['title'] ?? 'группа');
             tg_link_group($chat, $title);
-            tg_send($chat, '✅ Готово: заявки с сайта alfimov.kz теперь приходят в эту группу.', $call);
-            tg_send($owner, "✅ Группа «" . htmlspecialchars($title) . "» привязана — заявки идут туда. Вернуть в личку: /unlink", $call);
+            tg_send($chat, '✅ Готово: заявки с сайта alfimov.kz теперь приходят и в эту группу.', $call);
+            tg_send($owner, "✅ Группа «" . htmlspecialchars($title) . "» привязана — заявки идут и сюда, и туда. Отвязать: /unlink", $call);
         } else {
             tg_send($chat, '❌ PIN неверный или устарел. Новый PIN владелец получит в личке у бота: /pin', $call);
         }
