@@ -304,6 +304,17 @@ body:not(.view-edit) .mbar { display: none !important; }
       </div>
     </section>
     <section class="card">
+      <h2>Заявки в Telegram <small>бот @alfimovkz_bot</small></h2>
+      <p id="tg-status" style="margin:0 0 12px">…</p>
+      <div class="row" style="gap:8px">
+        <button class="btn btn-p" id="tg-pin">Получить PIN в Telegram</button>
+        <button class="btn hidden" id="tg-unlink">Вернуть заявки в личку</button>
+      </div>
+      <p class="hint" style="margin:12px 0 0">Как привязать группу: 1) нажмите «Получить PIN» — бот пришлёт его вам в личку (или напишите боту <code>/pin</code>);
+        2) добавьте бота в группу; 3) отправьте в группе <code>/link PIN</code>. PIN одноразовый, действует 15 минут.
+        Если бота уберут из группы, заявки сами вернутся в личку.</p>
+    </section>
+    <section class="card">
       <h2>Пароль <small id="s-login"></small></h2>
       <div class="grid g2">
         <label class="f">Текущий пароль<input type="password" id="s-pass-cur" autocomplete="current-password"></label>
@@ -856,8 +867,25 @@ async function showSettings() {
     $("s-login").textContent = "логин: " + s.login;
   } catch (e) { toast(e.message, true); }
 }
-$("b-settings").onclick = showSettings;
-$("keys-link").onclick = e => { e.preventDefault(); showSettings(); };
+async function tgStatus() {
+  try {
+    const t = await api("/admin/api/telegram");
+    $("tg-status").textContent = !t.ready ? "Бот не настроен на хостинге." : t.group ? `Заявки приходят в группу «${t.title}».` : "Заявки приходят вам в личку.";
+    $("tg-unlink").classList.toggle("hidden", !t.group);
+  } catch (e) { $("tg-status").textContent = e.message; }
+}
+$("tg-pin").onclick = async () => {
+  const b = $("tg-pin"); busy(b, true, "Отправляю…");
+  try { await api("/admin/api/telegram/pin", {method: "POST"}); toast("PIN отправлен вам в Telegram. Добавьте бота в группу и напишите там /link PIN"); }
+  catch (e) { toast(e.message, true); }
+  busy(b, false);
+};
+$("tg-unlink").onclick = async () => {
+  if (!confirm("Вернуть заявки к вам в личку?")) return;
+  try { await api("/admin/api/telegram/unlink", {method: "POST"}); toast("Заявки снова приходят в личку"); tgStatus(); } catch (e) { toast(e.message, true); }
+};
+$("b-settings").onclick = () => { showSettings(); tgStatus(); };
+$("keys-link").onclick = e => { e.preventDefault(); showSettings(); tgStatus(); };
 $("s-back").onclick = () => { document.body.classList.remove("view-settings"); checkKeys(); };
 $("s-save").onclick = async () => {
   const b = $("s-save"); busy(b, true, "Сохраняю…");

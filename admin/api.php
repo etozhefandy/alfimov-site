@@ -6,6 +6,7 @@
 // с телефона оборвётся, задача доработает на хостинге, а результат заберётся при опросе.
 declare(strict_types=1);
 require dirname(__DIR__) . '/_blog/auth.php';
+require dirname(__DIR__) . '/api/_tg.php';
 
 header('X-Robots-Tag: noindex, nofollow');
 header('Cache-Control: no-store');
@@ -323,6 +324,21 @@ try {
             start_session();
         }
         reply(['ok' => true, 'changed' => $changed]);
+    }
+    if ($method === 'GET' && $route === 'api/telegram') {
+        $st = tg_state();
+        reply(['ready' => tg_owner() !== '' && !empty(tg_cfg()['tg_token']), 'group' => !empty($st['lead_chat']),
+            'title' => (string) ($st['lead_title'] ?? '')]);
+    }
+    if ($method === 'POST' && $route === 'api/telegram/pin') {
+        if (tg_owner() === '' || empty(tg_cfg()['tg_token'])) fail('Бот не настроен на хостинге (нет tg-config.php)');
+        if (!tg_ensure_webhook()) fail('Telegram не принял настройку бота — попробуйте ещё раз');
+        if (!tg_issue_pin()) fail('Не удалось написать вам в Telegram — откройте бота и нажмите «Старт»');
+        reply(['ok' => true]);
+    }
+    if ($method === 'POST' && $route === 'api/telegram/unlink') {
+        tg_unlink();
+        reply(['ok' => true]);
     }
     if ($method === 'POST' && $route === 'api/logout') {
         end_session();
