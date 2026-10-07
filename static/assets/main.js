@@ -45,16 +45,60 @@
     if (d.length > 9) r += "-" + d.slice(9, 11);
     return r;
   }
+  // Простая маска — запасной вариант, пока грузится (или если не загрузилась) intl-tel-input.
   document.querySelectorAll("input[data-phone]").forEach(function (inp) {
-    inp.addEventListener("focus", function () { if (!inp.value) inp.value = "+7 ("; });
-    inp.addEventListener("blur", function () { if (phoneDigits(inp.value).length <= 1) inp.value = ""; });
+    inp.addEventListener("focus", function () { if (!inp._iti && !inp.value) inp.value = "+7 ("; });
+    inp.addEventListener("blur", function () { if (!inp._iti && phoneDigits(inp.value).length <= 1) inp.value = ""; });
     inp.addEventListener("input", function () {
+      if (inp._iti) return;
       var raw = inp.value.replace(/\D/g, "");
       // вставили 10 цифр без кода страны (7012345678) — код 7 дописываем, а не принимаем первую 7 за него
       var d = inp.value.indexOf("+") < 0 && raw.length === 10 ? "7" + raw : phoneDigits(inp.value);
       inp.value = d.length > 1 ? phoneFormat(d) : (inp.value ? "+7 (" : "");
       inp.setCustomValidity("");
     });
+  });
+
+  // +7 — Казахстан и Россия. База Google пропускает зарезервированные, но пустые диапазоны (+7 666…),
+  // поэтому сверяем с реальными кодами: KZ мобильные 700–708, 747, 771–778, городские 71x/72x; RU 3xx/4xx/8xx/9xx.
+  // Та же проверка — на сервере (api/send.php).
+  function kzRuOk(e164) {
+    var d = String(e164 || "").replace(/\D/g, "");
+    if (d.charAt(0) !== "7") return true;
+    return d.length === 11 && /^7(?:70[0-8]|747|77[1-8]|7[12]\d|[3489]\d\d)/.test(d);
+  }
+
+  // Телефон: intl-tel-input (github.com/jackocnr/intl-tel-input) — флаг и выбор страны, по умолчанию Казахстан;
+  // формат и проверка по базе Google libphonenumber (коды операторов: +7 707, +7 747… — да, +7 666 — нет).
+  // Грузим после загрузки страницы, чтобы не тормозить первый показ.
+  var ITI = "https://cdn.jsdelivr.net/npm/intl-tel-input@29.5.3/dist/";
+  var phones = document.querySelectorAll("input[data-phone]");
+  if (phones.length) window.addEventListener("load", function () {
+    var css = document.createElement("link");
+    css.rel = "stylesheet"; css.href = ITI + "css/intlTelInput.min.css";
+    document.head.appendChild(css);
+    var js = document.createElement("script");
+    js.src = ITI + "js/intlTelInput.min.js";
+    js.onload = function () {
+      var kk = document.documentElement.lang === "kk";
+      phones.forEach(function (inp) {
+        var digits = phoneDigits(inp.value);
+        inp.value = digits.length > 1 ? "+" + digits : "";
+        inp.placeholder = "";
+        inp.removeAttribute("maxlength");
+        inp._iti = window.intlTelInput(inp, {
+          initialCountry: "kz",
+          countryOrder: ["kz", "ru", "uz", "kg"],
+          separateDialCode: true,
+          strictMode: true,
+          countryNameLocale: kk ? "kk" : "ru",
+          allowedNumberTypes: ["MOBILE", "FIXED_LINE"],
+          uiTranslations: { searchPlaceholder: kk ? "Іздеу" : "Поиск", searchEmptyState: kk ? "Ештеңе табылмады" : "Ничего не найдено" },
+          loadUtils: function () { return import(ITI + "js/utils.js"); }
+        });
+      });
+    };
+    document.head.appendChild(js);
   });
 
   // Форма заявки → /api/send.php → Telegram
@@ -68,22 +112,29 @@
     form.addEventListener("submit", function (ev) {
       ev.preventDefault();
       var phone = form.querySelector("input[data-phone]");
-      if (phone && phoneDigits(phone.value).length !== 11) {
+      var iti = phone && phone._iti;
+      // isValidNumber() = null, пока не догрузилась база номеров, — тогда проверит сервер
+      var bad = phone && (iti ? iti.isValidNumber() === false || !phone.value.trim() || !kzRuOk(iti.getNumber())
+                              : phoneDigits(phone.value).length !== 11 || !kzRuOk("+" + phoneDigits(phone.value)));
+      if (bad) {
         status.className = "form-status err";
         status.textContent = phone.dataset.err;
         phone.focus();
         return;
       }
+      var data = new FormData(form);
+      if (iti) data.set("contact", iti.getNumber() || phone.value);
       btn.disabled = true;
       btn.textContent = form.dataset.sending;
       status.className = "form-status";
       status.textContent = "";
 
-      fetch(form.action, { method: "POST", body: new FormData(form), headers: { Accept: "application/json" } })
+      fetch(form.action, { method: "POST", body: data, headers: { Accept: "application/json" } })
         .then(function (r) { return r.json().catch(function () { return { ok: false }; }); })
         .then(function (res) {
           if (!res.ok) throw new Error("send failed");
           form.reset();
+          if (iti) iti.setNumber("");
           if (ts) ts.value = String(Date.now());
           status.className = "form-status ok";
           status.textContent = form.dataset.ok;
