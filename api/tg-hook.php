@@ -12,6 +12,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || $secret === ''
 }
 $u = json_decode((string) file_get_contents('php://input'), true);
 try {
+    // меню команд «/» — один раз (если бот подключили до появления меню)
+    $st = tg_state();
+    if (($st['commands_v'] ?? 0) < 1) { tg_set_commands(); $st['commands_v'] = 1; tg_save_state($st); }
     if (is_array($u)) tg_handle_update($u);
 } catch (Throwable $ex) {
     error_log('tg-hook: ' . $ex->getMessage());
