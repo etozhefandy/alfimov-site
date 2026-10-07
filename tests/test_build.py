@@ -52,8 +52,9 @@ class BuildTest(unittest.TestCase):
         for f in sorted((build.DIST).rglob("*.php")):
             r = subprocess.run(["php", "-l", str(f)], capture_output=True, text=True)
             self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        r = subprocess.run(["php", str(ROOT / "tests" / "php" / "test_blog.php")], capture_output=True, text=True)
-        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        for t in ("test_blog.php", "test_tg.php"):
+            r = subprocess.run(["php", str(ROOT / "tests" / "php" / t)], capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,49 @@
+<?php
+// Тесты бота заявок (без сети):  php tests/php/test_tg.php   (после python3 build.py)
+declare(strict_types=1);
+$root = dirname(__DIR__, 2);
+$tmp = sys_get_temp_dir() . '/alfimov-tg-' . bin2hex(random_bytes(4));
+mkdir($tmp);
+file_put_contents("$tmp/tg-config.php", "<?php return ['tg_token' => 'T', 'tg_chat' => '111'];");
+putenv("ALFIMOV_TG_CONFIG=$tmp/tg-config.php");
+putenv("ALFIMOV_DATA=$tmp/data");
+require "$root/dist/api/_tg.php";
+
+$fails = 0;
+function check(bool $ok, string $name): void { global $fails; echo ($ok ? '  ok   ' : '  FAIL ') . "$name\n"; if (!$ok) $fails++; }
+$sent = [];
+$tg = function ($method, $p) use (&$sent) { $sent[] = [$method, $p]; return ['ok' => true]; };
+$pinFrom = function () use (&$sent) { foreach (array_reverse($sent) as [, $p]) if (preg_match('#<code>(\d{6})</code>#', $p['text'] ?? '', $m)) return $m[1]; return null; };
+$msg = fn($chat, $type, $from, $text, $title = 'Отдел продаж') => ['message' => ['chat' => ['id' => $chat, 'type' => $type, 'title' => $title], 'from' => ['id' => $from], 'text' => $text]];
+
+check(tg_destination() === '111', 'по умолчанию заявки — владельцу в личку');
+tg_handle_update($msg(222, 'private', 222, '/pin'), $tg);
+check($pinFrom() === null && str_contains(end($sent)[1]['text'], 'служебный'), 'чужому в личке PIN не выдаётся');
+tg_handle_update($msg(111, 'private', 111, '/pin'), $tg);
+$pin = $pinFrom();
+check($pin !== null && end($sent)[1]['chat_id'] === '111', 'владелец получает PIN в личку');
+tg_handle_update($msg(-500, 'group', 333, '/link 000000'), $tg);
+check(tg_destination() === '111' && str_contains(end($sent)[1]['text'], 'неверный'), 'неверный PIN — группа не привязана');
+tg_handle_update($msg(-500, 'group', 333, "/link@alfimovkz_bot $pin"), $tg);
+check(tg_destination() === '-500' && tg_state()['lead_title'] === 'Отдел продаж', 'верный PIN в группе — заявки идут туда');
+tg_handle_update($msg(-600, 'group', 333, "/link $pin"), $tg);
+check(tg_destination() === '-500', 'PIN одноразовый');
+tg_handle_update($msg(111, 'private', 111, '/pin'), $tg);
+$p2 = $pinFrom();
+for ($i = 0; $i < TG_PIN_MAX_TRIES; $i++) tg_handle_update($msg(-700, 'group', 1, '/link 123456'), $tg);
+tg_handle_update($msg(-700, 'group', 1, "/link $p2"), $tg);
+check(tg_destination() === '-500', 'после 10 неверных попыток PIN сгорает (перебор не пройдёт)');
+
+$sent = [];
+$r = tg_send_lead('Заявка', function ($m, $p) use (&$sent) { $sent[] = $p['chat_id']; return $p['chat_id'] === '-500' ? ['ok' => false, 'parameters' => ['migrate_to_chat_id' => -100500]] : ['ok' => true]; });
+check($r && $sent === ['-500', '-100500'] && tg_destination() === '-100500', 'группа стала супергруппой — привязка переносится сама');
+$sent = [];
+$r = tg_send_lead('Заявка', function ($m, $p) use (&$sent) { $sent[] = $p['chat_id']; return ['ok' => $p['chat_id'] === '111']; });
+check($r && $sent === ['-100500', '111'] && tg_destination() === '111', 'бота убрали из группы — заявка уходит в личку, привязка снята');
+tg_link_group('-1', 'x');
+tg_handle_update($msg(111, 'private', 111, '/unlink'), $tg);
+check(tg_destination() === '111', '/unlink возвращает заявки в личку');
+
+array_map('unlink', glob("$tmp/data/*") ?: []);
+echo $fails ? "\nПРОВАЛЕНО: $fails\n" : "\nВсе проверки пройдены\n";
+exit($fails ? 1 : 0);

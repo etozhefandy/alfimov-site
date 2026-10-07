@@ -1,6 +1,6 @@
 <?php
 // Приём заявки с сайта и отправка в Telegram.
-// Токен и chat_id лежат в config.php (генерируется при сборке из GitHub Secrets).
+// Токен и chat_id — в tg-config.php рядом с httpdocs; привязанная группа — в alfimov-data/telegram.json.
 header('Content-Type: application/json; charset=utf-8');
 header('X-Robots-Tag: noindex');
 
@@ -42,8 +42,9 @@ $hits[] = $now;
 @file_put_contents($rlFile, json_encode(array_values($hits)));
 
 // Секреты лежат вне папки сайта (рядом с httpdocs), чтобы не попадать в публичный репозиторий.
-$external = dirname(__DIR__, 2) . '/tg-config.php';
-$cfg = require (is_file($external) ? $external : __DIR__ . '/config.php');
+// Куда слать — личка владельца или привязанная по PIN группа (см. _tg.php).
+require __DIR__ . '/_tg.php';
+$cfg = tg_cfg();
 if (empty($cfg['tg_token']) || empty($cfg['tg_chat'])) reply(false, 503);
 
 $esc = function ($s) { return htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); };
@@ -53,21 +54,5 @@ $text = "🔥 <b>Новая заявка с alfimov.kz</b>\n\n"
     . ($message !== '' ? "💬 " . $esc($message) . "\n" : '')
     . "\n📄 Страница: " . $esc($source) . " (" . $esc($lang) . ")";
 
-$ch = curl_init('https://api.telegram.org/bot' . $cfg['tg_token'] . '/sendMessage');
-curl_setopt_array($ch, [
-    CURLOPT_POST => true,
-    CURLOPT_POSTFIELDS => http_build_query([
-        'chat_id' => $cfg['tg_chat'],
-        'text' => $text,
-        'parse_mode' => 'HTML',
-        'disable_web_page_preview' => true,
-    ]),
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_TIMEOUT => 10,
-]);
-$resp = curl_exec($ch);
-$code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-curl_close($ch);
-
-$data = json_decode((string) $resp, true);
-reply($code === 200 && !empty($data['ok']), $code === 200 ? 200 : 502);
+$ok = tg_send_lead($text);
+reply($ok, $ok ? 200 : 502);
