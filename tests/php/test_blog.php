@@ -125,6 +125,20 @@ check(str_contains($q, 'продвижение мебельного бизнес
 check(array_column($tr['top_queries'], 'q') === ['продвижение мебели', 'реклама мебели алматы'] && $tr['top_queries'][0]['both'] && $tr['ideas'][0]['service'] === '', 'итог: только найденные запросы по теме, сначала из обоих поисковиков, чужие slug отброшены');
 check(throws(fn() => niche_trends('аб'), 'нишу'), 'пустая ниша — понятная ошибка');
 
+echo "список тем\n";
+@unlink(topics_file()); @unlink(DATA_DIR . '/trends.json'); @unlink(DATA_DIR . '/ideas.json');
+$idea = fn($t, $k) => ['topic' => $t, 'main_keyword' => $k, 'keywords' => [$k], 'intent' => 'коммерческий', 'service' => 'smm', 'why' => 'w'];
+topics_add([$idea('Тема А', 'ключ а'), $idea('Тема Б', 'ключ б')], 'по всем услугам');
+topics_add([$idea('Тема А другая формулировка', 'ключ а'), $idea('Тема В', 'ключ в')], 'по нише «x»');
+$list = topics_load();
+check(array_column($list, 'topic') === ['Тема В', 'Тема А', 'Тема Б'] && $list[0]['source'] === 'по нише «x»', 'темы копятся, новые сверху, повтор по главному запросу пропущен');
+check(topics_set_status($list[1]['id'], 'rejected') && !topics_set_status('000000000000', 'rejected') && !topics_set_status($list[1]['id'], 'хак'), 'отклонить тему; чужой id и статус не проходят');
+$p = ideas_prompt(['ключ' => ['google' => 1]], [], '');
+check(str_contains($p, 'отклонил') && str_contains($p, 'Тема А') && str_contains($p, 'ждут в списке'), 'отклонённые и ждущие темы — в запросе к ИИ');
+save_article($art('pro-klyuch-b', ['keywords' => ['ключ б']]));
+$v = array_column(topics_view(2)['topics'], null, 'topic');
+check($v['Тема Б']['used'] && $v['Тема А']['suggested_date'] === '' && $v['Тема В']['suggested_date'] !== '', 'написанная тема отмечена сама, у отклонённой нет даты');
+
 echo "статья по источнику\n";
 $html = '<html><head><meta charset="utf-8"><title>Сайт</title><meta property="og:title" content="Meta меняет правила рекламы в Казахстане">'
     . '<meta property="og:image" content="https://cdn.example/x.jpg"></head><body><nav>Меню Главная Контакты</nav>'
