@@ -96,13 +96,17 @@ label.f.inline select { width: auto; }
 .t-h { font-size: 14px; margin: 0 0 8px; }
 .t-sum { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14px; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chips span { border: 1px solid var(--line); border-radius: 4px; padding: 2px 8px; font-size: 13px; background: #fff; }
-.chips span.both, .both { color: var(--blue); border-color: #c9d9ff; }
+.chips button { border: 1px solid var(--line); border-radius: 4px; padding: 3px 9px; font-size: 13px; background: #fff; cursor: pointer; }
+.chips button:hover { border-color: var(--blue); color: var(--blue); }
+.idea .acts { display: flex; flex-direction: column; gap: 6px; flex: none; }
+.idea .src { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+@media (max-width: 700px) { .idea .acts { flex-direction: row; width: 100%; } .idea .acts .btn { flex: 1; justify-content: center; } }
+.chips button.both, .both { color: var(--blue); border-color: #c9d9ff; }
 .ideas { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
 .idea { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r); }
 .idea b { display: block; margin-bottom: 4px; }
 .idea.used { opacity: .55; }
-.idea.used .btn { display: none; }
+
 .idea .btn { flex: none; }
 .btn-go { background: #178a4c; border-color: #178a4c; color: #fff; }
 .btn-go:hover { background: #12723e; }
@@ -227,11 +231,17 @@ body:not(.view-edit) .mbar { display: none !important; }
         <div id="t-result" class="hidden">
           <div class="t-cols" id="t-cols">
             <div><h3 class="t-h">Что ищут</h3><ul class="t-sum" id="t-summary"></ul></div>
-            <div><h3 class="t-h">Реальные запросы <span class="hint">· <b class="both">●</b> есть и в Google, и в Яндексе</span></h3><div class="chips" id="t-queries"></div></div>
+            <div><h3 class="t-h">Реальные запросы <span class="hint">· нажмите, чтобы написать статью по запросу · <b class="both">●</b> есть и в Google, и в Яндексе</span></h3><div class="chips" id="t-queries"></div></div>
           </div>
-          <h3 class="t-h" style="margin-top:16px">Темы статей</h3>
-          <ul class="ideas" id="t-ideas"></ul>
         </div>
+        <div class="row" style="margin-top:18px;gap:8px">
+          <h3 class="t-h" style="margin:0">Темы статей</h3>
+          <div class="filters" id="t-filter" style="margin:0">
+            <button data-f="new" class="on">Новые</button><button data-f="rejected">Отклонённые</button><button data-f="used">Написаны</button>
+          </div>
+        </div>
+        <p class="hint" style="margin:6px 0 0">Здесь копятся все темы, что предлагал ИИ. Отклонённые он больше не предлагает.</p>
+        <ul class="ideas" id="t-ideas"></ul>
       </div>
 
       <div class="pane" data-pane="own">
@@ -605,6 +615,7 @@ async function onSave(b) {
   busy(b, true, "Сохраняю…");
   try {
     const a = await save();
+    loadTopics();  // тема с ключом этой статьи переходит в «Написаны»
     toast(a.state === "scheduled" ? `Сохранено · выйдет сама ${fmtDate(a.publish_at)}`
       : a.state === "live" ? `Сохранено · на сайте: alfimov.kz${a.path}` : "Сохранено · черновик, на сайте не виден");
   } catch (e) { toast(e.message, true); }
@@ -741,47 +752,69 @@ $("b-inline-img").onclick = async () => {
 };
 const SERVICE_NAMES = {"target-facebook-instagram": "Таргет Instagram/Facebook", "target-tiktok": "Таргет TikTok", "smm": "SMM",
   "kontekstnaya-reklama": "Контекст", "seo-prodvizhenie": "SEO", "marketingovye-issledovaniya": "Исследования", "kompleksnyj-marketing": "Комплексный"};
-function renderIdeas(d) {
-  const ideas = (d && d.ideas) || [];
-  $("t-ideas").innerHTML = ideas.map((i, n) => `<li class="idea${i.used ? " used" : ""}">
-    <div><b>${esc(i.topic)}</b>
-      <div class="hint">${i.used ? "✓ по этой теме уже есть статья" : "📅 рекомендуемая дата выхода: <b style=\"display:inline\">" + esc(fmtDate(i.suggested_date)) + "</b>"}</div>
-      <div class="hint">🔑 ${esc(i.main_keyword)} · ${esc(i.intent)}${i.service ? " · → " + esc(SERVICE_NAMES[i.service] || i.service) : ""}</div>
-      <div class="hint">${esc(i.why)}</div>
-      <div class="hint">Запросы: ${esc(i.keywords.join(", "))}</div></div>
-    <button class="btn" data-idea="${n}">Написать статью</button></li>`).join("");
-  $("t-ideas")._data = ideas;
+// ---------- темы: общий список всех тем, что предлагал ИИ (написать / отклонить / вернуть)
+let topics = [], topicFilter = "new";
+const topicState = t => t.used ? "used" : (t.status === "rejected" ? "rejected" : "new");
+const kw = t => [t.main_keyword, ...t.keywords.filter(k => k !== t.main_keyword)].join("\n");
+function renderTopics() {
+  const counts = {new: 0, rejected: 0, used: 0};
+  topics.forEach(t => counts[topicState(t)]++);
+  [...$("t-filter").children].forEach(b => { b.classList.toggle("on", b.dataset.f === topicFilter);
+    b.textContent = {new: "Новые", rejected: "Отклонённые", used: "Написаны"}[b.dataset.f] + ` (${counts[b.dataset.f]})`; });
+  const items = topics.filter(t => topicState(t) === topicFilter);
+  $("t-ideas").innerHTML = items.length ? items.map(t => {
+    const st = topicState(t);
+    const acts = st === "new" ? `<button class="btn btn-p" data-write="${t.id}">Написать статью</button><button class="btn" data-reject="${t.id}">Отклонить</button>`
+      : st === "rejected" ? `<button class="btn" data-restore="${t.id}">Вернуть</button>` : "";
+    return `<li class="idea${st !== "new" ? " used" : ""}">
+    <div><b>${esc(t.topic)}</b>
+      <div class="hint">${st === "used" ? "✓ по этой теме уже есть статья" : st === "rejected" ? "отклонена" : "📅 рекомендуемая дата выхода: <b style=\"display:inline\">" + esc(fmtDate(t.suggested_date)) + "</b>"}</div>
+      <div class="hint">🔑 ${esc(t.main_keyword)} · ${esc(t.intent)}${t.service ? " · → " + esc(SERVICE_NAMES[t.service] || t.service) : ""}</div>
+      <div class="hint">${esc(t.why)}</div>
+      <div class="hint">Запросы: ${esc(t.keywords.join(", "))}</div>
+      <div class="src">${esc(t.source || "")} · ${esc(t.created || "")}</div></div>
+    <div class="acts">${acts}</div></li>`;
+  }).join("") : `<li class="empty">${topicFilter === "new" ? "Новых тем нет — нажмите «Найти темы»." : "Пусто."}</li>`;
 }
-// Последний результат «Из запросов»: по нише (trends) или по всем услугам (ideas) — что свежее.
-let demand = {ideas: null, trends: null};
-function renderDemand() {
-  const {ideas, trends} = demand;
-  const d = [trends, ideas].filter(x => x && x.ideas && x.ideas.length).sort((a, b) => (b.created || "").localeCompare(a.created || ""))[0];
+const week = () => $("i-week").value;
+const loadTopics = () => api("/admin/api/topics?per_week=" + week()).then(d => { topics = d.topics || []; renderTopics(); }).catch(() => {});
+$("t-filter").onclick = e => { const b = e.target.closest("[data-f]"); if (b) { topicFilter = b.dataset.f; renderTopics(); } };
+$("t-ideas").onclick = async e => {
+  const w = e.target.closest("[data-write]"), r = e.target.closest("[data-reject]"), back = e.target.closest("[data-restore]");
+  const id = (w || r || back || {}).dataset?.write || (r && r.dataset.reject) || (back && back.dataset.restore);
+  const t = topics.find(x => x.id === id); if (!t) return;
+  if (w) { if (await generate({topic: t.topic, keywords: kw(t)}, w, "Пишу…", t.suggested_date)) loadTopics(); return; }
+  try { await api("/admin/api/topics/" + t.id, {method: "POST", body: JSON.stringify({status: r ? "rejected" : "new"})});
+    t.status = r ? "rejected" : "new"; renderTopics(); toast(r ? "Тема отклонена — ИИ не будет её предлагать" : "Тема вернулась в новые"); }
+  catch (err) { toast(err.message, true); }
+};
+// ---------- последний поиск по нише: что ищут и реальные запросы (кликабельные)
+function renderDemand(d, label) {
   if (!d) return;
   $("t-result").classList.remove("hidden");
-  const niche = d === trends;
-  if (niche && !$("t-vector").value) $("t-vector").value = d.vector || "";
+  const niche = !!d.vector;
+  if (niche && !$("t-vector").value) $("t-vector").value = d.vector;
   $("t-cols").classList.toggle("hidden", !niche);
   if (niche) {
     $("t-summary").innerHTML = (d.summary || []).map(x => `<li>${esc(x)}</li>`).join("");
-    $("t-queries").innerHTML = (d.top_queries || []).map(q => `<span class="${q.both ? "both" : ""}">${esc(q.q)}</span>`).join("");
+    $("t-queries").innerHTML = (d.top_queries || []).map(q => `<button type="button" class="${q.both ? "both" : ""}" data-q="${esc(q.q)}">${esc(q.q)}</button>`).join("");
   }
-  renderIdeas(d);
   $("t-status").textContent = (niche ? `«${d.vector}» · ` : "По всем услугам · ") + `${d.queries} реальных запросов · ${d.created}`;
 }
-$("t-ideas").onclick = e => {
-  const b = e.target.closest("[data-idea]"); if (!b) return;
-  const i = $("t-ideas")._data[+b.dataset.idea];
-  generate({topic: i.topic, keywords: [i.main_keyword, ...i.keywords.filter(k => k !== i.main_keyword)].join("\n")}, b, "Пишу…", i.suggested_date);
+$("t-queries").onclick = e => {
+  const b = e.target.closest("[data-q]"); if (!b) return;
+  const q = b.dataset.q;
+  if (!confirm(`Написать статью по запросу «${q}»? ИИ сам подберёт заголовок.`)) return;
+  generate({topic: q, keywords: q}, b, "…");
 };
-const week = () => $("i-week").value;
 async function findTopics(vector) {
   const b = $("b-trends"); busy(b, true, "Ищу…");
   const t0 = Date.now(), tick = setInterval(() => { $("t-status").textContent = `Собираю запросы Google и Яндекса и анализирую… ${Math.round((Date.now() - t0) / 1000)} с (обычно до минуты)`; }, 1000);
   try {
-    if (vector) demand.trends = await runJob("/admin/api/trends?per_week=" + week(), {vector});
-    else demand.ideas = await runJob("/admin/api/ideas?per_week=" + week(), {focus: ""});
-    clearInterval(tick); renderDemand();
+    const d = vector ? await runJob("/admin/api/trends?per_week=" + week(), {vector}) : await runJob("/admin/api/ideas?per_week=" + week(), {focus: ""});
+    clearInterval(tick); renderDemand(d);
+    topicFilter = "new"; await loadTopics();
+    toast(`Готово: новые темы добавлены в список «Темы статей» (${(d.ideas || []).length})`);
   } catch (e) { clearInterval(tick); $("t-status").textContent = ""; toast(e.message, true); }
   busy(b, false);
 }
@@ -790,31 +823,27 @@ $("b-trends").onclick = () => {
   if (v && v.length < 3) { toast("Опишите нишу подробнее", true); return; }
   findTopics(v);
 };
-// ---------- придумай сам: лучшая свободная тема из спроса по услугам → сразу пишем
+// ---------- придумай сам: первая новая тема из списка (нет — ищем по всем услугам) → сразу пишем
 $("b-auto").onclick = async () => {
   const b = $("b-auto");
-  let d = demand.ideas;
-  const fresh = d && d.created && (Date.now() - new Date(d.created.replace(" ", "T") + ":00+05:00")) < 7 * 864e5;
-  let idea = fresh && (d.ideas || []).find(i => !i.used);
-  if (!idea) {
+  await loadTopics();
+  let t = topics.find(x => topicState(x) === "new");
+  if (!t) {
     busy(b, true, "Выбираю тему…");
     $("auto-note").textContent = "Смотрю спрос в Google и Яндексе… обычно до минуты";
-    try { d = demand.ideas = await runJob("/admin/api/ideas?per_week=" + week(), {focus: ""}); renderDemand(); }
+    try { renderDemand(await runJob("/admin/api/ideas?per_week=" + week(), {focus: ""})); await loadTopics(); }
     catch (e) { busy(b, false); $("auto-note").textContent = ""; toast(e.message, true); return; }
     busy(b, false);
-    idea = (d.ideas || []).find(i => !i.used);
+    t = topics.find(x => topicState(x) === "new");
   }
-  if (!idea) { $("auto-note").textContent = ""; toast("Свободных тем не нашлось — попробуйте «Из запросов» с нишей", true); return; }
-  $("auto-note").textContent = "Тема: " + idea.topic;
-  await generate({topic: idea.topic, keywords: [idea.main_keyword, ...idea.keywords.filter(k => k !== idea.main_keyword)].join("\n")}, b, "Пишу…", idea.suggested_date);
+  if (!t) { $("auto-note").textContent = ""; toast("Свободных тем не нашлось — попробуйте «Из запросов» с нишей", true); return; }
+  $("auto-note").textContent = "Тема: " + t.topic;
+  if (await generate({topic: t.topic, keywords: kw(t)}, b, "Пишу…", t.suggested_date)) loadTopics();
 };
 try { $("i-week").value = localStorage.getItem("per_week") || "2"; } catch (e) {}
-function loadDemand() {
-  Promise.all([api("/admin/api/ideas?per_week=" + week()).catch(() => null), api("/admin/api/trends?per_week=" + week()).catch(() => null)])
-    .then(([i, t]) => { demand = {ideas: i, trends: t}; renderDemand(); });
-}
-$("i-week").onchange = () => { try { localStorage.setItem("per_week", week()); } catch (e) {} loadDemand(); };
-loadDemand();
+$("i-week").onchange = () => { try { localStorage.setItem("per_week", week()); } catch (e) {} loadTopics(); };
+api("/admin/api/trends?per_week=" + week()).then(renderDemand).catch(() => {});
+loadTopics();
 // ---------- настройки и выход
 async function showSettings() {
   if (dirty && !confirm("Есть несохранённые изменения. Уйти без сохранения?")) return;

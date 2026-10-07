@@ -273,6 +273,13 @@ try {
     if ($method === 'GET' && $route === 'api/trends') {
         reply(ideas_with_plan(read_json(DATA_DIR . '/trends.json'), (int) ($_GET['per_week'] ?? 2)));
     }
+    if ($method === 'GET' && $route === 'api/topics') {
+        reply(topics_view((int) ($_GET['per_week'] ?? 2)));
+    }
+    if ($method === 'POST' && preg_match('#^api/topics/([a-f0-9]{12})$#', $route, $m)) {
+        if (!topics_set_status($m[1], (string) (body()['status'] ?? ''))) fail('Тема не найдена', 404);
+        reply(['ok' => true]);
+    }
     if ($method === 'GET' && $route === 'api/ideas') {
         reply(ideas_with_plan(read_json(DATA_DIR . '/ideas.json'), (int) ($_GET['per_week'] ?? 2)));
     }

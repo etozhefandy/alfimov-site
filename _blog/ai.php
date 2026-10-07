@@ -603,6 +603,11 @@ function ideas_prompt(array $queries, array $existing, string $focus): string
         "Реальные запросы из поисковых подсказок Google и Яндекса по Казахстану (пометка [Google+Яндекс] — встречается в обоих, это более надёжный спрос):\n" . implode("\n", $lines),
     ];
     if ($existing) $parts[] = "Статьи, которые уже есть (не повторяй их темы):\n" . implode("\n", array_map(fn($t) => "- $t", $existing));
+    $bl = topics_load();
+    $queued = array_column(array_filter($bl, fn($t) => $t['status'] === 'new'), 'topic');
+    $rejected = array_column(array_filter($bl, fn($t) => $t['status'] === 'rejected'), 'topic');
+    if ($queued) $parts[] = "Темы, которые уже предложены и ждут в списке (не повторяй их):\n" . implode("\n", array_map(fn($t) => "- $t", array_slice($queued, 0, 60)));
+    if ($rejected) $parts[] = "Темы, которые редактор отклонил (не предлагай их и похожие на них):\n" . implode("\n", array_map(fn($t) => "- $t", array_slice($rejected, 0, 60)));
     if ($focus !== '') $parts[] = "Пожелание редактора: $focus";
     $parts[] = 'Предложи 8–10 тем статей. Правила: только темы, полезные бизнесу и ведущие к услугам агентства; '
         . 'игнорируй нерелевантное (медицина, сериалы, вакансии, обучение на таргетолога, чужие бренды); '
@@ -633,6 +638,7 @@ function propose_ideas(string $focus, ?callable $post = null, ?array $queries = 
     }, $data['ideas'] ?? []);
     $result = ['ideas' => $ideas, 'queries' => count($queries), 'focus' => $focus, 'created' => now()->format('Y-m-d H:i')];
     write_json(DATA_DIR . '/ideas.json', $result);
+    topics_add($ideas, 'по всем услугам');
     return $result;
 }
 
@@ -705,7 +711,86 @@ function niche_trends(string $vector, ?callable $post = null, ?array $queries = 
     $result = ['vector' => $vector, 'seeds' => $seeds, 'summary' => array_values(array_map('strval', $data['summary'] ?? [])),
         'top_queries' => $top, 'ideas' => $ideas, 'queries' => count($queries), 'created' => now()->format('Y-m-d H:i')];
     write_json(DATA_DIR . '/trends.json', $result);
+    topics_add($ideas, "по нише «{$vector}»");
     return $result;
+}
+
+// ---------------------------------------------------------------- список тем
+
+// Все темы, что когда-либо предлагал ИИ, копятся в одном списке (DATA_DIR/topics.json): их можно
+// написать или отклонить. Отклонённые ИИ больше не предлагает; написанные отмечаются сами — по ключу статьи.
+function topics_file(): string { return DATA_DIR . '/topics.json'; }
+
+function topics_load(): array
+{
+    $list = read_json(topics_file());
+    if ($list === null) {  // первый запуск: переносим последние подборки
+        $list = [];
+        foreach ([['trends.json', 'по нише'], ['ideas.json', 'по всем услугам']] as [$f, $src]) {
+            $r = read_json(DATA_DIR . "/$f");
+            if ($r) $list = topics_merge($list, $r['ideas'] ?? [], $f === 'trends.json' ? "по нише «" . ($r['vector'] ?? '') . "»" : $src, $r['created'] ?? '');
+        }
+        if ($list) write_json(topics_file(), $list);
+    }
+    return $list;
+}
+
+function topic_key(array $i): string
+{
+    return mb_strtolower(trim((string) ($i['main_keyword'] ?? ''))) . '|' . mb_strtolower(trim((string) ($i['topic'] ?? '')));
+}
+
+/** Новые темы — в начало списка; повторы (тот же ключ и заголовок или тот же главный запрос) пропускаются. */
+function topics_merge(array $list, array $ideas, string $source, string $created = ''): array
+{
+    $seen = [];
+    foreach ($list as $t) { $seen[topic_key($t)] = 1; $seen['k|' . mb_strtolower(trim($t['main_keyword']))] = 1; }
+    $new = [];
+    foreach ($ideas as $i) {
+        if (trim((string) ($i['topic'] ?? '')) === '') continue;
+        $k = topic_key($i);
+        $mk = 'k|' . mb_strtolower(trim((string) ($i['main_keyword'] ?? '')));
+        if (isset($seen[$k]) || ($mk !== 'k|' && isset($seen[$mk]))) continue;
+        $seen[$k] = $seen[$mk] = 1;
+        $new[] = ['id' => substr(md5($k), 0, 12), 'topic' => (string) $i['topic'], 'main_keyword' => (string) ($i['main_keyword'] ?? ''),
+            'keywords' => array_values(array_map('strval', $i['keywords'] ?? [])), 'intent' => (string) ($i['intent'] ?? ''),
+            'service' => (string) ($i['service'] ?? ''), 'why' => (string) ($i['why'] ?? ''), 'source' => $source,
+            'created' => $created ?: now()->format('Y-m-d H:i'), 'status' => 'new'];
+    }
+    return array_merge($new, $list);
+}
+
+function topics_add(array $ideas, string $source): void
+{
+    with_topics_lock(fn() => write_json(topics_file(), topics_merge(topics_load(), $ideas, $source)));
+}
+
+function topics_set_status(string $id, string $status): bool
+{
+    if (!in_array($status, ['new', 'rejected'], true)) return false;
+    return with_topics_lock(function () use ($id, $status) {
+        $list = topics_load();
+        $found = false;
+        foreach ($list as &$t) if ($t['id'] === $id) { $t['status'] = $status; $found = true; }
+        unset($t);
+        if ($found) write_json(topics_file(), $list);
+        return $found;
+    });
+}
+
+function with_topics_lock(callable $fn)
+{
+    if (!is_dir(DATA_DIR)) mkdir(DATA_DIR, 0750, true);
+    $f = fopen(DATA_DIR . '/.topics.lock', 'c');
+    flock($f, LOCK_EX);
+    try { return $fn(); } finally { flock($f, LOCK_UN); fclose($f); }
+}
+
+/** Список тем для экрана: написанные помечены, новым — рекомендуемые даты по ритму. */
+function topics_view(int $per_week = 2): array
+{
+    $plan = ideas_with_plan(['ideas' => topics_load()], $per_week);
+    return ['topics' => $plan['ideas'], 'per_week' => $plan['per_week']];
 }
 
 /** Идеи + used (по теме уже есть статья) + suggested_date — следующие свободные слоты ритма. */
@@ -725,7 +810,7 @@ function ideas_with_plan(?array $result, int $per_week = 2, ?DateTimeImmutable $
     foreach ($result['ideas'] ?? [] as $idea) {
         $idea['used'] = isset($known[mb_strtolower(trim((string) ($idea['main_keyword'] ?? '')))]);
         $idea['suggested_date'] = '';
-        if (!$idea['used']) {
+        if (!$idea['used'] && ($idea['status'] ?? 'new') === 'new') {
             do {
                 $day = $day->modify('+1 day');
             } while (!in_array((int) $day->format('N'), SLOT_DAYS[$per_week], true) || isset($taken[$day->format('Y-m-d')]));
