@@ -237,7 +237,7 @@ def lead_form(c, source, title=None, lead=None, num="→"):
       <input type="hidden" name="ts" value="">
       <div class="hp" aria-hidden="true"><label>Company<input type="text" name="company" tabindex="-1" autocomplete="off"></label></div>
       <label class="fld"><span>{e(ui['form_name'])}</span><input type="text" name="name" required maxlength="80" autocomplete="name"></label>
-      <label class="fld"><span>{e(ui['form_phone'])}</span><input type="text" name="contact" required maxlength="80" autocomplete="tel" inputmode="tel"></label>
+      <label class="fld"><span>{e(ui['form_phone'])}</span><input type="tel" name="contact" required maxlength="18" autocomplete="tel" inputmode="tel" placeholder="+7 (___) ___-__-__" data-phone data-err="{e(ui['form_phone_err'])}"></label>
       <label class="fld"><span>{e(ui['form_message'])}</span><textarea name="message" rows="2" maxlength="1000"></textarea></label>
       <button class="btn btn-lg" type="submit">{e(ui['form_submit'])} {icon('arrow', 'ic ic-sm')}</button>
       <p class="form-status" role="status" aria-live="polite"></p>
