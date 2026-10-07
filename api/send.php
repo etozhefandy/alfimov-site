@@ -28,6 +28,12 @@ $message = $field('message', 1000);
 $source = $field('source', 60);
 $lang = $field('lang', 5);
 if ($name === '' || $contact === '') reply(false, 422);
+// Только телефон: 11 цифр с кодом 7 (8 в начале → 7; 10 цифр без кода — дописываем 7).
+$digits = preg_replace('/\D/', '', $contact);
+if (strlen($digits) === 11 && $digits[0] === '8') $digits = '7' . substr($digits, 1);
+if (strlen($digits) === 10) $digits = '7' . $digits;
+if (strlen($digits) !== 11 || $digits[0] !== '7') reply(false, 422);
+$contact = sprintf('+7 (%s) %s-%s-%s', substr($digits, 1, 3), substr($digits, 4, 3), substr($digits, 7, 2), substr($digits, 9, 2));
 
 // Простое ограничение частоты: не больше 5 заявок с одного IP за 10 минут.
 $ip = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : 'unknown';
@@ -50,7 +56,7 @@ if (empty($cfg['tg_token']) || empty($cfg['tg_chat'])) reply(false, 503);
 $esc = function ($s) { return htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); };
 $text = "🔥 <b>Новая заявка с alfimov.kz</b>\n\n"
     . "👤 " . $esc($name) . "\n"
-    . "📞 " . $esc($contact) . "\n"
+    . "📞 " . $esc($contact) . " · <a href=\"https://wa.me/$digits\">WhatsApp</a>\n"
     . ($message !== '' ? "💬 " . $esc($message) . "\n" : '')
     . "\n📄 Страница: " . $esc($source) . " (" . $esc($lang) . ")";
 
