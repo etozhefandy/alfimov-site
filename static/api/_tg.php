@@ -56,10 +56,32 @@ function tg_api(string $method, array $params, ?callable $call = null): array
     return is_array($resp) ? $resp : ['ok' => false, 'description' => 'нет ответа Telegram'];
 }
 
-function tg_send(string $chat, string $text, ?callable $call = null): array
+function tg_send(string $chat, string $text, ?callable $call = null, ?array $markup = null): array
 {
-    return tg_api('sendMessage', ['chat_id' => $chat, 'text' => $text, 'parse_mode' => 'HTML',
-        'disable_web_page_preview' => 'true'], $call);
+    $p = ['chat_id' => $chat, 'text' => $text, 'parse_mode' => 'HTML', 'disable_web_page_preview' => 'true'];
+    if ($markup) $p['reply_markup'] = json_encode($markup, JSON_UNESCAPED_UNICODE);
+    return tg_api('sendMessage', $p, $call);
+}
+
+// Кнопки в личке владельца — постоянно под полем ввода, чтобы не помнить команды.
+const TG_BTN_PIN = '🔑 PIN для группы';
+const TG_BTN_STATUS = '📍 Куда идут заявки';
+const TG_BTN_UNLINK = '✖️ Отвязать группу';
+
+function tg_owner_keyboard(): array
+{
+    return ['keyboard' => [[['text' => TG_BTN_PIN]], [['text' => TG_BTN_STATUS], ['text' => TG_BTN_UNLINK]]],
+        'resize_keyboard' => true, 'is_persistent' => true];
+}
+
+/** Меню команд «/» в личке с ботом. */
+function tg_set_commands(?callable $call = null): void
+{
+    tg_api('setMyCommands', ['scope' => json_encode(['type' => 'all_private_chats']), 'commands' => json_encode([
+        ['command' => 'pin', 'description' => 'PIN, чтобы привязать группу'],
+        ['command' => 'status', 'description' => 'Куда сейчас идут заявки'],
+        ['command' => 'unlink', 'description' => 'Отвязать группу'],
+    ], JSON_UNESCAPED_UNICODE)], $call);
 }
 
 /**
@@ -100,7 +122,7 @@ function tg_issue_pin(?callable $call = null): bool
     $r = tg_send(tg_owner(), "🔑 PIN для привязки группы: <code>$pin</code>\n\n"
         . "1. Добавьте меня в группу, куда должны приходить заявки.\n"
         . "2. Отправьте в группе: <code>/link $pin</code>\n\n"
-        . "PIN одноразовый и действует 15 минут. Никому его не пересылайте.", $call);
+        . "PIN одноразовый и действует 15 минут. Никому его не пересылайте.", $call, tg_owner_keyboard());
     return !empty($r['ok']);
 }
 
@@ -145,6 +167,7 @@ function tg_ensure_webhook(?callable $call = null): bool
     }
     $r = tg_api('setWebhook', ['url' => 'https://alfimov.kz/api/tg-hook.php', 'secret_token' => $s['hook_secret'],
         'allowed_updates' => json_encode(['message', 'my_chat_member']), 'drop_pending_updates' => 'true'], $call);
+    if (!empty($r['ok'])) tg_set_commands($call);
     return !empty($r['ok']);
 }
 
@@ -174,15 +197,18 @@ function tg_handle_update(array $u, ?callable $call = null): void
             tg_send($chat, 'Это служебный бот сайта alfimov.kz. Связаться с агентством: @fandylol', $call);
             return;
         }
-        if (preg_match('#^/(pin|link)\b#', $text)) { tg_issue_pin($call); return; }
-        if (preg_match('#^/unlink\b#', $text)) {
+        $kb = tg_owner_keyboard();
+        if ($text === TG_BTN_PIN || preg_match('#^/(pin|link)\b#', $text)) { tg_issue_pin($call); return; }
+        if ($text === TG_BTN_UNLINK || preg_match('#^/unlink\b#', $text)) {
+            $had = tg_group() !== '';
             tg_unlink();
-            tg_send($chat, '✅ Группа отвязана: заявки приходят только сюда, в личку.', $call);
+            tg_send($chat, $had ? '✅ Группа отвязана: заявки приходят только сюда, в личку.' : 'Группа и так не привязана — заявки приходят сюда.', $call, $kb);
             return;
         }
         $s = tg_state();
-        tg_send($chat, "Заявки сейчас приходят: сюда, в личку" . (!empty($s['lead_chat']) ? " и в группу «" . htmlspecialchars((string) $s['lead_title']) . "»" : '')
-            . ".\n\n/pin — получить PIN, чтобы привязать группу\n/unlink — отвязать группу", $call);
+        $intro = preg_match('#^/start\b#', $text) ? "👋 Я присылаю заявки с сайта alfimov.kz — вам сюда и, если привяжете, в группу.\n\n" : '';
+        tg_send($chat, $intro . "Заявки сейчас приходят: сюда, в личку" . (!empty($s['lead_chat']) ? " и в группу «" . htmlspecialchars((string) $s['lead_title']) . "»" : '')
+            . ".\n\nКнопки внизу: «" . TG_BTN_PIN . "» — привязать группу, «" . TG_BTN_UNLINK . "» — отвязать.", $call, $kb);
         return;
     }
     if (in_array($type, ['group', 'supergroup'], true)
@@ -191,7 +217,7 @@ function tg_handle_update(array $u, ?callable $call = null): void
             $title = (string) ($m['chat']['title'] ?? 'группа');
             tg_link_group($chat, $title);
             tg_send($chat, '✅ Готово: заявки с сайта alfimov.kz теперь приходят и в эту группу.', $call);
-            tg_send($owner, "✅ Группа «" . htmlspecialchars($title) . "» привязана — заявки идут и сюда, и туда. Отвязать: /unlink", $call);
+            tg_send($owner, "✅ Группа «" . htmlspecialchars($title) . "» привязана — заявки идут и сюда, и туда.", $call, tg_owner_keyboard());
         } else {
             tg_send($chat, '❌ PIN неверный или устарел. Новый PIN владелец получит в личке у бота: /pin', $call);
         }
