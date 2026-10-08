@@ -469,7 +469,7 @@ HOME.update({
 })
 
 # Бренды для строки доверия. Заполнять только реальными клиентами — пустой список скрывает блок.
-CLIENTS = ["Toyota", "Hyundai", "BMW", "Land Rover", "Jaguar", "Wyndham Astana", "Орловские бани"]
+CLIENTS = ["Toyota", "Hyundai", "BMW", "Land Rover", "Jaguar", "Wyndham Astana", "Орловские бани", "Coffee Boom", "Delish"]
 
 # Кейсы. Только реальные цифры. Формат:
 # {"name": "...", "niche": "...", "task": "...", "solution": "...",

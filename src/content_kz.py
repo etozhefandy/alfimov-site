@@ -469,7 +469,7 @@ HOME.update({
     "final_lead": "Байланыс деректеріңізді қалдырыңыз — қоңырау шалып, қазіргі жарнаманы талдап, жоспар ұсынамыз.",
 })
 
-CLIENTS = ["Toyota", "Hyundai", "BMW", "Land Rover", "Jaguar", "Wyndham Astana", "Орловские бани"]
+CLIENTS = ["Toyota", "Hyundai", "BMW", "Land Rover", "Jaguar", "Wyndham Astana", "Орловские бани", "Coffee Boom", "Delish"]
 CASES = []
 
 PRICES = {
