@@ -857,6 +857,24 @@ function topics_view(int $per_week = 2): array
     return ['topics' => $plan['ideas'], 'per_week' => $plan['per_week']];
 }
 
+/** Ближайший свободный слот по ритму (вт/чт и т. д., 10:00 Алматы): день, на который ещё не стоит другая статья. */
+function next_free_slot(int $per_week = 2, string $exclude_slug = '', ?DateTimeImmutable $now = null): string
+{
+    $per_week = isset(SLOT_DAYS[$per_week]) ? $per_week : 2;
+    $now ??= now();
+    $taken = [];
+    foreach (load_all() as $a) {
+        if ($a['slug'] === $exclude_slug || $a['status'] !== 'scheduled') continue;
+        if ($dt = parse_dt($a['publish_at'])) $taken[$dt->format('Y-m-d')] = true;
+    }
+    $day = $now->setTime(SLOT_HOUR, 0);
+    if ($day <= $now) $day = $day->modify('+1 day');
+    for ($i = 0; $i < 400; $i++, $day = $day->modify('+1 day')) {
+        if (in_array((int) $day->format('N'), SLOT_DAYS[$per_week], true) && !isset($taken[$day->format('Y-m-d')])) break;
+    }
+    return $day->format('Y-m-d\TH:i');
+}
+
 /** Идеи + used (по теме уже есть статья) + suggested_date — следующие свободные слоты ритма. */
 function ideas_with_plan(?array $result, int $per_week = 2, ?DateTimeImmutable $start = null): array
 {
