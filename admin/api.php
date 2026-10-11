@@ -277,6 +277,9 @@ try {
     if ($method === 'GET' && $route === 'api/topics') {
         reply(topics_view((int) ($_GET['per_week'] ?? 2)));
     }
+    if ($method === 'POST' && $route === 'api/topics/dedupe') {
+        reply(['removed' => topics_dedupe()] + topics_view((int) ($_GET['per_week'] ?? 2)));
+    }
     if ($method === 'POST' && preg_match('#^api/topics/([a-f0-9]{12})$#', $route, $m)) {
         if (!topics_set_status($m[1], (string) (body()['status'] ?? ''))) fail('Тема не найдена', 404);
         reply(['ok' => true]);
