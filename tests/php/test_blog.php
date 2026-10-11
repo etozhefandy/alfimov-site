@@ -171,6 +171,15 @@ check(str_contains($last, 'https://example.kz/news') && str_contains($last, 'Т�
 check(str_contains($sent['system'], 'Не копируй текст источника'), 'правила: своя статья, не пересказ');
 check(throws(fn() => write_article('', [], '', 1500, []), 'источник'), 'без темы и источника — понятная ошибка');
 
+echo "ближайший слот\n";
+$now = new DateTimeImmutable('2026-10-01T12:00', tz());  // четверг, 10:00 уже прошло
+check(next_free_slot(2, '', $now) === '2026-10-06T10:00', 'ближайший вторник, если свободен');
+save_article($art('slot-tue', ['status' => 'scheduled', 'publish_at' => '2026-10-06T10:00']));
+check(next_free_slot(2, '', $now) === '2026-10-08T10:00', 'занятый день пропускается');
+check(next_free_slot(2, 'slot-tue', $now) === '2026-10-06T10:00', 'свой день у самой статьи не считается занятым');
+check(next_free_slot(3, '', $now) === '2026-10-05T10:00', 'ритм 3 в неделю: пятница занята статьёй «later» — понедельник');
+check(next_free_slot(2, '', new DateTimeImmutable('2026-10-06T09:00', tz())) === '2026-10-08T10:00', 'утром дня-слота: сегодня занят — следующий');
+
 echo "вход\n";
 check(!is_configured() && try_setup('неверный', 'andrey', 'supersecret1', 'supersecret1') === 'Неверный код настройки', 'без кода настройки не войти');
 check(password_problem('short') !== '' && password_problem('long-enough-pass') === '', 'пароль от 10 символов');

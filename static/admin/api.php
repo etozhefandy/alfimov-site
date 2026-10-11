@@ -274,6 +274,9 @@ try {
     if ($method === 'GET' && $route === 'api/trends') {
         reply(ideas_with_plan(read_json(DATA_DIR . '/trends.json'), (int) ($_GET['per_week'] ?? 2)));
     }
+    if ($method === 'GET' && $route === 'api/next-slot') {
+        reply(['slot' => next_free_slot((int) ($_GET['per_week'] ?? 2), (string) ($_GET['slug'] ?? ''))]);
+    }
     if ($method === 'GET' && $route === 'api/topics') {
         reply(topics_view((int) ($_GET['per_week'] ?? 2)));
     }

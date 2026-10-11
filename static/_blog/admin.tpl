@@ -263,7 +263,7 @@ body:not(.view-edit) .mbar { display: none !important; }
       </div>
 
       <div class="pane" data-pane="auto">
-        <p style="margin:0 0 12px">ИИ посмотрит, что ищут в Google и Яндексе по услугам агентства и что уже есть в блоге, выберет самую нужную тему, напишет статью и поставит дату выхода по ритму публикаций.</p>
+        <p style="margin:0 0 12px">ИИ посмотрит, что ищут в Google и Яндексе по услугам агентства и что уже есть в блоге, выберет самую нужную тему и напишет статью — она откроется черновиком.</p>
         <div class="row"><span class="hint" id="auto-note"></span><span class="spacer"></span><button class="btn btn-p" id="b-auto">Придумай тему и напиши</button></div>
       </div>
 
@@ -609,6 +609,16 @@ document.querySelector(".editor").addEventListener("input", e => {
   refresh();
 });
 document.querySelector(".editor").addEventListener("change", () => refresh());
+// Черновик → «Запланировано» без даты: ставим ближайший свободный слот по ритму публикаций
+// (дни из «Ритма», 10:00 Алматы, день не занят другой статьёй).
+$("f-status").addEventListener("change", async () => {
+  if ($("f-status").value !== "scheduled" || $("f-publish_at").value) return;
+  try {
+    const d = await api(`/admin/api/next-slot?per_week=${$("i-week").value}&slug=${encodeURIComponent(current ? current.slug : "")}`);
+    $("f-publish_at").value = d.slot; dirty = true; refresh();
+    toast(`Дата выхода — ближайший свободный слот: ${fmtDate(d.slot)}. Можно поменять; сохраните статью.`);
+  } catch (e) { toast(e.message, true); }
+});
 $("b-slug").onclick = () => { $("f-slug").value = slugify($("f-title").value); dirty = true; refresh(); };
 $("b-faq").onclick = () => { addFaq(); dirty = true; };
 $("b-new").onclick = () => { if (dirty && !confirm("Есть несохранённые изменения. Начать новую статью?")) return; delete $("f-slug").dataset.touched; open(null); };
@@ -780,7 +790,7 @@ function renderTopics() {
       : st === "rejected" ? `<button class="btn" data-restore="${t.id}">Вернуть</button>` : "";
     return `<li class="idea${st !== "new" ? " used" : ""}">
     <div><b>${esc(t.topic)}</b>
-      <div class="hint">${st === "used" ? "✓ по этой теме уже есть статья" : st === "rejected" ? (t.reason ? "отклонена автоматически: " + esc(t.reason) : "отклонена") : "📅 рекомендуемая дата выхода: <b style=\"display:inline\">" + esc(fmtDate(t.suggested_date)) + "</b>"}</div>
+      ${st === "used" ? '<div class="hint">✓ по этой теме уже есть статья</div>' : st === "rejected" ? '<div class="hint">' + (t.reason ? "отклонена автоматически: " + esc(t.reason) : "отклонена") + '</div>' : ""}
       <div class="hint">🔑 ${esc(t.main_keyword)} · ${esc(t.intent)}${t.service ? " · → " + esc(SERVICE_NAMES[t.service] || t.service) : ""}</div>
       <div class="hint">${esc(t.why)}</div>
       <div class="hint">Запросы: ${esc(t.keywords.join(", "))}</div>
@@ -803,7 +813,7 @@ $("t-ideas").onclick = async e => {
   const w = e.target.closest("[data-write]"), r = e.target.closest("[data-reject]"), back = e.target.closest("[data-restore]");
   const id = (w || r || back || {}).dataset?.write || (r && r.dataset.reject) || (back && back.dataset.restore);
   const t = topics.find(x => x.id === id); if (!t) return;
-  if (w) { if (await generate({topic: t.topic, keywords: kw(t)}, w, "Пишу…", t.suggested_date)) loadTopics(); return; }
+  if (w) { if (await generate({topic: t.topic, keywords: kw(t)}, w, "Пишу…")) loadTopics(); return; }
   try { await api("/admin/api/topics/" + t.id, {method: "POST", body: JSON.stringify({status: r ? "rejected" : "new"})});
     t.status = r ? "rejected" : "new"; renderTopics(); toast(r ? "Тема отклонена — ИИ не будет её предлагать" : "Тема вернулась в новые"); }
   catch (err) { toast(err.message, true); }
@@ -858,7 +868,7 @@ $("b-auto").onclick = async () => {
   }
   if (!t) { $("auto-note").textContent = ""; toast("Свободных тем не нашлось — попробуйте «Из запросов» с нишей", true); return; }
   $("auto-note").textContent = "Тема: " + t.topic;
-  if (await generate({topic: t.topic, keywords: kw(t)}, b, "Пишу…", t.suggested_date)) loadTopics();
+  if (await generate({topic: t.topic, keywords: kw(t)}, b, "Пишу…")) loadTopics();
 };
 try { $("i-week").value = localStorage.getItem("per_week") || "2"; } catch (e) {}
 $("i-week").onchange = () => { try { localStorage.setItem("per_week", week()); } catch (e) {} loadTopics(); };
