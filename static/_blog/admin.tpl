@@ -19,7 +19,7 @@
 body { margin: 0; font: 15px/1.5 var(--font); color: var(--ink); background: var(--soft); }
 button, input, select, textarea { font: inherit; color: inherit; }
 .top { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 12px; padding: 12px 20px; background: #fff; border-bottom: 1px solid var(--line); }
-.top h1 { font-size: 16px; margin: 0 auto 0 0; font-weight: 600; }
+.top h1 { font-size: 16px; margin: 0; font-weight: 600; }
 .top h1 span { font-family: var(--mono); font-size: 12px; color: var(--muted); font-weight: 400; margin-left: 8px; }
 @media (max-width: 700px) { .top { flex-wrap: wrap; } .top h1 { width: 100%; } .top h1 span { display: none; } }
 .btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border: 1px solid var(--line-2); border-radius: var(--r); background: #fff; color: var(--ink); cursor: pointer; font-weight: 500; font-size: 14px; white-space: nowrap; text-decoration: none; }
@@ -91,6 +91,14 @@ textarea.body { min-height: 520px; font-family: var(--mono); font-size: 13px; }
 .new-foot { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); gap: 12px; }
 label.f.inline { display: flex; align-items: center; gap: 8px; font-weight: 500; }
 label.f.inline select { width: auto; }
+.tabs-top { display: flex; gap: 4px; margin-right: auto; }
+.tabs-top button { border: 0; background: none; padding: 8px 12px; border-radius: var(--r); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; color: var(--ink-2); }
+.tabs-top button:hover { background: var(--soft); }
+.tabs-top button.on { background: #f2f6ff; color: var(--blue); box-shadow: inset 0 0 0 1px var(--blue); }
+.tabs-top #nav-count { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+body.view-edit .tabs-top, body.view-settings .tabs-top { visibility: hidden; }
+body.home-list #new-card, body.home-new #list-card { display: none; }
+@media (max-width: 700px) { .tabs-top { order: 5; width: 100%; } .tabs-top button { flex: 1; } .tabs-top #nav-count { display: none; } }
 .seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: var(--r); overflow: hidden; margin-bottom: 14px; }
 .seg button { border: 0; background: #fff; padding: 8px 14px; font-size: 14px; cursor: pointer; color: var(--ink-2); }
 .seg button + button { border-left: 1px solid var(--line-2); }
@@ -192,6 +200,10 @@ body:not(.view-edit) .mbar { display: none !important; }
 <body>
 <header class="top">
   <h1>Блог alfimov.kz <span id="now"></span></h1>
+  <nav class="tabs-top" id="home-nav">
+    <button type="button" data-v="list">📝 Статьи <span id="nav-count"></span></button>
+    <button type="button" data-v="new">✨ Новая статья</button>
+  </nav>
   <a class="btn" href="/blog/" target="_blank">Открыть блог</a>
   <button class="btn" id="b-settings">Настройки</button>
   <button class="btn" id="b-logout">Выйти</button>
@@ -300,7 +312,7 @@ body:not(.view-edit) .mbar { display: none !important; }
       </div>
     </section>
 
-    <section class="card">
+    <section class="card" id="list-card">
       <div class="row" style="margin-bottom:14px">
         <h2 style="margin:0">Статьи</h2>
         <div class="filters" id="filters">
@@ -505,6 +517,8 @@ async function load(selectSlug) {
   else if (selectSlug === null) showHome();
 }
 function renderList() {
+  const n = s => articles.filter(a => a.state === s).length;
+  $("nav-count").textContent = articles.length ? `${n("draft")} черн. · ${n("scheduled")} в плане · ${n("live")} на сайте` : "";
   const items = articles.filter(a => filter === "all" || a.state === filter);
   $("list").innerHTML = items.length ? items.map(a => {
     const [label, cls] = STATE[a.state];
@@ -514,9 +528,24 @@ function renderList() {
       <div class="t">${esc(a.title)}</div><span class="edit">Редактировать →</span></div></li>`;
   }).join("") : `<li class="empty">Статей пока нет — предложите темы или напишите статью с ИИ ниже.</li>`;
 }
-function showHome() {
+// Главный экран — две вкладки: «Статьи» (черновики, запланированные, вышедшие) и «Новая статья».
+function setHomeView(v) {
+  document.body.classList.toggle("home-list", v === "list");
+  document.body.classList.toggle("home-new", v === "new");
+  [...$("home-nav").children].forEach(b => b.classList.toggle("on", b.dataset.v === v));
+  try { localStorage.setItem("home_view", v); } catch (e) {}
+}
+$("home-nav").onclick = e => {
+  const b = e.target.closest("[data-v]"); if (!b) return;
+  if (document.body.classList.contains("view-edit") || document.body.classList.contains("view-settings")) return;
+  setHomeView(b.dataset.v); window.scrollTo(0, 0);
+};
+setHomeView((() => { try { return localStorage.getItem("home_view"); } catch (e) {} })() || "list");
+function showHome(view) {
   current = null; dirty = false;
-  document.body.classList.remove("view-edit", "view-settings"); renderList(); window.scrollTo(0, 0);
+  document.body.classList.remove("view-edit", "view-settings"); renderList();
+  if (view) setHomeView(view);
+  window.scrollTo(0, 0);
 }
 function showEditor() { document.body.classList.remove("view-settings"); document.body.classList.add("view-edit"); window.scrollTo(0, 0); }
 $("list").onclick = e => {
@@ -845,7 +874,7 @@ $("t-ideas").onclick = async e => {
 };
 // ---------- последний поиск по нише: что ищут и реальные запросы (кликабельные)
 function renderDemand(d, label) {
-  if (!d) return;
+  if (!d || !d.created) return;
   $("t-result").classList.remove("hidden");
   const niche = !!d.vector;
   if (niche && !$("t-vector").value) $("t-vector").value = d.vector;
