@@ -240,7 +240,8 @@ body:not(.view-edit) .mbar { display: none !important; }
             <button data-f="new" class="on">Новые</button><button data-f="rejected">Отклонённые</button><button data-f="used">Написаны</button>
           </div>
         </div>
-        <p class="hint" style="margin:6px 0 0">Здесь копятся все темы, что предлагал ИИ. Отклонённые он больше не предлагает.</p>
+        <p class="hint" style="margin:6px 0 0">Здесь копятся все темы, что предлагал ИИ. Отклонённые он больше не предлагает, повторы по смыслу убирает сам.
+          <a href="#" id="t-dedupe">Проверить на повторы сейчас</a></p>
         <ul class="ideas" id="t-ideas"></ul>
       </div>
 
@@ -779,7 +780,7 @@ function renderTopics() {
       : st === "rejected" ? `<button class="btn" data-restore="${t.id}">Вернуть</button>` : "";
     return `<li class="idea${st !== "new" ? " used" : ""}">
     <div><b>${esc(t.topic)}</b>
-      <div class="hint">${st === "used" ? "✓ по этой теме уже есть статья" : st === "rejected" ? "отклонена" : "📅 рекомендуемая дата выхода: <b style=\"display:inline\">" + esc(fmtDate(t.suggested_date)) + "</b>"}</div>
+      <div class="hint">${st === "used" ? "✓ по этой теме уже есть статья" : st === "rejected" ? (t.reason ? "отклонена автоматически: " + esc(t.reason) : "отклонена") : "📅 рекомендуемая дата выхода: <b style=\"display:inline\">" + esc(fmtDate(t.suggested_date)) + "</b>"}</div>
       <div class="hint">🔑 ${esc(t.main_keyword)} · ${esc(t.intent)}${t.service ? " · → " + esc(SERVICE_NAMES[t.service] || t.service) : ""}</div>
       <div class="hint">${esc(t.why)}</div>
       <div class="hint">Запросы: ${esc(t.keywords.join(", "))}</div>
@@ -789,6 +790,14 @@ function renderTopics() {
 }
 const week = () => $("i-week").value;
 const loadTopics = () => api("/admin/api/topics?per_week=" + week()).then(d => { topics = d.topics || []; renderTopics(); }).catch(() => {});
+$("t-dedupe").onclick = async e => {
+  e.preventDefault();
+  const a = $("t-dedupe"); a.textContent = "Проверяю…";
+  try { const d = await api("/admin/api/topics/dedupe?per_week=" + week(), {method: "POST"}); topics = d.topics || []; renderTopics();
+    toast(d.removed ? `Убрано повторов: ${d.removed} — они в «Отклонённых» с пометкой, на что похожи` : "Повторов не нашлось"); }
+  catch (err) { toast(err.message, true); }
+  a.textContent = "Проверить на повторы сейчас";
+};
 $("t-filter").onclick = e => { const b = e.target.closest("[data-f]"); if (b) { topicFilter = b.dataset.f; renderTopics(); } };
 $("t-ideas").onclick = async e => {
   const w = e.target.closest("[data-write]"), r = e.target.closest("[data-reject]"), back = e.target.closest("[data-restore]");

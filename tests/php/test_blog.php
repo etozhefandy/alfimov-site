@@ -120,8 +120,9 @@ check($seeds === ['реклама мебели', 'мебельный магаз�
 $tr = niche_trends('продвижение мебельного бизнеса', function ($b) use ($scene_sse, &$asked) { $asked[] = $b; return [200, $scene_sse(json_encode(['summary' => ['Как продвигать мебель в Instagram'], 'relevant' => ['реклама мебели алматы', 'продвижение мебели', 'выдуманный запрос'],
     'ideas' => [['topic' => 'Как продвигать мебельный бизнес', 'main_keyword' => 'продвижение мебели', 'keywords' => ['продвижение мебели'], 'intent' => 'коммерческий', 'service' => 'nope', 'why' => 'спрос']]], JSON_UNESCAPED_UNICODE))]; },
     ['продвижение мебели' => ['google' => 1, 'yandex' => 1], 'реклама мебели алматы' => ['google' => 1], 'мебель инстаграм' => ['yandex' => 1], 'как продать мебель' => ['google' => 1], 'мебельный бизнес' => ['google' => 1, 'yandex' => 1]]);
-$q = end($asked)['messages'][0]['content'];
+$q = $asked[count($asked) - 2]['messages'][0]['content'];  // последний вызов — проверка дублей
 check(str_contains($q, 'продвижение мебельного бизнеса') && str_contains($q, 'Кейсы с результатами агентства не выдумывай'), 'ниша и запрет выдуманных кейсов в запросе');
+check(str_contains(end($asked)['messages'][0]['content'], 'Найди темы-дубли'), 'после подбора — проверка дублей по смыслу');
 check(array_column($tr['top_queries'], 'q') === ['продвижение мебели', 'реклама мебели алматы'] && $tr['top_queries'][0]['both'] && $tr['ideas'][0]['service'] === '', 'итог: только найденные запросы по теме, сначала из обоих поисковиков, чужие slug отброшены');
 check(throws(fn() => niche_trends('аб'), 'нишу'), 'пустая ниша — понятная ошибка');
 
@@ -138,6 +139,17 @@ check(str_contains($p, 'отклонил') && str_contains($p, 'Тема А') &&
 save_article($art('pro-klyuch-b', ['keywords' => ['ключ б']]));
 $v = array_column(topics_view(2)['topics'], null, 'topic');
 check($v['Тема Б']['used'] && $v['Тема А']['suggested_date'] === '' && $v['Тема В']['suggested_date'] !== '', 'написанная тема отмечена сама, у отклонённой нет даты');
+
+// дубли по смыслу
+@unlink(topics_file());
+topics_add([$idea('Как выбрать таргетолога', 'как выбрать таргетолога'), $idea('Услуги таргетолога: как выбрать специалиста', 'таргетолог услуги'), $idea('Ошибки в таргете', 'ошибки таргета')], 'тест');
+$n = topics_dedupe(fn() => [200, $scene_sse('{"duplicates":[{"n":2,"of":"Как выбрать таргетолога"}]}')]);
+$v = array_column(topics_load(), null, 'topic');
+check($n === 1 && $v['Услуги таргетолога: как выбрать специалиста']['status'] === 'rejected' && str_contains($v['Услуги таргетолога: как выбрать специалиста']['reason'], 'Как выбрать таргетолога') && $v['Ошибки в таргете']['status'] === 'new', 'повтор по смыслу отклоняется с пометкой, разные вопросы остаются');
+topics_set_status($v['Услуги таргетолога: как выбрать специалиста']['id'], 'new');
+topics_dedupe(fn() => [200, $scene_sse('{"duplicates":[{"n":2,"of":"Как выбрать таргетолога"}]}')]);
+check(array_column(topics_load(), null, 'topic')['Услуги таргетолога: как выбрать специалиста']['status'] === 'new', 'тему, возвращённую руками, проверка больше не трогает');
+check(topics_dedupe(fn() => [529, '{}']) === 0, 'Claude недоступен — подбор тем не ломается');
 
 echo "статья по источнику\n";
 $html = '<html><head><meta charset="utf-8"><title>Сайт</title><meta property="og:title" content="Meta меняет правила рекламы в Казахстане">'

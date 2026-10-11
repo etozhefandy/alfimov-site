@@ -602,7 +602,7 @@ function ideas_prompt(array $queries, array $existing, string $focus): string
         "Услуги агентства (slug — название):\n$services",
         "Реальные запросы из поисковых подсказок Google и Яндекса по Казахстану (пометка [Google+Яндекс] — встречается в обоих, это более надёжный спрос):\n" . implode("\n", $lines),
     ];
-    if ($existing) $parts[] = "Статьи, которые уже есть (не повторяй их темы):\n" . implode("\n", array_map(fn($t) => "- $t", $existing));
+    if ($existing) $parts[] = "Статьи, которые уже есть в блоге (заголовок — главный запрос). Не повторяй вопросы, на которые они уже отвечают:\n" . implode("\n", array_map(fn($t) => "- $t", $existing));
     $bl = topics_load();
     $queued = array_column(array_filter($bl, fn($t) => $t['status'] === 'new'), 'topic');
     $rejected = array_column(array_filter($bl, fn($t) => $t['status'] === 'rejected'), 'topic');
@@ -612,7 +612,12 @@ function ideas_prompt(array $queries, array $existing, string $focus): string
     $parts[] = 'Предложи 8–10 тем статей. Правила: только темы, полезные бизнесу и ведущие к услугам агентства; '
         . 'игнорируй нерелевантное (медицина, сериалы, вакансии, обучение на таргетолога, чужие бренды); '
         . 'главный запрос и запросы бери только из списка выше, ничего не выдумывай и не пиши частотность; '
-        . 'не делай двух статей под один и тот же главный запрос; предпочитай запросы с деньгами и выбором '
+        . 'не делай двух статей под один и тот же главный запрос; '
+        . 'ОДНА ТЕМА — ОДИН ВОПРОС ЧИТАТЕЛЯ: если вопрос уже закрыт статьёй блога или темой из списка, не предлагай его '
+        . 'другими словами (например, «Как выбрать таргетолога», «Услуги таргетолога: как выбрать специалиста» и '
+        . '«Таргетолог в Алматы: на что смотреть» — это один и тот же вопрос). Делай темы разного типа: цена и бюджет, '
+        . 'пошаговая настройка своими силами, ошибки, сравнение каналов, разбор ниши, тренды и изменения площадок, '
+        . 'чек-лист, как оценить результат; не больше двух тем на одну услугу за раз; предпочитай запросы с деньгами и выбором '
         . '(«сколько стоит», «как выбрать», город) и объясняющие темы, после которых естественно обратиться '
         . 'в агентство. service — один slug из списка услуг. '
         . 'Отсортируй темы в порядке публикации: сначала с самым явным спросом и коммерческим интентом, '
@@ -624,7 +629,7 @@ function propose_ideas(string $focus, ?callable $post = null, ?array $queries = 
 {
     $queries ??= collect_queries();
     if (!$queries) throw new AiError('Не удалось получить подсказки Google и Яндекса — попробуйте позже');
-    $existing = array_map(fn($a) => $a['title'], load_all());
+    $existing = array_map(fn($a) => $a['title'] . ($a['keywords'] ? ' — ' . $a['keywords'][0] : ''), load_all());
     $data = claude_json([
         'max_tokens' => 16000,
         'thinking' => ['type' => 'adaptive'],
@@ -639,6 +644,7 @@ function propose_ideas(string $focus, ?callable $post = null, ?array $queries = 
     $result = ['ideas' => $ideas, 'queries' => count($queries), 'focus' => $focus, 'created' => now()->format('Y-m-d H:i')];
     write_json(DATA_DIR . '/ideas.json', $result);
     topics_add($ideas, 'по всем услугам');
+    topics_dedupe($post);
     return $result;
 }
 
@@ -684,7 +690,7 @@ function niche_trends(string $vector, ?callable $post = null, ?array $queries = 
     $seeds = $queries === null ? niche_seeds($vector, $post) : [];
     $queries ??= collect_queries($seeds, NICHE_PATTERNS);
     if (count($queries) < 5) throw new AiError('По этой теме почти нет поисковых подсказок — попробуйте сформулировать шире');
-    $existing = array_map(fn($a) => $a['title'], load_all());
+    $existing = array_map(fn($a) => $a['title'] . ($a['keywords'] ? ' — ' . $a['keywords'][0] : ''), load_all());
     $prompt = ideas_prompt($queries, $existing, '') . "\n\n"
         . "НАПРАВЛЕНИЕ ОТ ВЛАДЕЛЬЦА АГЕНТСТВА: «{$vector}». Все темы — в этом направлении.\n"
         . 'summary: 3–5 коротких пунктов, что именно люди ищут по этой теме (группы вопросов), опираясь только на запросы выше. '
@@ -712,6 +718,7 @@ function niche_trends(string $vector, ?callable $post = null, ?array $queries = 
         'top_queries' => $top, 'ideas' => $ideas, 'queries' => count($queries), 'created' => now()->format('Y-m-d H:i')];
     write_json(DATA_DIR . '/trends.json', $result);
     topics_add($ideas, "по нише «{$vector}»");
+    topics_dedupe($post);
     return $result;
 }
 
@@ -771,7 +778,13 @@ function topics_set_status(string $id, string $status): bool
     return with_topics_lock(function () use ($id, $status) {
         $list = topics_load();
         $found = false;
-        foreach ($list as &$t) if ($t['id'] === $id) { $t['status'] = $status; $found = true; }
+        foreach ($list as &$t) {
+            if ($t['id'] !== $id) continue;
+            $t['status'] = $status;
+            unset($t['reason']);
+            if ($status === 'new') $t['kept'] = true;  // вернули руками — автопроверка дублей её больше не трогает
+            $found = true;
+        }
         unset($t);
         if ($found) write_json(topics_file(), $list);
         return $found;
@@ -784,6 +797,57 @@ function with_topics_lock(callable $fn)
     $f = fopen(DATA_DIR . '/.topics.lock', 'c');
     flock($f, LOCK_EX);
     try { return $fn(); } finally { flock($f, LOCK_UN); fclose($f); }
+}
+
+/**
+ * Дубли по смыслу: Claude сверяет новые темы списка со статьями блога и между собой (старшие темы
+ * в приоритете) и отклоняет повторы одного и того же вопроса читателя — с пометкой, на что похожа.
+ * Ошибка Claude не мешает подбору тем: тогда просто ничего не отклоняем.
+ */
+function topics_dedupe(?callable $post = null): int
+{
+    $list = topics_load();
+    $cands = array_values(array_filter(array_reverse($list), fn($t) => $t['status'] === 'new'));  // старые первыми
+    $keep = array_column(array_filter($cands, fn($t) => !empty($t['kept'])), 'id');
+    if (count($cands) < 2 && !load_all()) return 0;
+    $arts = array_map(fn($a) => '- ' . $a['title'] . ($a['keywords'] ? ' — ' . $a['keywords'][0] : ''), load_all());
+    $lines = array_map(fn($i, $t) => ($i + 1) . '. ' . $t['topic'] . ' — ' . $t['main_keyword'], array_keys($cands), $cands);
+    try {
+        $data = claude_json([
+            'max_tokens' => 4000,
+            'output_config' => ['effort' => 'low', 'format' => ['type' => 'json_schema', 'schema' => [
+                'type' => 'object',
+                'properties' => ['duplicates' => ['type' => 'array', 'items' => ['type' => 'object',
+                    'properties' => ['n' => ['type' => 'integer'], 'of' => ['type' => 'string', 'description' => 'заголовок статьи или темы, которую повторяет']],
+                    'required' => ['n', 'of'], 'additionalProperties' => false]]],
+                'required' => ['duplicates'], 'additionalProperties' => false]]],
+            'messages' => [['role' => 'user', 'content' =>
+                "Ты редактор блога. Найди темы-дубли.\n\nСтатьи блога (заголовок — главный запрос):\n" . ($arts ? implode("\n", $arts) : '— нет') .
+                "\n\nТемы-кандидаты (номер. тема — главный запрос):\n" . implode("\n", $lines) .
+                "\n\nКандидат — дубль, если отвечает на тот же вопрос читателя, что статья блога или кандидат с МЕНЬШИМ номером, "
+                . "даже другими словами и с другим городом. Пример дублей: «Как выбрать таргетолога» и «Услуги таргетолога: как выбрать "
+                . "специалиста и сколько платить». НЕ дубли — разные вопросы про одну услугу: цена, настройка своими силами, ошибки, "
+                . "сравнение каналов, конкретная ниша. В of — заголовок того, что он повторяет. Если дублей нет — пустой список."]],
+        ], $post);
+    } catch (AiError $ex) {
+        error_log('topics dedupe: ' . $ex->getMessage());
+        return 0;
+    }
+    $dup = [];
+    foreach ($data['duplicates'] ?? [] as $d) {
+        $i = (int) ($d['n'] ?? 0) - 1;
+        if (isset($cands[$i]) && !in_array($cands[$i]['id'], $keep, true)) $dup[$cands[$i]['id']] = mb_substr(trim((string) ($d['of'] ?? '')), 0, 200);
+    }
+    if (!$dup) return 0;
+    with_topics_lock(function () use ($dup) {
+        $all = topics_load();
+        foreach ($all as &$t) {
+            if (isset($dup[$t['id']]) && $t['status'] === 'new') { $t['status'] = 'rejected'; $t['reason'] = 'похожа на «' . $dup[$t['id']] . '»'; }
+        }
+        unset($t);
+        write_json(topics_file(), $all);
+    });
+    return count($dup);
 }
 
 /** Список тем для экрана: написанные помечены, новым — рекомендуемые даты по ритму. */
