@@ -648,6 +648,138 @@ function propose_ideas(string $focus, ?callable $post = null, ?array $queries = 
     return $result;
 }
 
+// ---------------------------------------------------------------- подтянуть статьи под запросы
+
+// Выгрузка Search Console (запросы и страницы с показами и позициями) → Claude предлагает, как подтянуть
+// уже вышедшие статьи: заголовок и описание с точными словами запросов, недостающие разделы и вопросы FAQ.
+// Применяет человек — по галочкам. Запросы без своей статьи уходят в «Темы статей».
+const TUNE_SCHEMA = [
+    'type' => 'object',
+    'properties' => [
+        'articles' => ['type' => 'array', 'items' => [
+            'type' => 'object',
+            'properties' => [
+                'slug' => ['type' => 'string'],
+                'why' => ['type' => 'string', 'description' => '1–2 предложения: какие запросы рядом с топом и что мешает'],
+                'queries' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'запросы из выгрузки, под которые подтягиваем'],
+                'seo_title' => ['type' => 'string', 'description' => 'новый <title> до 60 символов или пусто, если менять не нужно'],
+                'description' => ['type' => 'string', 'description' => 'новый meta description 140–160 символов или пусто'],
+                'add_keywords' => ['type' => 'array', 'items' => ['type' => 'string']],
+                'sections' => ['type' => 'array', 'items' => ['type' => 'object',
+                    'properties' => ['h2' => ['type' => 'string'], 'text' => ['type' => 'string', 'description' => 'markdown, 120–250 слов, без заголовка']],
+                    'required' => ['h2', 'text'], 'additionalProperties' => false]],
+                'faq' => ['type' => 'array', 'items' => ['type' => 'object',
+                    'properties' => ['q' => ['type' => 'string'], 'a' => ['type' => 'string']],
+                    'required' => ['q', 'a'], 'additionalProperties' => false]],
+            ],
+            'required' => ['slug', 'why', 'queries', 'seo_title', 'description', 'add_keywords', 'sections', 'faq'],
+            'additionalProperties' => false,
+        ]],
+        'new_topics' => IDEAS_SCHEMA['properties']['ideas'],
+    ],
+    'required' => ['articles', 'new_topics'],
+    'additionalProperties' => false,
+];
+
+function md_h2(string $md): array
+{
+    preg_match_all('/^##\s+(.+)$/m', $md, $m);
+    return $m[1];
+}
+
+/** $queries/$pages: [[запрос|адрес, показы, позиция], …] из выгрузки Search Console. */
+function tune_articles(array $queries, array $pages, ?callable $post = null): array
+{
+    $site = parts()['site_url'];
+    $arts = array_values(array_filter(load_all(), fn($a) => is_live($a)));
+    if (!$arts) throw new AiError('На сайте ещё нет вышедших статей');
+    $queries = array_slice(array_values(array_filter($queries, fn($r) => trim((string) ($r[0] ?? '')) !== '')), 0, 400);
+    if (!$queries) throw new AiError('В файле не нашлось запросов — нужна выгрузка «Эффективность» из Search Console');
+    $fmt = fn($r) => trim((string) $r[0]) . ' | показы ' . (int) ($r[1] ?? 0) . ' | позиция ' . round((float) ($r[2] ?? 0), 1);
+    $artLines = array_map(fn($a) => "### {$a['slug']}\nАдрес: {$site}" . article_path($a) . "\nЗаголовок: {$a['title']}\nSEO title: " . ($a['seo_title'] ?: '—')
+        . "\nОписание: " . ($a['description'] ?: '—') . "\nЗапросы: " . implode(', ', array_slice($a['keywords'], 0, 10))
+        . "\nРазделы: " . implode(' / ', md_h2($a['body_md'])) . "\nFAQ: " . implode(' / ', array_column($a['faq'], 0)), $arts);
+    $prices = implode("\n", array_map(fn($s) => "- {$s['name']}: {$s['price']}", services()));
+    $prompt = implode("\n\n", [
+        'Ты SEO-редактор блога маркетингового агентства ALFIMOV.KZ (Казахстан). Задача — подтянуть УЖЕ ВЫШЕДШИЕ статьи под запросы, '
+        . 'по которым Google их уже показывает, чтобы они поднялись на первую страницу.',
+        "Статьи блога:\n" . implode("\n\n", $artLines),
+        "Запросы из Google Search Console за последнее время (запрос | показы | средняя позиция):\n" . implode("\n", array_map($fmt, $queries)),
+        $pages ? "Страницы (адрес | показы | позиция):\n" . implode("\n", array_map($fmt, array_slice($pages, 0, 60))) : '',
+        "Цены агентства (других цен агентства не называй):\n$prices",
+        'Правила. Для каждой статьи, у которой есть запросы с позицией примерно 4–40 (рядом с первой страницей), предложи: '
+        . 'seo_title до 60 символов с точными словами самых частых запросов и «Казахстан», если его нет и запросы общие; '
+        . 'description 140–160 символов; add_keywords — запросы из выгрузки, которых нет в статье; '
+        . 'sections — 0–2 новых раздела под вопросы из запросов, на которые статья сейчас не отвечает (не повторяй существующие разделы); '
+        . 'faq — 0–3 вопроса из формулировок запросов, ответы 1–3 предложения. Пустые строки и списки — если менять не нужно. '
+        . 'Статьи без подходящих запросов не включай. Факты и цифры не выдумывай: рыночные цены — только как ориентир с оговоркой, '
+        . 'цены агентства — только из списка. Пиши для владельца бизнеса в Казахстане, без воды. '
+        . 'new_topics — 0–5 тем под запросы из выгрузки, которым НЕ подходит ни одна статья (не повторяй статьи).',
+    ]);
+    $data = claude_json([
+        'max_tokens' => 24000,
+        'thinking' => ['type' => 'adaptive'],
+        'output_config' => ['effort' => 'medium', 'format' => ['type' => 'json_schema', 'schema' => TUNE_SCHEMA]],
+        'messages' => [['role' => 'user', 'content' => $prompt]],
+    ], $post);
+    $by = array_column($arts, null, 'slug');
+    $out = [];
+    foreach ($data['articles'] ?? [] as $t) {
+        $a = $by[$t['slug'] ?? ''] ?? null;
+        if (!$a) continue;
+        $out[] = ['slug' => $a['slug'], 'title' => $a['title'], 'path' => article_path($a), 'why' => (string) $t['why'],
+            'queries' => array_values(array_map('strval', $t['queries'] ?? [])),
+            'old' => ['seo_title' => $a['seo_title'] ?: $a['title'], 'description' => $a['description']],
+            'seo_title' => trim((string) $t['seo_title']), 'description' => trim((string) $t['description']),
+            'add_keywords' => array_values(array_filter(array_map(fn($k) => mb_strtolower(trim((string) $k)), $t['add_keywords'] ?? []),
+                fn($k) => $k !== '' && !in_array($k, array_map('mb_strtolower', $a['keywords']), true))),
+            'sections' => array_values(array_filter($t['sections'] ?? [], fn($x) => trim($x['h2'] ?? '') !== '' && trim($x['text'] ?? '') !== '')),
+            'faq' => array_values(array_filter($t['faq'] ?? [], fn($x) => trim($x['q'] ?? '') !== '' && trim($x['a'] ?? '') !== ''))];
+    }
+    $topics = $data['new_topics'] ?? [];
+    if ($topics) { topics_add($topics, 'из Search Console'); topics_dedupe($post); }
+    $result = ['articles' => $out, 'new_topics' => count($topics), 'queries' => count($queries), 'created' => now()->format('Y-m-d H:i')];
+    write_json(DATA_DIR . '/tune.json', $result);
+    return $result;
+}
+
+/** Применить выбранные правки к статье. Новые разделы встают перед выводом (последний ## «Вывод/Итог…»). */
+function apply_tune(string $slug, array $ch): array
+{
+    $a = get_article($slug);
+    if (!$a) throw new InvalidArgumentException('Статья не найдена');
+    if (trim((string) ($ch['seo_title'] ?? '')) !== '') $a['seo_title'] = trim((string) $ch['seo_title']);
+    if (trim((string) ($ch['description'] ?? '')) !== '') $a['description'] = trim((string) $ch['description']);
+    $kw = str_list($ch['add_keywords'] ?? []);
+    if ($kw) {
+        $first = array_slice($a['keywords'], 0, 1);
+        $a['keywords'] = array_values(array_unique(array_merge($first, $kw, array_slice($a['keywords'], 1))));
+    }
+    $add = '';
+    foreach ($ch['sections'] ?? [] as $sec) {
+        $h = trim((string) ($sec['h2'] ?? ''));
+        $t = trim((string) ($sec['text'] ?? ''));
+        if ($h !== '' && $t !== '') $add .= "## $h\n\n$t\n\n";
+    }
+    if ($add !== '') {
+        $body = rtrim($a['body_md']);
+        if (preg_match_all('/^##\s+(.+)$/m', $body, $m, PREG_OFFSET_CAPTURE) && $m[0]
+            && preg_match('/^(вывод|итог|заключение|резюме)/iu', end($m[1])[0])) {
+            $pos = end($m[0])[1];
+            $body = substr($body, 0, $pos) . $add . substr($body, $pos);
+        } else {
+            $body .= "\n\n" . rtrim($add);
+        }
+        $a['body_md'] = $body;
+    }
+    foreach ($ch['faq'] ?? [] as $f) {
+        $q = trim((string) ($f['q'] ?? ''));
+        $ans = trim((string) ($f['a'] ?? ''));
+        if ($q !== '' && $ans !== '' && !in_array($q, array_column($a['faq'], 0), true)) $a['faq'][] = [$q, $ans];
+    }
+    return save_article($a, $slug);
+}
+
 // ---------------------------------------------------------------- спрос по нише
 
 // «Дать вектор»: владелец пишет нишу или идею («продвижение мебельного бизнеса»), мы смотрим, что люди

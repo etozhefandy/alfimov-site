@@ -660,7 +660,8 @@ def blog_parts():
         "faq_wrap": faq_wrap.replace('<div class="faq rv"></div>', '<div class="faq rv">%%ITEMS%%</div>'),
         "icon_arrow_sm": icon("arrow", "ic ic-sm"),
         "ui": {**BLOG_UI, "breadcrumbs_home": c.UI["breadcrumbs_home"], "more": c.UI["more"]},
-        "services": [{"slug": x["slug"], "name": x["name"], "short": x["short"]} for x in c.SERVICES],
+        "services": [{"slug": x["slug"], "name": x["name"], "short": x["short"], "price": price_text(c, x["slug"])}
+                     for x in c.SERVICES],
     }
 
 

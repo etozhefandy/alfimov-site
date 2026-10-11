@@ -171,6 +171,24 @@ check(str_contains($last, 'https://example.kz/news') && str_contains($last, 'Т�
 check(str_contains($sent['system'], 'Не копируй текст источника'), 'правила: своя статья, не пересказ');
 check(throws(fn() => write_article('', [], '', 1500, []), 'источник'), 'без темы и источника — понятная ошибка');
 
+echo "подтянуть под запросы\n";
+save_article($art('tune-me', ['status' => 'scheduled', 'publish_at' => '2026-09-20T10:00', 'keywords' => ['ведение инстаграм'],
+    'body_md' => "Вступление.\n\n## Цены\n\nТекст.\n\n## Вывод\n\nИтог.", 'faq' => [['Старый вопрос?', 'Ответ.']]]));
+$tu = tune_articles([['ведение инстаграм цена в месяц', 15, 14.2], ['раскрутка инстаграм цена', 5, 10.2]], [],
+    fn() => [200, $scene_sse(json_encode(['articles' => [['slug' => 'tune-me', 'why' => 'рядом с топом', 'queries' => ['ведение инстаграм цена в месяц'],
+        'seo_title' => 'Ведение Инстаграм: цена в месяц в Казахстане', 'description' => 'Описание', 'add_keywords' => ['Раскрутка инстаграм цена', 'ведение инстаграм'],
+        'sections' => [['h2' => 'Раскрутка Instagram', 'text' => 'Текст раздела.']], 'faq' => [['q' => 'Новый вопрос?', 'a' => 'Ответ.']]],
+        ['slug' => 'net-takoy', 'why' => 'x', 'queries' => [], 'seo_title' => '', 'description' => '', 'add_keywords' => [], 'sections' => [], 'faq' => []]],
+        'new_topics' => []], JSON_UNESCAPED_UNICODE))]);
+check(count($tu['articles']) === 1 && $tu['articles'][0]['add_keywords'] === ['раскрутка инстаграм цена'], 'разбор: только существующие статьи, уже имеющиеся запросы отброшены');
+$a2 = apply_tune('tune-me', ['seo_title' => $tu['articles'][0]['seo_title'], 'add_keywords' => ['раскрутка инстаграм цена'],
+    'sections' => $tu['articles'][0]['sections'], 'faq' => [['q' => 'Новый вопрос?', 'a' => 'Ответ.'], ['q' => 'Старый вопрос?', 'a' => 'Другой']]]);
+check($a2['seo_title'] === 'Ведение Инстаграм: цена в месяц в Казахстане' && $a2['description'] === 'Описание', 'применяется только отмеченное (описание не тронуто)');
+check($a2['keywords'] === ['ведение инстаграм', 'раскрутка инстаграм цена'], 'главный запрос остаётся первым');
+check(strpos($a2['body_md'], '## Раскрутка Instagram') < strpos($a2['body_md'], '## Вывод') && strpos($a2['body_md'], '## Раскрутка Instagram') > strpos($a2['body_md'], '## Цены'), 'новый раздел встаёт перед выводом');
+check(count($a2['faq']) === 2, 'повторный вопрос FAQ не дублируется');
+check(throws(fn() => tune_articles([], [], fn() => [200, '']), 'запросов'), 'пустая выгрузка — понятная ошибка');
+
 echo "ближайший слот\n";
 $now = new DateTimeImmutable('2026-10-01T12:00', tz());  // четверг, 10:00 уже прошло
 check(next_free_slot(2, '', $now) === '2026-10-06T10:00', 'ближайший вторник, если свободен');

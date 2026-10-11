@@ -100,6 +100,8 @@ function execute(array $job): array
             return ['path' => "/blog/media/$name", 'main_idea' => $img['main_idea'], 'scene' => $img['scene']];
         case 'trends':
             return ideas_with_plan(niche_trends((string) $in['vector']), (int) $in['per_week']);
+        case 'tune':
+            return tune_articles($in['queries'], $in['pages']);
         case 'ideas':
             return ideas_with_plan(propose_ideas((string) $in['focus']), (int) $in['per_week']);
     }
@@ -273,6 +275,23 @@ try {
     }
     if ($method === 'GET' && $route === 'api/trends') {
         reply(ideas_with_plan(read_json(DATA_DIR . '/trends.json'), (int) ($_GET['per_week'] ?? 2)));
+    }
+    if ($method === 'POST' && $route === 'api/tune') {
+        $d = body();
+        $rows = fn($x) => array_slice(array_values(array_filter(array_map(fn($r) => is_array($r) ? [mb_substr((string) ($r[0] ?? ''), 0, 300), (float) ($r[1] ?? 0), (float) ($r[2] ?? 0)] : null,
+            is_array($x) ? $x : []))), 0, 1000);
+        $q = $rows($d['queries'] ?? []);
+        if (!$q) fail('В файле не нашлось запросов — загрузите выгрузку «Эффективность» из Search Console');
+        reply(new_job('tune', ['queries' => $q, 'pages' => $rows($d['pages'] ?? [])]));
+    }
+    if ($method === 'GET' && $route === 'api/tune') {
+        reply(read_json(DATA_DIR . '/tune.json') ?? ['articles' => []]);
+    }
+    if ($method === 'POST' && $route === 'api/tune/apply') {
+        $d = body();
+        $a = apply_tune((string) ($d['slug'] ?? ''), is_array($d['changes'] ?? null) ? $d['changes'] : []);
+        try { indexnow_article($a); } catch (Throwable $ex) { error_log('indexnow: ' . $ex->getMessage()); }
+        reply(['article' => article_view($a)]);
     }
     if ($method === 'GET' && $route === 'api/next-slot') {
         reply(['slot' => next_free_slot((int) ($_GET['per_week'] ?? 2), (string) ($_GET['slug'] ?? ''))]);
