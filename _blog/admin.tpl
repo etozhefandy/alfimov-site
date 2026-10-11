@@ -91,6 +91,19 @@ textarea.body { min-height: 520px; font-family: var(--mono); font-size: 13px; }
 .new-foot { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); gap: 12px; }
 label.f.inline { display: flex; align-items: center; gap: 8px; font-weight: 500; }
 label.f.inline select { width: auto; }
+.seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: var(--r); overflow: hidden; margin-bottom: 14px; }
+.seg button { border: 0; background: #fff; padding: 8px 14px; font-size: 14px; cursor: pointer; color: var(--ink-2); }
+.seg button + button { border-left: 1px solid var(--line-2); }
+.seg button.on { background: var(--blue); color: #fff; }
+@media (max-width: 700px) { .seg { display: flex; } .seg button { flex: 1; } }
+.tu-card { border: 1px solid var(--line); border-radius: var(--r); padding: 14px; margin-top: 12px; background: #fff; }
+.tu-card h4 { margin: 0 0 4px; font-size: 15px; }
+.tu-card .why { font-size: 14px; color: var(--ink-2); margin: 0 0 8px; }
+.tu-card label.ch { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; padding: 6px 0; border-top: 1px dashed var(--line); }
+.tu-card label.ch input { margin-top: 3px; flex: none; }
+.tu-card .old { color: var(--muted); text-decoration: line-through; }
+.tu-card details { font-size: 13px; color: var(--ink-2); white-space: pre-wrap; }
+.tu-card.done { opacity: .6; }
 .t-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 14px; }
 @media (max-width: 700px) { .t-cols { grid-template-columns: 1fr; } }
 .t-h { font-size: 14px; margin: 0 0 8px; }
@@ -222,6 +235,17 @@ body:not(.view-edit) .mbar { display: none !important; }
       </div>
 
       <div class="pane" data-pane="demand">
+        <div class="seg" id="dm-mode">
+          <button type="button" data-m="new" class="on">Новые темы</button>
+          <button type="button" data-m="tune">Подтянуть статьи под запросы</button>
+        </div>
+        <div id="mode-tune" class="hidden">
+          <p class="hint" style="margin:0 0 10px">Google Search Console → «Эффективность» → период «28 дней» или «3 месяца» → «Экспортировать» → «Скачать файл Excel». Загрузите файл сюда — Claude предложит, как подтянуть уже вышедшие статьи под запросы, по которым Google их показывает. Применяете вы, по галочкам.</p>
+          <div class="row" style="gap:8px"><label class="btn btn-p">📄 Загрузить выгрузку<input type="file" id="tu-file" accept=".xlsx,.xls,.csv" hidden></label><span class="hint" id="tu-info"></span></div>
+          <p class="ai-status" id="tu-status" style="margin:8px 0 0"></p>
+          <div id="tu-result"></div>
+        </div>
+        <div id="mode-new">
         <div class="row" style="gap:8px">
           <input type="text" id="t-vector" placeholder="Ниша или идея (необязательно): например, продвижение мебельного бизнеса" style="flex:1">
           <button class="btn btn-p" id="b-trends">Найти темы</button>
@@ -243,6 +267,7 @@ body:not(.view-edit) .mbar { display: none !important; }
         <p class="hint" style="margin:6px 0 0">Здесь копятся все темы, что предлагал ИИ. Отклонённые он больше не предлагает, повторы по смыслу убирает сам.
           <a href="#" id="t-dedupe">Проверить на повторы сейчас</a></p>
         <ul class="ideas" id="t-ideas"></ul>
+        </div>
       </div>
 
       <div class="pane" data-pane="own">
@@ -853,6 +878,83 @@ $("b-trends").onclick = () => {
   if (v && v.length < 3) { toast("Опишите нишу подробнее", true); return; }
   findTopics(v);
 };
+// ---------- режим «Подтянуть статьи под запросы» (выгрузка Search Console)
+$("dm-mode").onclick = e => {
+  const b = e.target.closest("[data-m]"); if (!b) return;
+  [...$("dm-mode").children].forEach(x => x.classList.toggle("on", x === b));
+  $("mode-tune").classList.toggle("hidden", b.dataset.m !== "tune");
+  $("mode-new").classList.toggle("hidden", b.dataset.m === "tune");
+};
+let XLSXlib = null;
+function loadXlsx() {
+  return XLSXlib ? Promise.resolve(XLSXlib) : new Promise((res, rej) => {
+    const sc = document.createElement("script");
+    sc.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+    sc.onload = () => res(XLSXlib = window.XLSX); sc.onerror = () => rej(new Error("Не загрузился модуль чтения Excel — проверьте интернет"));
+    document.head.appendChild(sc);
+  });
+}
+// листы «Запросы» и «Страницы»: [текст, показы, позиция] — колонки ищем по заголовкам (рус/англ)
+function gscRows(rows) {
+  const head = (rows[0] || []).map(h => String(h || "").toLowerCase());
+  const col = re => head.findIndex(h => re.test(h));
+  const imp = col(/показ|impression/), pos = col(/позиц|position/);
+  return rows.slice(1).filter(r => r && r[0]).map(r => [String(r[0]), +r[imp] || 0, +r[pos] || 0]);
+}
+$("tu-file").onchange = async e => {
+  const file = e.target.files[0]; e.target.value = ""; if (!file) return;
+  $("tu-info").textContent = file.name;
+  try {
+    const X = await loadXlsx();
+    const wb = X.read(await file.arrayBuffer(), {type: "array"});
+    let queries = [], pages = [];
+    wb.SheetNames.forEach(n => {
+      const rows = X.utils.sheet_to_json(wb.Sheets[n], {header: 1});
+      const h = String((rows[0] || [])[0] || "").toLowerCase();
+      if (/запрос|quer/.test(h)) queries = gscRows(rows);
+      else if (/страниц|page/.test(h)) pages = gscRows(rows);
+    });
+    if (!queries.length) throw new Error("В файле не нашлось листа с запросами — нужна выгрузка «Эффективность» из Search Console");
+    const t0 = Date.now(), tick = setInterval(() => { $("tu-status").textContent = `Claude разбирает ${queries.length} запросов и статьи… ${Math.round((Date.now() - t0) / 1000)} с (обычно 1–2 мин)`; }, 1000);
+    try { renderTune(await runJob("/admin/api/tune", {queries, pages})); }
+    finally { clearInterval(tick); }
+    loadTopics();
+  } catch (err) { $("tu-status").textContent = ""; toast(err.message, true); }
+};
+let tune = null;
+function renderTune(d) {
+  tune = d;
+  if (!d || !d.articles) return;
+  $("tu-status").textContent = d.created ? `Разбор от ${d.created}: ${d.queries} запросов · статей к доработке: ${d.articles.length}` + (d.new_topics ? ` · новых тем в «Темах статей»: ${d.new_topics}` : "") : "";
+  $("tu-result").innerHTML = d.articles.length ? d.articles.map((a, i) => {
+    const ch = [];
+    if (a.seo_title) ch.push(`<label class="ch"><input type="checkbox" data-k="seo_title" checked><span><b>SEO title:</b> <span class="old">${esc(a.old.seo_title)}</span> → ${esc(a.seo_title)} <small class="cnt">${a.seo_title.length} симв.</small></span></label>`);
+    if (a.description) ch.push(`<label class="ch"><input type="checkbox" data-k="description" checked><span><b>Описание:</b> ${esc(a.description)}</span></label>`);
+    if (a.add_keywords.length) ch.push(`<label class="ch"><input type="checkbox" data-k="add_keywords" checked><span><b>Запросы:</b> ${esc(a.add_keywords.join(", "))}</span></label>`);
+    a.sections.forEach((x, j) => ch.push(`<label class="ch"><input type="checkbox" data-k="sections" data-j="${j}" checked><span><b>Новый раздел:</b> ${esc(x.h2)}<details><summary>текст</summary>${esc(x.text)}</details></span></label>`));
+    a.faq.forEach((x, j) => ch.push(`<label class="ch"><input type="checkbox" data-k="faq" data-j="${j}" checked><span><b>FAQ:</b> ${esc(x.q)}<details><summary>ответ</summary>${esc(x.a)}</details></span></label>`));
+    return `<div class="tu-card" data-i="${i}"><h4><a href="${esc(a.path)}" target="_blank">${esc(a.title)}</a></h4>
+      <p class="why">${esc(a.why)}</p><div class="hint">Запросы: ${esc(a.queries.slice(0, 12).join(", "))}</div>${ch.join("")}
+      <div class="row" style="margin-top:10px"><span class="spacer"></span><button class="btn btn-p" data-apply="${i}">Применить выбранное</button></div></div>`;
+  }).join("") : `<p class="empty">Подтягивать пока нечего — статьи ещё далеко от первой страницы. Попробуйте выгрузку за 3 месяца через пару недель.</p>`;
+}
+$("tu-result").onclick = async e => {
+  const b = e.target.closest("[data-apply]"); if (!b) return;
+  const card = b.closest(".tu-card"), a = tune.articles[+b.dataset.apply];
+  const on = k => [...card.querySelectorAll(`input[data-k="${k}"]:checked`)];
+  const changes = {
+    seo_title: on("seo_title").length ? a.seo_title : "", description: on("description").length ? a.description : "",
+    add_keywords: on("add_keywords").length ? a.add_keywords : [],
+    sections: on("sections").map(x => a.sections[+x.dataset.j]), faq: on("faq").map(x => a.faq[+x.dataset.j]),
+  };
+  if (!changes.seo_title && !changes.description && !changes.add_keywords.length && !changes.sections.length && !changes.faq.length) { toast("Ничего не отмечено", true); return; }
+  busy(b, true, "Применяю…");
+  try { await api("/admin/api/tune/apply", {method: "POST", body: JSON.stringify({slug: a.slug, changes})});
+    card.classList.add("done"); b.textContent = "✓ Применено"; b.disabled = true; load(undefined).catch(() => {});
+    toast("Статья обновлена на сайте. Bing и Яндекс уже уведомлены; в Search Console можно «Запросить индексирование»."); }
+  catch (err) { busy(b, false); toast(err.message, true); }
+};
+api("/admin/api/tune").then(d => { if (d && d.created) renderTune(d); }).catch(() => {});
 // ---------- придумай сам: первая новая тема из списка (нет — ищем по всем услугам) → сразу пишем
 $("b-auto").onclick = async () => {
   const b = $("b-auto");
