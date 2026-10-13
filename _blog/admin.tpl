@@ -364,7 +364,8 @@ body:not(.view-edit) .mbar { display: none !important; }
       </div>
       <div id="seo-body"></div>
       <div class="seo-sec" id="seo-tune-sec">
-        <h3>Правки статей <span class="hint">· по данным Search Console; применяете по галочкам (или кнопкой в Telegram)</span></h3>
+        <div class="row" style="margin-bottom:8px"><h3 style="margin:0">Правки статей <span class="hint">· по данным Search Console; применяете по галочкам (или кнопкой в Telegram)</span></h3>
+          <span class="spacer"></span><button class="btn btn-go hidden" id="seo-apply-all" type="button">Применить всё</button></div>
         <div id="seo-tune"></div>
       </div>
       <details class="more seo-sec" id="seo-settings">
@@ -372,7 +373,7 @@ body:not(.view-edit) .mbar { display: none !important; }
         <div class="grid" style="margin-top:12px">
           <div>
             <h3 class="t-h">Search Console <span class="hint" id="seo-gsc-state"></span></h3>
-            <ol class="steps">
+            <ol class="steps" id="seo-steps">
               <li>Откройте <a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">console.cloud.google.com</a> под тем же Google-аккаунтом, что и Search Console → «Создать проект», имя любое (например, alfimov-seo).</li>
               <li>Включите <a href="https://console.cloud.google.com/apis/library/searchconsole.googleapis.com" target="_blank" rel="noopener">Google Search Console API</a> → «Включить».</li>
               <li><a href="https://console.cloud.google.com/iam-admin/serviceaccounts/create" target="_blank" rel="noopener">Создайте сервисный аккаунт</a>: имя alfimov-seo → «Готово» (роли не нужны).</li>
@@ -1039,23 +1040,44 @@ function renderTune(d) {
       <div class="row" style="margin-top:10px"><span class="spacer"></span>${a.applied ? `<button class="btn" disabled>✓ Применено</button>` : `<button class="btn btn-p" data-apply="${i}">Применить выбранное</button>`}</div></div>`;
   }).join("") : `<p class="empty">Подтягивать пока нечего — статьи ещё далеко от первой страницы. Попробуйте выгрузку за 3 месяца через пару недель.</p>`;
   $("seo-tune").innerHTML = d.articles.length ? $("tu-result").innerHTML : `<p class="empty" style="padding:0">Пока нет — появятся после проверки с подключённой Search Console.</p>`;
+  $("seo-apply-all").classList.toggle("hidden", !pending);
+  $("seo-apply-all").textContent = `Применить всё (${pending})`;
   $("seo-tune-sec").querySelector(".hint").textContent = pending ? ` · ждут применения: ${pending}` : " · по данным Search Console; применяете по галочкам (или кнопкой в Telegram)";
 }
-$("tu-result").onclick = $("seo-tune").onclick = async e => {
-  const b = e.target.closest("[data-apply]"); if (!b) return;
-  const card = b.closest(".tu-card"), a = tune.articles[+b.dataset.apply];
+// Отмеченные галочками правки одной статьи → на сайт. → false, если ничего не отмечено.
+async function applyCard(card, a) {
   const on = k => [...card.querySelectorAll(`input[data-k="${k}"]:checked`)];
   const changes = {
     seo_title: on("seo_title").length ? a.seo_title : "", description: on("description").length ? a.description : "",
     add_keywords: on("add_keywords").length ? a.add_keywords : [],
     sections: on("sections").map(x => a.sections[+x.dataset.j]), faq: on("faq").map(x => a.faq[+x.dataset.j]),
   };
-  if (!changes.seo_title && !changes.description && !changes.add_keywords.length && !changes.sections.length && !changes.faq.length) { toast("Ничего не отмечено", true); return; }
+  if (!changes.seo_title && !changes.description && !changes.add_keywords.length && !changes.sections.length && !changes.faq.length) return false;
+  await api("/admin/api/tune/apply", {method: "POST", body: JSON.stringify({slug: a.slug, changes})});
+  a.applied = true;
+  return true;
+}
+$("tu-result").onclick = $("seo-tune").onclick = async e => {
+  const b = e.target.closest("[data-apply]"); if (!b) return;
   busy(b, true, "Применяю…");
-  try { await api("/admin/api/tune/apply", {method: "POST", body: JSON.stringify({slug: a.slug, changes})});
-    a.applied = true; renderTune(tune); load(undefined).catch(() => {});
-    toast("Статья обновлена на сайте. Bing и Яндекс уже уведомлены; в Search Console можно «Запросить индексирование»."); }
-  catch (err) { busy(b, false); toast(err.message, true); }
+  try {
+    if (!await applyCard(b.closest(".tu-card"), tune.articles[+b.dataset.apply])) { busy(b, false); toast("Ничего не отмечено", true); return; }
+    renderTune(tune); load(undefined).catch(() => {});
+    toast("Статья обновлена на сайте. Bing и Яндекс уже уведомлены; в Search Console можно «Запросить индексирование».");
+  } catch (err) { busy(b, false); toast(err.message, true); }
+};
+// «Применить всё»: все статьи сразу, с учётом снятых галочек.
+$("seo-apply-all").onclick = async () => {
+  const b = $("seo-apply-all"); busy(b, true, "Применяю…");
+  let n = 0;
+  try {
+    for (const card of $("seo-tune").querySelectorAll(".tu-card:not(.done)")) {
+      const a = tune.articles[+card.dataset.i];
+      if (await applyCard(card, a)) n++;
+    }
+    toast(n ? `Правки применены в ${n} стат. — уже на сайте, Bing и Яндекс уведомлены.` : "Ничего не отмечено");
+  } catch (err) { toast(err.message, true); }
+  busy(b, false); renderTune(tune); load(undefined).catch(() => {});
 };
 api("/admin/api/tune").then(d => { if (d && d.created) renderTune(d); }).catch(() => {});
 // ---------- придумай сам: первая новая тема из списка (нет — ищем по всем услугам) → сразу пишем
@@ -1115,6 +1137,7 @@ function renderSeo() {
   $("seo-connect").classList.toggle("hidden", !!seo.gsc);
   $("seo-gsc-state").textContent = seo.gsc ? `· подключена: ${seo.gsc}` : "· не подключена";
   $("seo-gsc-off").classList.toggle("hidden", !seo.gsc);
+  $("seo-steps").classList.toggle("hidden", !!seo.gsc);
   if (document.activeElement !== $("seo-prompts")) $("seo-prompts").value = seo.geo_custom ? seo.geo_prompts.join("\n") : "";
   $("seo-prompts").placeholder = seo.geo_prompts.join("\n");
   $("seo-auto").checked = !!seo.auto_apply;
