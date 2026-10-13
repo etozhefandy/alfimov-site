@@ -160,6 +160,8 @@ seo_save($st);
 check(seo_tick($fire, fn() => []) === 'report' && seo_state()['last_run']['errors'] === ['links:insta: прервался на хостинге'], 'второй обрыв — шаг пропущен, идём дальше');
 
 echo "отчёт и Telegram\n";
+check(delta(666, 0, true) === '' && delta(120, 100, true) === ' (+20%)' && delta(3, 5) === ' (−2)', 'сравнение с прошлым периодом; без данных за прошлый — без сравнения');
+
 write_json(DATA_DIR . '/tune.json', ['articles' => [['slug' => 'target', 'title' => 'T', 'seo_title' => 'Таргет: цены в Казахстане 2026', 'description' => '',
     'add_keywords' => ['таргет алматы'], 'sections' => [], 'faq' => [['q' => 'Сколько стоит?', 'a' => 'От 200 000 ₸.']]]]]);
 $msgs = [];
