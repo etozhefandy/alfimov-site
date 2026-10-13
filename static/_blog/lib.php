@@ -524,7 +524,7 @@ function render_article(array $a, array $posts, bool $noindex = false): string
     $bp = blog_path();
     $arrow = parts()['icon_arrow_sm'];
     $path = article_path($a);
-    [$body_html, $toc] = markdown($a['body_md']);
+    [$body_html, $toc] = markdown(auto_links($a['body_md'], article_links($a['slug'], $posts)));
     $by_slug = [];
     foreach ($posts as $p) if ($p['slug'] !== $a['slug']) $by_slug[$p['slug']] = $p;
     // «Читайте также»: выбранные вручную + свежие до трёх.
@@ -593,6 +593,41 @@ function render_article(array $a, array $posts, bool $noindex = false): string
     return page($path, $a['seo_title'] ?: $a['title'] . ' | Alfimov', $a['description'] ?: $a['lead'], $body, $schema, 'article', $image, $noindex);
 }
 
+// Автоссылки между статьями (подбирает SEO-автопилот, seo.php): текст статьи не меняется, ссылка ставится
+// при показе на первую подходящую фразу обычного абзаца — только на вышедшие статьи.
+function links_file(): string { return DATA_DIR . '/seo/links.json'; }
+
+function article_links(string $slug, array $posts): array
+{
+    static $map;
+    $map ??= read_json(links_file()) ?? [];
+    $live = array_column($posts, 'slug');
+    return array_values(array_filter($map[$slug]['links'] ?? [], fn($l) => in_array($l['to'] ?? '', $live, true)));
+}
+
+function auto_links(string $md, array $links): string
+{
+    $lines = explode("\n", $md);
+    foreach ($links as $l) {
+        $href = blog_path() . $l['to'] . '/';
+        $anchor = trim((string) $l['anchor']);
+        $all = implode("\n", $lines);
+        if ($anchor === '' || preg_match('/[\[\]*`_|#]/u', $anchor) || str_contains($all, "]($href") || str_contains($all, "alfimov.kz$href")) continue;
+        $re = '/(?<![\p{L}\d])' . preg_quote($anchor, '/') . '(?![\p{L}\d])/iu';
+        foreach ($lines as $k => $line) {
+            if (preg_match('/^\s*(#|\||!\[|$)/', $line) || !preg_match_all($re, $line, $m, PREG_OFFSET_CAPTURE)) continue;
+            preg_match_all('/\[[^\]]*\]\([^)]*\)|`[^`]*`|https?:\/\/\S+/u', $line, $busy, PREG_OFFSET_CAPTURE);
+            foreach ($m[0] as [$text, $pos]) {
+                $end = $pos + strlen($text);
+                foreach ($busy[0] as [$b, $bp]) if ($pos < $bp + strlen($b) && $end > $bp) continue 2;
+                $lines[$k] = substr_replace($line, "[$text]($href)", $pos, strlen($text));
+                continue 3;
+            }
+        }
+    }
+    return implode("\n", $lines);
+}
+
 /** Блок «Свежие статьи» на главной: build.py оставляет в index.html метку <!--BLOG-HOME:NN-->. */
 function render_home(string $html, array $posts): string
 {
@@ -655,6 +690,7 @@ function indexnow_article(array $a, ?callable $send = null): bool
     $body = json_encode(['host' => parse_url($site, PHP_URL_HOST), 'key' => INDEXNOW_KEY,
         'keyLocation' => "$site/" . INDEXNOW_KEY . '.txt', 'urlList' => [$url, $site . blog_path(), "$site/"]], JSON_UNESCAPED_SLASHES);
     if ($send) return $send($body);
+    if (getenv('ALFIMOV_OFFLINE')) return false;   // тесты
     $ch = curl_init('https://api.indexnow.org/indexnow');
     curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $body, CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT => 4, CURLOPT_CONNECTTIMEOUT => 3, CURLOPT_HTTPHEADER => ['Content-Type: application/json; charset=utf-8']]);

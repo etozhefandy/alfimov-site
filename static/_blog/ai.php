@@ -688,7 +688,7 @@ function md_h2(string $md): array
 }
 
 /** $queries/$pages: [[запрос|адрес, показы, позиция], …] из выгрузки Search Console. */
-function tune_articles(array $queries, array $pages, ?callable $post = null): array
+function tune_articles(array $queries, array $pages, ?callable $post = null, string $notes = '', bool $dedupe = true): array
 {
     $site = parts()['site_url'];
     $arts = array_values(array_filter(load_all(), fn($a) => is_live($a)));
@@ -707,6 +707,7 @@ function tune_articles(array $queries, array $pages, ?callable $post = null): ar
         "Запросы из Google Search Console за последнее время (запрос | показы | средняя позиция):\n" . implode("\n", array_map($fmt, $queries)),
         $pages ? "Страницы (адрес | показы | позиция):\n" . implode("\n", array_map($fmt, array_slice($pages, 0, 60))) : '',
         "Цены агентства (других цен агентства не называй):\n$prices",
+        $notes,
         'Правила. Для каждой статьи, у которой есть запросы с позицией примерно 4–40 (рядом с первой страницей), предложи: '
         . 'seo_title до 60 символов с точными словами самых частых запросов и «Казахстан», если его нет и запросы общие; '
         . 'description 140–160 символов; add_keywords — запросы из выгрузки, которых нет в статье; '
@@ -737,10 +738,19 @@ function tune_articles(array $queries, array $pages, ?callable $post = null): ar
             'faq' => array_values(array_filter($t['faq'] ?? [], fn($x) => trim($x['q'] ?? '') !== '' && trim($x['a'] ?? '') !== ''))];
     }
     $topics = $data['new_topics'] ?? [];
-    if ($topics) { topics_add($topics, 'из Search Console'); topics_dedupe($post); }
+    if ($topics) { topics_add($topics, 'из Search Console'); if ($dedupe) topics_dedupe($post); }
     $result = ['articles' => $out, 'new_topics' => count($topics), 'queries' => count($queries), 'created' => now()->format('Y-m-d H:i')];
     write_json(DATA_DIR . '/tune.json', $result);
     return $result;
+}
+
+/** Отметить в разборе, что правки статьи применены (чтобы не применить дважды из Telegram). */
+function tune_mark_applied(string $slug): void
+{
+    $t = read_json(DATA_DIR . '/tune.json');
+    if (!$t) return;
+    foreach ($t['articles'] as &$x) if ($x['slug'] === $slug) $x['applied'] = true;
+    write_json(DATA_DIR . '/tune.json', $t);
 }
 
 /** Применить выбранные правки к статье. Новые разделы встают перед выводом (последний ## «Вывод/Итог…»). */
