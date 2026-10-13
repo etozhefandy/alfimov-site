@@ -6,7 +6,7 @@
 // с телефона оборвётся, задача доработает на хостинге, а результат заберётся при опросе.
 declare(strict_types=1);
 require dirname(__DIR__) . '/_blog/auth.php';
-require dirname(__DIR__) . '/api/_tg.php';
+require_once dirname(__DIR__) . '/_blog/seo.php';
 
 header('X-Robots-Tag: noindex, nofollow');
 header('Cache-Control: no-store');
@@ -290,8 +290,41 @@ try {
     if ($method === 'POST' && $route === 'api/tune/apply') {
         $d = body();
         $a = apply_tune((string) ($d['slug'] ?? ''), is_array($d['changes'] ?? null) ? $d['changes'] : []);
+        tune_mark_applied($a['slug']);
         try { indexnow_article($a); } catch (Throwable $ex) { error_log('indexnow: ' . $ex->getMessage()); }
         reply(['article' => article_view($a)]);
+    }
+    if ($method === 'GET' && $route === 'api/seo') {
+        try { seo_maybe_kick(); } catch (Throwable $ex) { error_log('seo kick: ' . $ex->getMessage()); }
+        reply(seo_view());
+    }
+    if ($method === 'POST' && $route === 'api/seo/run') {
+        if (!seo_start()) fail('Проверка уже идёт — результат придёт в Telegram и появится здесь');
+        reply(seo_view());
+    }
+    if ($method === 'POST' && $route === 'api/seo/settings') {
+        $d = body();
+        $s = settings();
+        $msg = 'Сохранено';
+        if (($d['gsc_key'] ?? '') !== '') {
+            $s['gsc_key'] = gsc_parse_key((string) $d['gsc_key']);
+            @unlink(seo_dir() . '/gsc-token.json');
+        }
+        if (!empty($d['gsc_remove'])) unset($s['gsc_key']);
+        if (array_key_exists('geo_prompts', $d)) {
+            $lines = array_values(array_filter(array_map('trim', preg_split('/\R/u', (string) $d['geo_prompts'])), 'strlen'));
+            $s['geo_prompts'] = array_slice(array_map(fn($l) => mb_substr($l, 0, 300), $lines), 0, 12);
+        }
+        if (array_key_exists('auto_apply', $d)) $s['seo_auto_apply'] = (bool) $d['auto_apply'];
+        save_settings($s);
+        if (($d['gsc_key'] ?? '') !== '') {
+            try { $msg = 'Search Console подключена: ' . gsc_check(); }
+            catch (AiError $ex) { $msg = 'Ключ сохранён. ' . $ex->getMessage(); }
+        }
+        reply(['message' => $msg] + seo_view());
+    }
+    if ($method === 'POST' && $route === 'api/seo/gsc-check') {
+        try { reply(['message' => 'Доступ есть: ' . gsc_check()]); } catch (AiError $ex) { fail($ex->getMessage()); }
     }
     if ($method === 'GET' && $route === 'api/next-slot') {
         reply(['slot' => next_free_slot((int) ($_GET['per_week'] ?? 2), (string) ($_GET['slug'] ?? ''))]);

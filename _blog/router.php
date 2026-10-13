@@ -75,3 +75,13 @@ try {
     http_response_code(500);
     echo 'Ошибка сервера';
 }
+// Не пора ли еженедельной SEO-проверке (раз в 10 минут читает один файл; сама проверка идёт отдельным запросом).
+if (in_array($_GET['route'] ?? '', ['home', 'index', 'article'], true)) {
+    flush();
+    try {
+        require_once __DIR__ . '/seo.php';
+        seo_maybe_kick();
+    } catch (Throwable $ex) {
+        error_log('seo kick: ' . $ex->getMessage());
+    }
+}

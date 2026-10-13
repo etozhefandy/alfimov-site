@@ -166,15 +166,25 @@ function tg_ensure_webhook(?callable $call = null): bool
         tg_save_state($s);
     }
     $r = tg_api('setWebhook', ['url' => 'https://alfimov.kz/api/tg-hook.php', 'secret_token' => $s['hook_secret'],
-        'allowed_updates' => json_encode(['message', 'my_chat_member']), 'drop_pending_updates' => 'true'], $call);
+        'allowed_updates' => json_encode(['message', 'my_chat_member', 'callback_query']), 'drop_pending_updates' => 'true'], $call);
     if (!empty($r['ok'])) tg_set_commands($call);
     return !empty($r['ok']);
 }
 
-/** Обработка одного обновления от Telegram. */
-function tg_handle_update(array $u, ?callable $call = null): void
+/**
+ * Обработка одного обновления от Telegram. $on_button — кнопки под сообщениями бота (отчёт SEO):
+ * fn(string $data): string — текст ответа владельцу.
+ */
+function tg_handle_update(array $u, ?callable $call = null, ?callable $on_button = null): void
 {
     $owner = tg_owner();
+    $cq = $u['callback_query'] ?? null;
+    if ($cq) {
+        $mine = (string) ($cq['from']['id'] ?? '') === $owner && $owner !== '';
+        tg_api('answerCallbackQuery', ['callback_query_id' => (string) ($cq['id'] ?? ''), 'text' => $mine ? 'Выполняю…' : 'Кнопка только для владельца'], $call);
+        if ($mine && $on_button && ($reply = $on_button((string) ($cq['data'] ?? ''))) !== '') tg_send($owner, $reply, $call);
+        return;
+    }
     // бота добавили в группу — подсказать, как привязать
     $mcm = $u['my_chat_member'] ?? null;
     if ($mcm && in_array($mcm['new_chat_member']['status'] ?? '', ['member', 'administrator'], true)

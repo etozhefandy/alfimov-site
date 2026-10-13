@@ -96,8 +96,28 @@ label.f.inline select { width: auto; }
 .tabs-top button:hover { background: var(--soft); }
 .tabs-top button.on { background: #f2f6ff; color: var(--blue); box-shadow: inset 0 0 0 1px var(--blue); }
 .tabs-top #nav-count { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.tabs-top button { white-space: nowrap; }
+@media (max-width: 1250px) { .tabs-top #nav-count { display: none; } }
 body.view-edit .tabs-top, body.view-settings .tabs-top { visibility: hidden; }
-body.home-list #new-card, body.home-new #list-card { display: none; }
+body.home-list #new-card, body.home-list #seo-card, body.home-new #list-card, body.home-new #seo-card,
+body.home-seo #list-card, body.home-seo #new-card, body.home-seo #keys-warn { display: none; }
+.kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+.kpi { border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; }
+.kpi b { display: block; font-size: 22px; font-weight: 600; }
+.kpi span { font-size: 12px; color: var(--muted); }
+.kpi i { font-style: normal; font-size: 12px; font-family: var(--mono); }
+.up { color: var(--ok); } .down { color: var(--bad); }
+.seo-sec { margin-top: 18px; }
+.seo-sec h3 { font-size: 14px; margin: 0 0 8px; }
+.seo-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 14px; }
+.seo-list li { padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r); }
+.seo-list small { color: var(--muted); font-family: var(--mono); font-size: 12px; }
+.geo-row { display: flex; gap: 10px; align-items: flex-start; }
+.geo-row .tag { flex: none; font-family: var(--mono); font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--soft); color: var(--muted); }
+.geo-row .tag.hit { background: #e5f6ed; color: var(--ok); }
+.geo-row q { display: block; color: var(--ink-2); font-size: 13px; margin-top: 4px; }
+ol.steps { margin: 8px 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; }
+@media (max-width: 700px) { .kpis { grid-template-columns: 1fr 1fr 1fr; gap: 6px; } .kpi { padding: 8px; } .kpi b { font-size: 17px; } }
 @media (max-width: 700px) { .tabs-top { order: 5; width: 100%; } .tabs-top button { flex: 1; } .tabs-top #nav-count { display: none; } }
 .seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: var(--r); overflow: hidden; margin-bottom: 14px; }
 .seg button { border: 0; background: #fff; padding: 8px 14px; font-size: 14px; cursor: pointer; color: var(--ink-2); }
@@ -203,6 +223,7 @@ body:not(.view-edit) .mbar { display: none !important; }
   <nav class="tabs-top" id="home-nav">
     <button type="button" data-v="list">📝 Статьи <span id="nav-count"></span></button>
     <button type="button" data-v="new">✨ Новая статья</button>
+    <button type="button" data-v="seo">📈 SEO</button>
   </nav>
   <a class="btn" href="/blog/" target="_blank">Открыть блог</a>
   <button class="btn" id="b-settings">Настройки</button>
@@ -325,6 +346,52 @@ body:not(.view-edit) .mbar { display: none !important; }
         <button class="btn" id="b-new">+ Вручную, без ИИ</button>
       </div>
       <ul class="acards" id="list"></ul>
+    </section>
+
+    <!-- SEO-автопилот: раз в неделю сам (без кнопок), отчёт приходит в Telegram -->
+    <section class="card" id="seo-card">
+      <div class="row" style="margin-bottom:6px">
+        <h2 style="margin:0">SEO-автопилот</h2>
+        <span class="spacer"></span>
+        <button class="btn btn-p" id="seo-run">Проверить сейчас</button>
+      </div>
+      <p class="hint" id="seo-status" style="margin:0 0 6px"></p>
+      <p class="hint" style="margin:0 0 14px">Раз в неделю сайт сам: смотрит позиции в Google (Search Console), готовит правки статей, ставит ссылки между статьями,
+        спрашивает ChatGPT и Claude, советуют ли они агентство, — и присылает отчёт в Telegram с кнопкой «Применить правки».</p>
+      <div class="card warn-card hidden" id="seo-connect" style="margin-bottom:14px">
+        <b>Подключите Search Console</b> — без неё не будет позиций, просадок и правок статей (проверка ИИ-ответов и ссылки работают и так).
+        <a href="#" id="seo-connect-open">Как подключить →</a>
+      </div>
+      <div id="seo-body"></div>
+      <div class="seo-sec" id="seo-tune-sec">
+        <h3>Правки статей <span class="hint">· по данным Search Console; применяете по галочкам (или кнопкой в Telegram)</span></h3>
+        <div id="seo-tune"></div>
+      </div>
+      <details class="more seo-sec" id="seo-settings">
+        <summary><b>Настройки автопроверки</b></summary>
+        <div class="grid" style="margin-top:12px">
+          <div>
+            <h3 class="t-h">Search Console <span class="hint" id="seo-gsc-state"></span></h3>
+            <ol class="steps">
+              <li>Откройте <a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">console.cloud.google.com</a> под тем же Google-аккаунтом, что и Search Console → «Создать проект», имя любое (например, alfimov-seo).</li>
+              <li>Включите <a href="https://console.cloud.google.com/apis/library/searchconsole.googleapis.com" target="_blank" rel="noopener">Google Search Console API</a> → «Включить».</li>
+              <li><a href="https://console.cloud.google.com/iam-admin/serviceaccounts/create" target="_blank" rel="noopener">Создайте сервисный аккаунт</a>: имя alfimov-seo → «Готово» (роли не нужны).</li>
+              <li>Откройте его → «Ключи» → «Добавить ключ» → «Создать новый ключ» → JSON — файл скачается.</li>
+              <li>Скопируйте адрес аккаунта (…@….iam.gserviceaccount.com) → <a href="https://search.google.com/search-console/users?resource_id=sc-domain%3Aalfimov.kz" target="_blank" rel="noopener">Search Console → Пользователи</a> → «Добавить пользователя», разрешение «Ограниченный доступ».</li>
+              <li>Загрузите скачанный файл сюда. Он хранится на хостинге вне сайта; в чат и почту его не пересылайте.</li>
+            </ol>
+            <div class="row" style="gap:8px">
+              <label class="btn btn-p">🔑 Загрузить ключ (JSON)<input type="file" id="seo-key" accept=".json,application/json" hidden></label>
+              <button class="btn" id="seo-check" type="button">Проверить доступ</button>
+              <button class="btn btn-d hidden" id="seo-gsc-off" type="button">Отключить</button>
+            </div>
+          </div>
+          <label class="f">Вопросы для проверки ИИ-ответов <span class="hint">— по одному в строке, как спросил бы ваш заказчик; пусто — стандартные</span>
+            <textarea id="seo-prompts" rows="6"></textarea></label>
+          <label class="f inline"><input type="checkbox" id="seo-auto"> Применять правки статей автоматически, без моей кнопки</label>
+          <div class="row"><span class="spacer"></span><button class="btn btn-p" id="seo-save" type="button">Сохранить</button></div>
+        </div>
+      </details>
     </section>
   </div>
 
@@ -530,8 +597,11 @@ function renderList() {
 }
 // Главный экран — две вкладки: «Статьи» (черновики, запланированные, вышедшие) и «Новая статья».
 function setHomeView(v) {
+  if (!["list", "new", "seo"].includes(v)) v = "list";
   document.body.classList.toggle("home-list", v === "list");
   document.body.classList.toggle("home-new", v === "new");
+  document.body.classList.toggle("home-seo", v === "seo");
+  if (v === "seo" && typeof loadSeo === "function") loadSeo();
   [...$("home-nav").children].forEach(b => b.classList.toggle("on", b.dataset.v === v));
   try { localStorage.setItem("home_view", v); } catch (e) {}
 }
@@ -540,7 +610,7 @@ $("home-nav").onclick = e => {
   if (document.body.classList.contains("view-edit") || document.body.classList.contains("view-settings")) return;
   setHomeView(b.dataset.v); window.scrollTo(0, 0);
 };
-setHomeView((() => { try { return localStorage.getItem("home_view"); } catch (e) {} })() || "list");
+const START_VIEW = location.hash === "#seo" ? "seo" : (() => { try { return localStorage.getItem("home_view"); } catch (e) {} })() || "list";
 function showHome(view) {
   current = null; dirty = false;
   document.body.classList.remove("view-edit", "view-settings"); renderList();
@@ -954,6 +1024,8 @@ let tune = null;
 function renderTune(d) {
   tune = d;
   if (!d || !d.articles) return;
+  const pending = d.articles.filter(a => !a.applied).length;
+  $("seo-tune").innerHTML = "";
   $("tu-status").textContent = d.created ? `Разбор от ${d.created}: ${d.queries} запросов · статей к доработке: ${d.articles.length}` + (d.new_topics ? ` · новых тем в «Темах статей»: ${d.new_topics}` : "") : "";
   $("tu-result").innerHTML = d.articles.length ? d.articles.map((a, i) => {
     const ch = [];
@@ -962,12 +1034,14 @@ function renderTune(d) {
     if (a.add_keywords.length) ch.push(`<label class="ch"><input type="checkbox" data-k="add_keywords" checked><span><b>Запросы:</b> ${esc(a.add_keywords.join(", "))}</span></label>`);
     a.sections.forEach((x, j) => ch.push(`<label class="ch"><input type="checkbox" data-k="sections" data-j="${j}" checked><span><b>Новый раздел:</b> ${esc(x.h2)}<details><summary>текст</summary>${esc(x.text)}</details></span></label>`));
     a.faq.forEach((x, j) => ch.push(`<label class="ch"><input type="checkbox" data-k="faq" data-j="${j}" checked><span><b>FAQ:</b> ${esc(x.q)}<details><summary>ответ</summary>${esc(x.a)}</details></span></label>`));
-    return `<div class="tu-card" data-i="${i}"><h4><a href="${esc(a.path)}" target="_blank">${esc(a.title)}</a></h4>
+    return `<div class="tu-card${a.applied ? " done" : ""}" data-i="${i}"><h4><a href="${esc(a.path)}" target="_blank">${esc(a.title)}</a></h4>
       <p class="why">${esc(a.why)}</p><div class="hint">Запросы: ${esc(a.queries.slice(0, 12).join(", "))}</div>${ch.join("")}
-      <div class="row" style="margin-top:10px"><span class="spacer"></span><button class="btn btn-p" data-apply="${i}">Применить выбранное</button></div></div>`;
+      <div class="row" style="margin-top:10px"><span class="spacer"></span>${a.applied ? `<button class="btn" disabled>✓ Применено</button>` : `<button class="btn btn-p" data-apply="${i}">Применить выбранное</button>`}</div></div>`;
   }).join("") : `<p class="empty">Подтягивать пока нечего — статьи ещё далеко от первой страницы. Попробуйте выгрузку за 3 месяца через пару недель.</p>`;
+  $("seo-tune").innerHTML = d.articles.length ? $("tu-result").innerHTML : `<p class="empty" style="padding:0">Пока нет — появятся после проверки с подключённой Search Console.</p>`;
+  $("seo-tune-sec").querySelector(".hint").textContent = pending ? ` · ждут применения: ${pending}` : " · по данным Search Console; применяете по галочкам (или кнопкой в Telegram)";
 }
-$("tu-result").onclick = async e => {
+$("tu-result").onclick = $("seo-tune").onclick = async e => {
   const b = e.target.closest("[data-apply]"); if (!b) return;
   const card = b.closest(".tu-card"), a = tune.articles[+b.dataset.apply];
   const on = k => [...card.querySelectorAll(`input[data-k="${k}"]:checked`)];
@@ -979,7 +1053,7 @@ $("tu-result").onclick = async e => {
   if (!changes.seo_title && !changes.description && !changes.add_keywords.length && !changes.sections.length && !changes.faq.length) { toast("Ничего не отмечено", true); return; }
   busy(b, true, "Применяю…");
   try { await api("/admin/api/tune/apply", {method: "POST", body: JSON.stringify({slug: a.slug, changes})});
-    card.classList.add("done"); b.textContent = "✓ Применено"; b.disabled = true; load(undefined).catch(() => {});
+    a.applied = true; renderTune(tune); load(undefined).catch(() => {});
     toast("Статья обновлена на сайте. Bing и Яндекс уже уведомлены; в Search Console можно «Запросить индексирование»."); }
   catch (err) { busy(b, false); toast(err.message, true); }
 };
@@ -1005,6 +1079,103 @@ try { $("i-week").value = localStorage.getItem("per_week") || "2"; } catch (e) {
 $("i-week").onchange = () => { try { localStorage.setItem("per_week", week()); } catch (e) {} loadTopics(); };
 api("/admin/api/trends?per_week=" + week()).then(renderDemand).catch(() => {});
 loadTopics();
+// ---------- SEO-автопилот
+let seo = null, seoPoll = null;
+const fmtN = n => Number(n || 0).toLocaleString("ru-RU");
+const pathLink = p => `<a href="${esc(p)}" target="_blank">${esc(p)}</a>`;
+function stepLabel(st) {
+  const [k, a, i] = st.split(":");
+  if (k === "gsc") return "забираю данные Search Console";
+  if (k === "tune") return "Claude готовит правки статей (1–2 мин)";
+  if (k === "links") return "расставляю ссылки между статьями";
+  if (k === "geo") return `спрашиваю ${a === "claude" ? "Claude" : "ChatGPT"}: «${(seo.geo_prompts || [])[+i] || ""}»`;
+  if (k === "report") return "собираю отчёт";
+  return st;
+}
+function kpi(label, now, was, better, fmt = fmtN) {
+  let d = "";
+  if (was !== undefined && was !== null && now !== was) {
+    const good = better === "up" ? now > was : now < was;
+    d = `<i class="${good ? "up" : "down"}">${now > was ? "▲" : "▼"} было ${fmt(was)}</i>`;
+  }
+  return `<div class="kpi"><span>${label}</span><b>${fmt(now)}</b>${d}</div>`;
+}
+async function loadSeo() {
+  try { seo = await api("/admin/api/seo"); renderSeo(); }
+  catch (e) { $("seo-status").textContent = e.message; }
+}
+function renderSeo() {
+  const r = seo.report, an = r && r.analysis;
+  $("seo-status").textContent = seo.running
+    ? `⏳ Идёт проверка: шаг ${seo.running.i + 1} из ${seo.running.n} — ${stepLabel(seo.running.step)}. Можно закрыть страницу: доработает сама.`
+    : seo.last ? `Последняя проверка: ${seo.last}. Следующая — сама, ${seo.next}.` + (seo.telegram ? " Отчёт приходит в Telegram." : "")
+    : "Первая проверка запустится сама в ближайшие минуты — или нажмите «Проверить сейчас».";
+  $("seo-run").disabled = !!seo.running;
+  if (!tune || !tune.articles) $("seo-tune").innerHTML = `<p class="empty" style="padding:0">Пока нет — появятся после проверки с подключённой Search Console.</p>`;
+  $("seo-connect").classList.toggle("hidden", !!seo.gsc);
+  $("seo-gsc-state").textContent = seo.gsc ? `· подключена: ${seo.gsc}` : "· не подключена";
+  $("seo-gsc-off").classList.toggle("hidden", !seo.gsc);
+  if (document.activeElement !== $("seo-prompts")) $("seo-prompts").value = seo.geo_custom ? seo.geo_prompts.join("\n") : "";
+  $("seo-prompts").placeholder = seo.geo_prompts.join("\n");
+  $("seo-auto").checked = !!seo.auto_apply;
+  if (seo.running && !seoPoll) seoPoll = setInterval(loadSeo, 5000);
+  if (!seo.running && seoPoll) { clearInterval(seoPoll); seoPoll = null; api("/admin/api/tune").then(renderTune).catch(() => {}); }
+  const out = [];
+  if (an) {
+    const [c, p] = [an.totals.cur, an.totals.prev];
+    out.push(`<p class="hint" style="margin:0 0 8px">Google, ${an.period[0]} — ${an.period[1]} (28 дней), в скобках — 28 дней до этого</p>
+      <div class="kpis">${kpi("Клики", c.clicks, p.impr ? p.clicks : null, "up")}${kpi("Показы", c.impr, p.impr ? p.impr : null, "up")}${kpi("Средняя позиция", c.pos, p.impr ? p.pos : null, "down", x => String(x))}</div>`);
+    const sec = (title, hint, items, row) => items && items.length ? `<div class="seo-sec"><h3>${title} <span class="hint">· ${hint}</span></h3><ul class="seo-list">${items.map(row).join("")}</ul></div>` : "";
+    out.push(sec("🎯 Близко к топу", "4–20 место: подтянуть статью — и пойдут клики", an.quick, q => `<li>«${esc(q.q)}» <small>${q.pos} место · ${fmtN(q.impr)} показов</small><br>${pathLink(q.page)}</li>`));
+    out.push(sec("📉 Просели", "показы или клики упали за месяц", an.decay, d => `<li>${pathLink(d.page)} <small>показы ${d.impr[0]} → ${d.impr[1]} · клики ${d.clicks[0]} → ${d.clicks[1]}</small></li>`));
+    out.push(sec("⚔️ Мешают друг другу", "по одному запросу Google показывает две страницы и не может выбрать", an.cannibal, c2 => `<li>«${esc(c2.q)}»<br>${c2.pages.map(x => `${pathLink(x[0])} <small>${x[1]} показов, ${x[2]} место</small>`).join("<br>")}</li>`));
+    out.push(sec("👀 Показы есть, кликов мало", "заголовок и описание не цепляют", an.low_ctr, l => `<li>${pathLink(l.page)} <small>${l.pos} место · CTR ${l.ctr}% · ${fmtN(l.impr)} показов</small></li>`));
+  } else if (r) {
+    out.push(`<p class="hint">Данных Google в отчёте нет — подключите Search Console.</p>`);
+  }
+  if (r && r.geo && r.geo.length) {
+    const byPrompt = {};
+    r.geo.forEach(g => (byPrompt[g.prompt] = byPrompt[g.prompt] || []).push(g));
+    out.push(`<div class="seo-sec"><h3>🤖 ИИ-ответы <span class="hint">· агентство упомянули в ${r.geo_hits} из ${r.geo.length} ответов</span></h3><ul class="seo-list">` +
+      Object.entries(byPrompt).map(([q, gs]) => `<li>${esc(q)}<div class="row" style="gap:6px;margin-top:6px">` +
+        gs.map(g => `<span class="geo-row"><span class="tag${g.mentioned || g.cited ? " hit" : ""}">${g.engine === "claude" ? "Claude" : "ChatGPT"}: ${g.cited ? "ссылается на сайт" : g.mentioned ? "упоминает" : "нет"}</span></span>`).join("") +
+        `</div>${gs.filter(g => g.excerpt).map(g => `<q>${esc(g.excerpt)}</q>`).join("")}</li>`).join("") + `</ul>` +
+      (Object.keys(r.geo_sites || {}).length ? `<p class="hint" style="margin:8px 0 0">Чаще всего ИИ ссылается на: ${Object.entries(r.geo_sites).map(([h, n]) => `${esc(h)} (${n})`).join(", ")}. Попасть на эти сайты (каталоги, рейтинги, статьи) — самый прямой путь в ИИ-ответы.</p>` : "") + `</div>`);
+  }
+  if (seo.links.length) out.push(`<div class="seo-sec"><h3>🔗 Ссылки между статьями <span class="hint">· ставятся сами, текст статей не меняется</span></h3><ul class="seo-list">` +
+    seo.links.map(l => `<li>${esc(l.from)} → <b>${esc(l.to)}</b> <small>по фразе «${esc(l.anchor)}»</small></li>`).join("") + `</ul></div>`);
+  if (r && r.lint && r.lint.length) out.push(`<div class="seo-sec"><h3>🧰 Замечания по статьям</h3><ul class="seo-list">` +
+    r.lint.map(x => `<li><a href="#" data-open="${esc(x.slug)}">${esc(x.title)}</a><br><small>${esc(x.issues.join(" · "))}</small></li>`).join("") + `</ul></div>`);
+  if (r && r.errors && r.errors.length) out.push(`<p class="hint" style="margin-top:14px">⚠️ Не получилось: ${esc(r.errors.join("; "))}</p>`);
+  $("seo-body").innerHTML = out.join("");
+}
+$("seo-body").onclick = e => {
+  const a = e.target.closest("[data-open]"); if (!a) return;
+  e.preventDefault(); open(articles.find(x => x.slug === a.dataset.open) || null);
+};
+$("seo-run").onclick = async () => {
+  try { seo = await api("/admin/api/seo/run", {method: "POST"}); renderSeo(); toast("Проверка запущена. Займёт 5–15 минут; отчёт придёт в Telegram и появится здесь."); }
+  catch (e) { toast(e.message, true); }
+};
+$("seo-connect-open").onclick = e => { e.preventDefault(); $("seo-settings").open = true; $("seo-settings").scrollIntoView({behavior: "smooth"}); };
+async function seoSettings(body, okMsg) {
+  try { const d = await api("/admin/api/seo/settings", {method: "POST", body: JSON.stringify(body)}); seo = d; renderSeo(); toast(okMsg || d.message); }
+  catch (e) { toast(e.message, true); }
+}
+$("seo-key").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  if (f.size > 20000) { toast("Это не похоже на ключ — нужен небольшой JSON-файл", true); return; }
+  await seoSettings({gsc_key: await f.text()});
+};
+$("seo-check").onclick = async () => {
+  const b = $("seo-check"); busy(b, true, "Проверяю…");
+  try { toast((await api("/admin/api/seo/gsc-check", {method: "POST"})).message); } catch (e) { toast(e.message, true); }
+  busy(b, false);
+};
+$("seo-gsc-off").onclick = () => { if (confirm("Отключить Search Console? Ключ удалится с хостинга.")) seoSettings({gsc_remove: true}, "Search Console отключена"); };
+$("seo-save").onclick = () => seoSettings({geo_prompts: $("seo-prompts").value, auto_apply: $("seo-auto").checked}, "Настройки сохранены");
+setHomeView(START_VIEW);
+
 // ---------- настройки и выход
 async function showSettings() {
   if (dirty && !confirm("Есть несохранённые изменения. Уйти без сохранения?")) return;
