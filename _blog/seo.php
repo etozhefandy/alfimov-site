@@ -370,8 +370,8 @@ function geo_ask_claude(string $q, ?callable $http = null): array
     [$code, $d] = http_json('POST', 'https://api.anthropic.com/v1/messages',
         ['x-api-key: ' . $key, 'anthropic-version: 2023-06-01', 'content-type: application/json'],
         (string) json_encode(['model' => GEO_CLAUDE_MODEL, 'max_tokens' => 2000, 'messages' => [['role' => 'user', 'content' => $q]],
-            'tools' => [['type' => 'web_search_20250305', 'name' => 'web_search', 'max_uses' => 3,
-                'user_location' => ['type' => 'approximate', 'country' => 'KZ', 'city' => 'Almaty', 'timezone' => 'Asia/Almaty']]]],
+            // без user_location: поиск Claude не принимает регион KZ (ошибка 400); город и страна есть в самих вопросах
+            'tools' => [['type' => 'web_search_20250305', 'name' => 'web_search', 'max_uses' => 3]]],
             JSON_UNESCAPED_UNICODE), 100, $http);
     if ($code !== 200) throw new AiError("Claude ($code): " . ($d['error']['message'] ?? 'ошибка'));
     $text = '';
@@ -638,11 +638,12 @@ function tune_apply_all(): int
 
 // ---------------------------------------------------------------- отчёт
 
+/** « (+12%)» / « (−3)» к прошлому периоду; не с чем сравнивать (данных тогда не было) — пусто. */
 function delta(float $now, float $was, bool $pct = false): string
 {
-    if ($was == $now) return '';
-    if ($pct && $was > 0) return sprintf(' (%+d%%)', (int) round(($now - $was) / $was * 100));
-    return sprintf(' (%+s)', rtrim(rtrim(number_format($now - $was, 1, '.', ''), '0'), '.'));
+    if ($was == $now || $was == 0) return '';
+    $d = $pct ? round(($now - $was) / $was * 100) : round($now - $was, 1);
+    return ' (' . ($d > 0 ? '+' : '−') . rtrim(rtrim(number_format(abs($d), 1, '.', ''), '0'), '.') . ($pct ? '%' : '') . ')';
 }
 
 function seo_report(array $run, ?callable $tg = null): array
@@ -673,7 +674,7 @@ function seo_report(array $run, ?callable $tg = null): array
     $lines = ['📈 <b>SEO за неделю</b> · alfimov.kz'];
     if ($an) {
         [$c, $p] = [$an['totals']['cur'], $an['totals']['prev']];
-        $lines[] = "Google, 28 дней: клики {$c['clicks']}" . delta($c['clicks'], $p['clicks']) . ", показы {$c['impr']}" . delta($c['impr'], $p['impr'], true)
+        $lines[] = "Google, 28 дней: клики {$c['clicks']}" . ($p['impr'] ? delta($c['clicks'], $p['clicks']) : '') . ", показы {$c['impr']}" . delta($c['impr'], $p['impr'], true)
             . ", средняя позиция {$c['pos']}" . ($p['impr'] ? " (была {$p['pos']})" : '');
         if ($an['quick']) {
             $lines[] = "\n🎯 <b>Близко к топу</b> — чуть подтянуть, и будут клики:";
