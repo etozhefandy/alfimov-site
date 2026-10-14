@@ -416,9 +416,7 @@ body:not(.view-edit) .mbar { display: none !important; }
         <button class="btn btn-p" id="tg-pin">Получить PIN в Telegram</button>
         <button class="btn hidden" id="tg-unlink">Отвязать группу</button>
       </div>
-      <p class="hint" style="margin:12px 0 0">Как привязать группу: 1) нажмите «Получить PIN» — бот пришлёт его вам в личку (или напишите боту <code>/pin</code>);
-        2) добавьте бота в группу; 3) отправьте в группе <code>/link PIN</code>. PIN одноразовый, действует 15 минут.
-        Заявки всегда приходят вам в личку, а с привязанной группой — ещё и туда.</p>
+      <p class="hint" style="margin:12px 0 0">Как привязать группу для заявок с alfimov.kz: 1) нажмите «Получить PIN» — бот пришлёт его вам в личку (или в боте: «🔗 Привязать группу» и выберите сайт); 2) добавьте бота в группу; 3) отправьте в группе PIN. Бот общий для всех сайтов на хостинге (alfimov.kz, metalbaza.kz), у каждого сайта своя группа. Заявки всегда приходят вам в личку, а с привязанной группой — ещё и туда.</p>
     </section>
     <section class="card">
       <h2>Пароль <small id="s-login"></small></h2>
