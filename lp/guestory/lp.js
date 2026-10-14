@@ -52,30 +52,55 @@
   var cur = 0, started = false, sending = false;
   form.querySelector('[name=ts]').value = Date.now();
 
-  function show(i) {
-    cur = i;
-    steps.forEach(function (s, j) { s.classList.toggle('on', j === i); });
-    bar.style.width = Math.round(((i + 1) / steps.length) * 100) + '%';
-    var last = i === steps.length - 1, multi = steps[i].getAttribute('data-kind') === 'multi';
+  // Ветки: первый вопрос (тип объекта) задаёт ветку, шаги с data-when показываются только своей ветке.
+  function branch() {
+    var b = form.querySelector('input[data-branch]:checked');
+    if (b) return b.getAttribute('data-branch');
+    var first = form.querySelector('input[data-branch]');
+    return first ? first.getAttribute('data-branch') : '';   // до выбора — считаем шаги по первой ветке
+  }
+  function path() {
+    var b = branch();
+    return steps.filter(function (s) {
+      var w = s.getAttribute('data-when');
+      return !w || w.split(' ').indexOf(b) >= 0;
+    });
+  }
+
+  function show(step) {
+    var p = path(), i = p.indexOf(step);
+    cur = step;
+    steps.forEach(function (s) { s.classList.toggle('on', s === step); });
+    bar.style.width = Math.round(((i + 1) / p.length) * 100) + '%';
+    var last = i === p.length - 1, kind = step.getAttribute('data-kind');
+    var hint = step.querySelector('.quiz-hint');
+    hint.textContent = 'Шаг ' + (i + 1) + ' из ' + p.length
+      + (kind === 'multi' ? ' · можно несколько' : '')
+      + (hint.getAttribute('data-extra') ? ' · ' + hint.getAttribute('data-extra') : '');
     back.style.visibility = i ? 'visible' : 'hidden';
-    next.hidden = last || !multi;
+    next.hidden = last || kind !== 'multi';
     submit.hidden = !last;
     err.textContent = '';
   }
-  function answered(i) { return !!steps[i].querySelector('input:checked'); }
+  function go(d) { var p = path(); show(p[p.indexOf(cur) + d]); }
+  function answered(step) { return !!step.querySelector('input:checked'); }
 
   form.addEventListener('change', function (e) {
     if (!started) { started = true; track('InitiateCheckout', { content_name: page }); }
-    var step = steps[cur];
-    if (e.target.type === 'radio' && step.contains(e.target) && cur < steps.length - 1) {
-      setTimeout(function () { show(cur + 1); }, 180);
+    var t = e.target;
+    if (t.type === 'checkbox' && t.value === 'Другое') {   // «Другое» — открыть строку «Что именно?»
+      var other = cur.querySelector('.other');
+      if (other) { other.hidden = !t.checked; if (t.checked) other.querySelector('input').focus(); }
+    }
+    if (t.type === 'radio' && cur.contains(t) && path().indexOf(cur) < path().length - 1) {
+      setTimeout(function () { go(1); }, 180);
     }
   });
   next.addEventListener('click', function () {
     if (!answered(cur)) { err.textContent = 'Отметьте хотя бы один вариант'; return; }
-    show(cur + 1);
+    go(1);
   });
-  back.addEventListener('click', function () { if (cur) show(cur - 1); });
+  back.addEventListener('click', function () { if (path().indexOf(cur) > 0) go(-1); });
 
   form.addEventListener('submit', function (e) {
     e.preventDefault();
@@ -84,7 +109,14 @@
     var phone = form.elements.phone.value.trim();
     if (!name) { err.textContent = 'Как к вам обращаться?'; return; }
     if (phone.replace(/\D/g, '').length < 10) { err.textContent = 'Проверьте номер телефона'; return; }
+    // ответы из чужих веток (человек сменил тип объекта) и скрытое «Что именно?» не отправляем
+    var p = path();
+    steps.forEach(function (s) {
+      var off = p.indexOf(s) < 0;
+      s.querySelectorAll('input').forEach(function (inp) { inp.disabled = off || (inp.name === 'comment' && inp.closest('.other').hidden); });
+    });
     var fd = new FormData(form);
+    form.querySelectorAll('.quiz-step input').forEach(function (inp) { inp.disabled = false; });
     fd.append('client', CLIENT);
     fd.append('page', page);
     Object.keys(utm).forEach(function (k) { fd.append(k, utm[k]); });
@@ -116,5 +148,5 @@
       });
   });
 
-  show(0);
+  show(steps[0]);
 })();
