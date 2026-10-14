@@ -59,7 +59,9 @@ def _quiz(p):
         '<label class="field"><span>Имя</span><input name="name" autocomplete="name" maxlength="80" required></label>'
         '<label class="field"><span>Телефон / WhatsApp</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel" '
         'placeholder="8 7__ ___ __ __" maxlength="30" required></label>'
-        '<label class="field"><span>Город</span><input name="city" autocomplete="address-level2" maxlength="60"></label></div>'
+        '<label class="field"><span>Город</span><input name="city" autocomplete="address-level2" maxlength="60"></label>'
+        '<label class="field"><span>Что ещё нужно? <i>необязательно</i></span>'
+        '<textarea name="comment" rows="2" maxlength="500" placeholder="Например: 200 комплектов тапочек ежемесячно"></textarea></label></div>'
     )
     return f"""<section class="soft" id="form">
   <div class="wrap two">
