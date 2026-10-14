@@ -3,6 +3,7 @@
 // Telegram подписывает запросы секретом (X-Telegram-Bot-Api-Secret-Token) — без него ничего не делаем.
 declare(strict_types=1);
 require __DIR__ . '/_tg.php';
+require __DIR__ . '/_lp.php';
 header('X-Robots-Tag: noindex');
 $secret = (string) (tg_state()['hook_secret'] ?? '');
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || $secret === ''
@@ -15,6 +16,7 @@ try {
     // меню команд «/» — один раз (если бот подключили до появления меню)
     $st = tg_state();
     if (($st['commands_v'] ?? 0) < 2) { tg_set_commands(); $st['commands_v'] = 2; tg_save_state($st); }
+    lp_register_sites();   // рекламные страницы заказчиков — в списке сайтов для привязки группы
     if (is_array($u)) tg_handle_update($u, null, function (string $data): string {
         require_once dirname(__DIR__) . '/_blog/seo.php';   // кнопки под отчётом SEO
         return seo_tg_callback($data);

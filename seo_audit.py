@@ -34,10 +34,11 @@ class Issue:
 
 
 def _pages(dist):
+    # /lp/ — рекламные страницы заказчиков под трафик из Meta: noindex, без ссылок с сайта, в аудит не входят.
     out = {}
     for f in sorted(dist.rglob("*.html")):
         rel = "/" + str(f.relative_to(dist)).replace("\\", "/")
-        if rel == "/404.html" or re.match(r"^/yandex_[0-9a-f]+\.html$", rel) or rel.startswith(("/admin/", "/_blog/")):
+        if rel == "/404.html" or re.match(r"^/yandex_[0-9a-f]+\.html$", rel) or rel.startswith(("/admin/", "/_blog/", "/lp/")):
             continue
         out[rel.removesuffix("index.html")] = f.read_text(encoding="utf-8")
     return out
