@@ -53,8 +53,9 @@ section { padding: 48px 0; }
 /* первый экран */
 .hero { padding: 28px 0 40px; background: linear-gradient(180deg, var(--soft), #fff); }
 .hero .grid { display: grid; gap: 24px; align-items: center; }
-.eyebrow { display: inline-block; font-size: 13px; font-weight: 700; color: var(--navy); background: #fff;
-  border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; margin-bottom: 14px; }
+/* Надзаголовок «для кого» — обычный текст, не рамка: в рамке он выглядел как кнопка */
+.eyebrow { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: var(--muted); margin-bottom: 12px; }
+.eyebrow::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--wa); }
 .lead { font-size: 18px; color: var(--muted); }
 .facts { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 10px; }
 .facts li { display: flex; gap: 10px; align-items: flex-start; font-weight: 600; }
