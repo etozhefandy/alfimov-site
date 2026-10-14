@@ -27,6 +27,12 @@ def _facts(items):
     return '<ul class="facts">' + "".join(f"<li>{e(x)}</li>" for x in items) + "</ul>"
 
 
+def _who(h):
+    if not h.get("who"):
+        return ""
+    return '<div class="who"><b>Подходит для:</b>' + "".join(f"<span>{e(x)}</span>" for x in h["who"]) + "</div>"
+
+
 def _step(i, total, q):
     multi = q.get("multi", False)
     kind = "multi" if multi else "one"
@@ -185,6 +191,7 @@ def render(client, p):
       <span class="eyebrow">{e(h["eyebrow"])}</span>
       <h1>{e(h["h1"])}</h1>
       <p class="lead">{e(h["lead"])}</p>
+      {_who(h)}
       {_facts(h["facts"])}
       <div class="btns">
         <a class="btn btn-main" href="#form">{e(h["cta"])}</a>
