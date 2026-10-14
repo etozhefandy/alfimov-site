@@ -3,7 +3,11 @@
 Контент страниц — в src/lp_<заказчик>.py (CLIENT = {...}), оформление и опрос — static/lp/<заказчик>/lp.css, lp.js.
 build.py собирает отсюда HTML и список допустимых ответов опроса для PHP (dist/api/_lp-clients.json).
 """
+import hashlib
 import html
+from pathlib import Path
+
+STATIC = Path(__file__).resolve().parent.parent / "static"
 
 WA_ICON = (
     '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 '
@@ -134,6 +138,11 @@ def _calc(p):
 </section>"""
 
 
+def _ver(path):
+    """?v=<хэш файла>: css/js кэшируются на год (static/.htaccess), новая версия должна грузиться сразу."""
+    return hashlib.md5((STATIC / path.lstrip("/")).read_bytes()).hexdigest()[:8]
+
+
 def render(client, p):
     """HTML страницы p клиента client."""
     base = f'/lp/{client["slug"]}'
@@ -158,7 +167,7 @@ def render(client, p):
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{base}/lp.css">
+<link rel="stylesheet" href="{base}/lp.css?v={_ver(base + "/lp.css")}">
 </head>
 <body data-page="{e(p["slug"])}">
 
@@ -232,7 +241,7 @@ def render(client, p):
   <a class="btn btn-main" href="#form">{e(p["sticky_cta"])}</a>
 </div>
 
-<script src="{base}/lp.js" defer></script>
+<script src="{base}/lp.js?v={_ver(base + "/lp.js")}" defer></script>
 </body>
 </html>
 """
