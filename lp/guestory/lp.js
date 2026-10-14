@@ -1,7 +1,7 @@
 // Рекламные страницы Guestory: опрос → /api/lp-send.php (Telegram), кнопки WhatsApp, пиксель Meta.
 (function () {
   // ---- настройки заказчика
-  var PIXEL_ID = '';                 // ID пикселя Guestory из Events Manager; пусто — пиксель не грузится
+  var PIXEL_ID = '1460843041888688'; // ID пикселя Guestory из Events Manager; пусто — пиксель не грузится
   var WA_PHONE = '77088884521';      // WhatsApp менеджера Guestory
   var CLIENT = 'guestory';
 
