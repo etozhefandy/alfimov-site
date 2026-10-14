@@ -22,7 +22,7 @@ if ($ts > 0 && (microtime(true) * 1000 - $ts) < 3000) reply(true);
 
 $client = (string) ($_POST['client'] ?? '');
 $page = (string) ($_POST['page'] ?? '');
-if (!isset(LP_CLIENTS[$client])) reply(false, 422);
+if (!isset(lp_clients()[$client]['pages'][$page])) reply(false, 422);
 if (trim((string) ($_POST['name'] ?? '')) === '') reply(false, 422);
 $phone = lead_phone(mb_substr((string) ($_POST['phone'] ?? ''), 0, 80));
 if ($phone === null) reply(false, 422);

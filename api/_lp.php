@@ -5,27 +5,16 @@
 declare(strict_types=1);
 require_once __DIR__ . '/_tg.php';
 
-const LP_CLIENTS = [
-    'guestory' => [
-        'name' => 'Guestory',
-        'pages' => ['osnashenie' => 'Оснащение номерного фонда', 'branding' => 'Брендирование'],
-    ],
-];
-
-// Вопросы опроса: поле → [подпись в заявке, допустимые ответы]. Чужие значения в заявку не попадут.
-const LP_ANSWERS = [
-    'type' => ['🏨 Объект', ['Отель', 'Гостевой дом / хостел', 'Апарт-отель', 'База отдыха / глэмпинг', 'Санаторий / СПА', 'Ресторан / кафе', 'Другое']],
-    'stage' => ['🛠 Этап', ['Строится / открываемся', 'Реновация', 'Работаем, докупаем', 'Работаем, нужен брендинг']],
-    'rooms' => ['🚪 Номеров', ['до 15', '15–50', '50–150', 'больше 150']],
-    'need' => ['📦 Нужно', ['Постельное бельё', 'Полотенца и халаты', 'Косметика и тапочки', 'Техника в номер', 'Ресторанный текстиль', 'Всё под ключ']],
-    'items' => ['🧺 Что брендировать', ['Полотенца', 'Халаты', 'Тапочки', 'Косметика', 'Постельное бельё', 'Текстиль ресторана', 'Пока не знаю']],
-    'qty' => ['🔢 Тираж', ['10–50 шт.', '50–200 шт.', '200–1000 шт.', 'больше 1000']],
-    'branding' => ['🏷 Брендирование', ['Да', 'Нет', 'Обсудим']],
-];
+/** Заказчики, их страницы и допустимые ответы опроса — собирает build.py из src/lp_<заказчик>.py. */
+function lp_clients(): array
+{
+    static $c = null;
+    return $c ??= (array) json_decode((string) @file_get_contents(__DIR__ . '/_lp-clients.json'), true);
+}
 
 function lp_tg_site(string $client): array
 {
-    return ['host' => "lp-$client", 'label' => 'реклама ' . LP_CLIENTS[$client]['name'], 'state' => tg_data_dir() . "/telegram-lp-$client.json"];
+    return ['host' => "lp-$client", 'label' => 'реклама ' . lp_clients()[$client]['name'], 'state' => tg_data_dir() . "/telegram-lp-$client.json"];
 }
 
 /** Записать рекламные страницы заказчиков в список сайтов бота, чтобы им можно было привязать свою группу. */
@@ -33,7 +22,7 @@ function lp_register_sites(): void
 {
     $dir = tg_hub_dir() . '/tg-sites';
     if (!is_dir($dir) && !@mkdir($dir, 0750, true) && !is_dir($dir)) return;
-    foreach (array_keys(LP_CLIENTS) as $client) {
+    foreach (array_keys(lp_clients()) as $client) {
         $site = lp_tg_site($client);
         $file = "$dir/{$site['host']}.json";
         if (is_file($file) && json_decode((string) @file_get_contents($file), true) === $site) continue;
@@ -41,12 +30,12 @@ function lp_register_sites(): void
     }
 }
 
-/** Ответ из опроса: одно значение или список (need[]), только из допустимых. */
-function lp_answer(array $post, string $key): string
+/** Ответ из опроса: одно значение или список (need[]), только из допустимых вариантов. */
+function lp_answer(array $post, string $key, array $options): string
 {
     $v = $post[$key] ?? '';
     $vals = array_map(fn($x) => trim((string) $x), is_array($v) ? $v : [$v]);
-    return implode(', ', array_values(array_intersect($vals, LP_ANSWERS[$key][1])));
+    return implode(', ', array_values(array_intersect($vals, $options)));
 }
 
 /** Текст заявки для Telegram. $phone — [красивый, цифры] из lead_phone(). */
@@ -54,12 +43,13 @@ function lp_lead_text(string $client, string $page, array $post, array $phone): 
 {
     $esc = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     $cut = fn($k, $n) => mb_substr(trim((string) ($post[$k] ?? '')), 0, $n);
-    $c = LP_CLIENTS[$client];
-    $lines = ["🔥 <b>Заявка {$esc($c['name'])}</b> · " . $esc($c['pages'][$page] ?? $page), ''];
+    $c = lp_clients()[$client];
+    $pg = $c['pages'][$page] ?? ['title' => $page, 'questions' => []];
+    $lines = ["🔥 <b>Заявка {$esc($c['name'])}</b> · " . $esc($pg['title']), ''];
     $lines[] = '👤 ' . $esc($cut('name', 80));
     $lines[] = '📞 ' . $esc($phone[0]) . " · <a href=\"https://wa.me/{$phone[1]}\">WhatsApp</a>";
-    foreach (LP_ANSWERS as $key => [$label]) {
-        $a = lp_answer($post, $key);
+    foreach ($pg['questions'] as $key => [$label, $options]) {
+        $a = lp_answer($post, $key, $options);
         if ($a !== '') $lines[] = "$label: " . $esc($a);
     }
     foreach (['city' => '📍 Город', 'comment' => '💬'] as $key => $label) {

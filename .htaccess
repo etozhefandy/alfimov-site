@@ -32,6 +32,9 @@ ErrorDocument 404 /404.html
   RewriteRule ^admin/$ admin/index.php [L]
   RewriteRule ^admin/(api|preview)/(.*)$ admin/api.php?r=$1/$2 [L,QSA]
 
+  # Рекламные страницы: старая страница брендирования Guestory → оснащение (брендирование — бонус к заказу)
+  RewriteRule ^lp/guestory/branding/?$ /lp/guestory/osnashenie/ [L,R=301]
+
   # Страницы без слеша на конце → со слешем
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} -d
