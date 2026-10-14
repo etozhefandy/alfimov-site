@@ -57,6 +57,9 @@ section { padding: 48px 0; }
 .eyebrow { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: var(--muted); margin-bottom: 12px; }
 .eyebrow::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--wa); }
 .lead { font-size: 18px; color: var(--muted); }
+.who { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; align-items: center; }
+.who b { width: 100%; font-size: 14px; }
+.who span { font-size: 14px; font-weight: 600; background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; }
 .facts { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 10px; }
 .facts li { display: flex; gap: 10px; align-items: flex-start; font-weight: 600; }
 .facts li::before { content: ""; flex: none; width: 22px; height: 22px; margin-top: 1px; border-radius: 50%;
