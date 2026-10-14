@@ -32,9 +32,9 @@ check(str_contains($t, 'osn_test / video1'), 'метки кампании и о�
 check(str_contains($t, 'wa.me/77012345678'), 'ссылка на WhatsApp заявителя');
 
 $t3 = lp_lead_text('guestory', 'osnashenie', ['name' => 'Б', 'type' => 'Медцентр / клиника', 'med_type' => 'Стоматология',
-    'beds' => '10–30', 'need' => ['Халаты и униформа', 'Другое'], 'comment' => 'Бахилы'], ['+7', '7']);
+    'beds' => '10–30', 'need' => ['Стерилизаторы', 'Другое'], 'comment' => 'Бахилы'], ['+7', '7']);
 check(str_contains($t3, 'Объект: Медцентр / клиника') && str_contains($t3, 'Медцентр: Стоматология')
-    && str_contains($t3, 'Коек / кабинетов: 10–30') && str_contains($t3, '💬 Бахилы'), 'ветка медцентра: свои вопросы и «Другое» с пояснением');
+    && str_contains($t3, 'Коек / кабинетов: 10–30') && str_contains($t3, 'Нужно: Стерилизаторы, Другое') && str_contains($t3, '💬 Бахилы'), 'ветка медцентра: свои вопросы и «Другое» с пояснением');
 
 lp_register_sites();
 $hosts = array_column(tg_sites(), 'host');
