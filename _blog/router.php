@@ -75,13 +75,22 @@ try {
     http_response_code(500);
     echo 'Ошибка сервера';
 }
+// Этот сайт — в списке сайтов общего бота заявок (бот живёт на главном сайте хостинга, см. api/_tg.php).
+try {
+    require_once dirname(__DIR__) . '/api/_tg.php';
+    tg_register();
+} catch (Throwable $ex) {
+    error_log('tg register: ' . $ex->getMessage());
+}
 // Не пора ли еженедельной SEO-проверке (раз в 10 минут читает один файл; сама проверка идёт отдельным запросом).
 if (in_array($_GET['route'] ?? '', ['home', 'index', 'article'], true)) {
     flush();
     try {
         require_once __DIR__ . '/seo.php';
         seo_maybe_kick();
+        require_once __DIR__ . '/queue.php';
+        queue_maybe_kick();
     } catch (Throwable $ex) {
-        error_log('seo kick: ' . $ex->getMessage());
+        error_log('seo/queue kick: ' . $ex->getMessage());
     }
 }

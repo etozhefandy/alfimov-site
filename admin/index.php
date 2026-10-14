@@ -1,5 +1,5 @@
 <?php
-// Админка блога: https://alfimov.kz/admin/ — вход, первая настройка, само приложение (_blog/admin.tpl).
+// Админка блога: /admin/ — вход, первая настройка, само приложение (_blog/admin.tpl).
 declare(strict_types=1);
 require dirname(__DIR__) . '/_blog/auth.php';
 
@@ -26,7 +26,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 if (current_session() && is_configured()) {
     header('Content-Type: text/html; charset=utf-8');
-    readfile(dirname(__DIR__) . '/_blog/admin.tpl');
+    // подписи и примеры в интерфейсе — у каждого сайта свои (prompts.php → 'admin'), разделы — из сборки сайта
+    $names = [];
+    foreach (services() as $x) $names[$x['slug']] = $x['name'];
+    $vars = ['%%HOST%%' => SITE_HOST, '%%SERVICE_NAMES%%' => json_encode($names, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG)];
+    foreach ((array) P('admin') as $k => $v) $vars['%%A_' . strtoupper((string) $k) . '%%'] = htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
+    echo strtr((string) file_get_contents(dirname(__DIR__) . '/_blog/admin.tpl'), $vars);
     exit;
 }
 
@@ -38,7 +43,7 @@ $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Вход — админка alfimov.kz</title>
+<title>Вход — админка</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
@@ -67,7 +72,7 @@ button { padding: 13px; border: 0; border-radius: 6px; background: #1769ff; colo
   <?php if ($error): ?><p class="err"><?= $h($error) ?></p><?php endif ?>
   <button type="submit">Сохранить и войти</button>
 <?php else: ?>
-  <h1>Админка alfimov.kz</h1>
+  <h1>Админка сайта</h1>
   <label>Логин<input name="login" required autocomplete="username" autocapitalize="off" value="<?= $h($_POST['login'] ?? '') ?>"></label>
   <label>Пароль<input name="password" type="password" required autocomplete="current-password"></label>
   <?php if ($error): ?><p class="err"><?= $h($error) ?></p><?php endif ?>

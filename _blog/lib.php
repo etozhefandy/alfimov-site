@@ -1,14 +1,15 @@
 <?php
-// Блог alfimov.kz на хостинге: хранилище статей, расписание, markdown, страницы.
+// Блог сайта на хостинге: хранилище статей, расписание, markdown, страницы.
 //
 // Основные страницы сайта — статика из build.py. Блог живой: статьи лежат в DATA_DIR
 // (вне httpdocs, Plesk Git их не трогает), страницы собираются при открытии. Внешний вид
 // берётся из _blog/parts.json — его пишет build.py теми же функциями, что и весь сайт.
 // Статья «на завтра» не отдаётся до своего времени — расписанию не нужен ни cron, ни компьютер.
 declare(strict_types=1);
+require_once __DIR__ . '/site.php';   // домен, бренд, ниша — пишет build.py из src/site.py
 
 if (!defined('SITE_DIR')) define('SITE_DIR', getenv('ALFIMOV_SITE') ?: dirname(__DIR__));
-if (!defined('DATA_DIR')) define('DATA_DIR', getenv('ALFIMOV_DATA') ?: dirname(SITE_DIR) . '/alfimov-data');
+if (!defined('DATA_DIR')) define('DATA_DIR', getenv('ALFIMOV_DATA') ?: dirname(SITE_DIR) . '/' . SITE_DATA);
 const BLOG_TZ = 'Asia/Almaty';
 const STATUSES = ['draft', 'scheduled'];
 const SLUG_RE = '/^[a-z0-9]+(?:-[a-z0-9]+)*$/';
@@ -270,7 +271,7 @@ function md_inline(string $text): string
     $links = [];
     $text = preg_replace_callback('/\[([^\]]+)\]\(([^)\s]+)\)/u', function ($m) use (&$links) {
         $href = safe_url($m[2]);
-        $external = str_starts_with($href, 'http') && !str_contains($href, 'alfimov.kz');
+        $external = str_starts_with($href, 'http') && !str_contains($href, SITE_HOST);
         $rel = $external ? ' target="_blank" rel="noopener"' : '';
         $links[] = ['<a href="' . e($href) . '"' . $rel . '>', $m[1]];
         return "\x01" . (count($links) - 1) . "\x01";
@@ -590,7 +591,7 @@ function render_article(array $a, array $posts, bool $noindex = false): string
     if ($a['category'] !== '') $posting['articleSection'] = $a['category'];
     $schema = [$posting, breadcrumbs_schema([[ui('breadcrumbs_home'), '/'], [ui('nav'), $bp], [$a['title'], $path]])];
     if ($a['faq']) $schema[] = faq_schema($a['faq']);
-    return page($path, $a['seo_title'] ?: $a['title'] . ' | Alfimov', $a['description'] ?: $a['lead'], $body, $schema, 'article', $image, $noindex);
+    return page($path, $a['seo_title'] ?: $a['title'] . ' | ' . SITE_BRAND, $a['description'] ?: $a['lead'], $body, $schema, 'article', $image, $noindex);
 }
 
 // Автоссылки между статьями (подбирает SEO-автопилот, seo.php): текст статьи не меняется, ссылка ставится
@@ -612,7 +613,7 @@ function auto_links(string $md, array $links): string
         $href = blog_path() . $l['to'] . '/';
         $anchor = trim((string) $l['anchor']);
         $all = implode("\n", $lines);
-        if ($anchor === '' || preg_match('/[\[\]*`_|#]/u', $anchor) || str_contains($all, "]($href") || str_contains($all, "alfimov.kz$href")) continue;
+        if ($anchor === '' || preg_match('/[\[\]*`_|#]/u', $anchor) || str_contains($all, "]($href") || str_contains($all, SITE_HOST . $href)) continue;
         $re = '/(?<![\p{L}\d])' . preg_quote($anchor, '/') . '(?![\p{L}\d])/iu';
         foreach ($lines as $k => $line) {
             if (preg_match('/^\s*(#|\||!\[|$)/', $line) || !preg_match_all($re, $line, $m, PREG_OFFSET_CAPTURE)) continue;
@@ -671,7 +672,7 @@ function render_llms(string $tpl, array $posts): string
     return str_replace('%%ARTICLES%%', $list, $tpl);
 }
 
-const INDEXNOW_KEY = 'c4a1f0e2b7d94e1f8a3c6b5d2e9f7a10';  // тот же ключ, что в build.py (файл /<ключ>.txt)
+const INDEXNOW_KEY = SITE_INDEXNOW_KEY;  // из build.py (файл /<ключ>.txt)
 
 /**
  * IndexNow: сообщает Bing (на нём поиск ChatGPT и Copilot) и Яндексу о новой или изменённой статье,

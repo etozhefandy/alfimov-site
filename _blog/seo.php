@@ -1,6 +1,6 @@
 <?php
 // SEO-автопилот: раз в неделю сам смотрит Search Console, предлагает (или применяет) правки статей,
-// ставит ссылки между статьями, проверяет, советуют ли агентство ChatGPT и Claude, и присылает отчёт
+// ставит ссылки между статьями, проверяет, советуют ли сайт ChatGPT и Claude, и присылает отчёт
 // в Telegram. Методика — обычные проверки SEO-плагинов (близко к топу, просели, мешают друг другу,
 // мало кликов, перелинковка, видимость в ИИ), данные — свои, всё на хостинге.
 //
@@ -14,22 +14,14 @@ require_once dirname(__DIR__) . '/api/_tg.php';
 const SEO_EVERY = 7 * 86400;      // полная проверка раз в неделю
 const SEO_STEP_LEASE = 150;       // шаг дольше этого — точно оборван хостингом
 const SEO_CHECK_EVERY = 600;      // как часто заходы на сайт проверяют, не пора ли
-const GSC_SITE = 'sc-domain:alfimov.kz';
+const GSC_SITE = 'sc-domain:' . SITE_HOST;
 const GSC_SCOPE = 'https://www.googleapis.com/auth/webmasters.readonly';
 const CTR_CURVE = [1 => .28, 2 => .15, 3 => .10, 4 => .07, 5 => .05, 6 => .04, 7 => .03, 8 => .025, 9 => .02, 10 => .018];
 const LINKS_PER_STEP = 3;         // статей на один шаг перелинковки
 const LINKS_MAX = 3;              // автоссылок в одной статье
 const GEO_CLAUDE_MODEL = 'claude-sonnet-5-5';
 const GEO_OPENAI_MODELS = ['gpt-5', 'gpt-4.1'];   // первая недоступна — пробуем следующую
-const BRAND_RE = '/alfimov|альфимов/iu';
-const GEO_PROMPTS = [
-    'Посоветуй агентство таргетированной рекламы в Алматы',
-    'Какое маркетинговое агентство в Казахстане выбрать для рекламы в Instagram?',
-    'Сколько стоит таргетированная реклама в Казахстане и к кому лучше обратиться?',
-    'Где заказать SEO-продвижение сайта в Казахстане?',
-    'Кто настраивает контекстную рекламу в Google и Яндекс Директ в Астане?',
-    'Посоветуй агентство для ведения Instagram бизнеса в Казахстане',
-];
+
 
 function local_time(int $ts, string $fmt): string { return (new DateTimeImmutable('@' . $ts))->setTimezone(tz())->format($fmt); }
 
@@ -56,7 +48,7 @@ function seo_settings(): array
 {
     $s = settings();
     $prompts = array_values(array_filter(array_map('trim', (array) ($s['geo_prompts'] ?? [])), 'strlen'));
-    return ['auto_apply' => !empty($s['seo_auto_apply']), 'geo_prompts' => $prompts ?: GEO_PROMPTS, 'geo_custom' => (bool) $prompts];
+    return ['auto_apply' => !empty($s['seo_auto_apply']), 'geo_prompts' => $prompts ?: P('geo_questions'), 'geo_custom' => (bool) $prompts];
 }
 
 /** HTTP для Google и OpenAI → [код, json]. $http — подмена в тестах: fn(method, url, headers, body): [код, сырой ответ]. */
@@ -128,14 +120,14 @@ function gsc_token(?callable $http = null): string
     return (string) $d['access_token'];
 }
 
-/** Проверка из админки: видит ли служебный аккаунт ресурс alfimov.kz. → адрес аккаунта. */
+/** Проверка из админки: видит ли служебный аккаунт ресурс сайта. → адрес аккаунта. */
 function gsc_check(?callable $http = null): string
 {
     $email = gsc_account()['client_email'] ?? '';
     [$code, $d] = http_json('GET', 'https://www.googleapis.com/webmasters/v3/sites', ['Authorization: Bearer ' . gsc_token($http)], null, 30, $http);
     if ($code !== 200) throw new AiError("Search Console ответила ошибкой ($code): " . ($d['error']['message'] ?? ''));
     if (!in_array(GSC_SITE, array_column($d['siteEntry'] ?? [], 'siteUrl'), true)) {
-        throw new AiError("Ключ рабочий, но доступа к alfimov.kz нет. Search Console → Настройки → Пользователи и разрешения → "
+        throw new AiError("Ключ рабочий, но доступа к " . SITE_HOST . " нет. Search Console → Настройки → Пользователи и разрешения → "
             . "Добавить пользователя: $email, разрешение «Ограниченный доступ». Google иногда применяет это несколько минут.");
     }
     return $email;
@@ -333,7 +325,7 @@ function make_links(array $slugs, ?callable $post = null): int
         'max_tokens' => 4000,
         'output_config' => ['effort' => 'low', 'format' => ['type' => 'json_schema', 'schema' => LINKS_SCHEMA]],
         'messages' => [['role' => 'user', 'content' => implode("\n\n", [
-            'Ты SEO-редактор блога ALFIMOV.KZ. Расставь внутренние ссылки между статьями блога.',
+            P('links_role'),
             "Все статьи блога (slug: заголовок):\n$catalog",
             "Статьи, в которые ставим ссылки (from):\n$texts",
             'Для каждой статьи from выбери 1–' . LINKS_MAX . ' другие статьи из списка, на которые читателю действительно полезно перейти, '
@@ -416,18 +408,18 @@ function geo_ask_openai(string $q, ?callable $http = null): array
 
 function host_of(string $url): string { return preg_replace('/^www\./', '', strtolower((string) parse_url($url, PHP_URL_HOST))); }
 
-/** Ответ ИИ → упомянули ли агентство, сослались ли на сайт, на какие сайты ссылались вместо нас. */
+/** Ответ ИИ → упомянули ли сайт, сослались ли на сайт, на какие сайты ссылались вместо нас. */
 function geo_result(string $engine, string $prompt, string $text, array $urls): array
 {
     $hosts = array_values(array_unique(array_filter(array_map('host_of', $urls))));
     $excerpt = '';
-    if (preg_match(BRAND_RE, $text, $m, PREG_OFFSET_CAPTURE)) {
+    if (preg_match(P('brand_re'), $text, $m, PREG_OFFSET_CAPTURE)) {
         $start = max(0, $m[0][1] - 120);
         $excerpt = '…' . trim(mb_strcut($text, $start, 320)) . '…';
     }
     return ['engine' => $engine, 'prompt' => $prompt, 'mentioned' => $excerpt !== '',
-        'cited' => in_array('alfimov.kz', $hosts, true), 'excerpt' => $excerpt,
-        'sites' => array_values(array_filter($hosts, fn($h) => $h !== 'alfimov.kz'))];
+        'cited' => in_array(SITE_HOST, $hosts, true), 'excerpt' => $excerpt,
+        'sites' => array_values(array_filter($hosts, fn($h) => $h !== SITE_HOST))];
 }
 
 function geo_engines(): array
@@ -671,7 +663,7 @@ function seo_report(array $run, ?callable $tg = null): array
 
     // --- сообщение в Telegram
     $e = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES);
-    $lines = ['📈 <b>SEO за неделю</b> · alfimov.kz'];
+    $lines = ['📈 <b>SEO за неделю</b> · ' . SITE_HOST];
     if ($an) {
         [$c, $p] = [$an['totals']['cur'], $an['totals']['prev']];
         $lines[] = "Google, 28 дней: клики {$c['clicks']}" . ($p['impr'] ? delta($c['clicks'], $p['clicks']) : '') . ", показы {$c['impr']}" . delta($c['impr'], $p['impr'], true)
@@ -711,7 +703,7 @@ function seo_report(array $run, ?callable $tg = null): array
             $per[$g['engine']][1] = ($per[$g['engine']][1] ?? 0) + 1;
         }
         $parts = implode(', ', array_map(fn($k, $v) => (ENGINE_NAMES[$k] ?? $k) . " {$v[0]}/{$v[1]}", array_keys($per), $per));
-        $lines[] = "\n🤖 <b>ИИ-ответы</b>: агентство упомянули в $hits из " . count($geo) . " ($parts)"
+        $lines[] = "\n🤖 <b>ИИ-ответы</b>: " . P('geo_who') . " упомянули в $hits из " . count($geo) . " ($parts)"
             . ($prevGeo && isset($prevGeo['geo_total']) && $prevGeo['geo_total'] ? ", в прошлый раз {$prevGeo['geo_hits']} из {$prevGeo['geo_total']}" : '');
         if ($sites) $lines[] = 'Чаще ссылаются на: ' . $e(implode(', ', array_slice(array_keys($sites), 0, 5)));
     }

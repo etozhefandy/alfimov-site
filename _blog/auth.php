@@ -3,13 +3,13 @@
 //
 // Первая настройка: пока пароля нет, админка просит одноразовый код настройки (его хэш ниже,
 // сам код передан владельцу отдельно). Без кода чужой человек не сможет «занять» пустую админку.
-// Забыли пароль — удалите alfimov-data/settings.json в Файлах Plesk и пройдите настройку заново
+// Забыли пароль — удалите <папка данных>/settings.json в Файлах Plesk и пройдите настройку заново
 // (ключи ИИ придётся вставить ещё раз; статьи не трогаются).
 declare(strict_types=1);
 require_once __DIR__ . '/ai.php';
 
-const SETUP_CODE_SHA256 = '5d90752c03e149d521e3a97043a8a776a552318744d6c5527618fdc0eb191efb';
-const SESSION_COOKIE = 'alf_admin';
+const SETUP_CODE_SHA256 = SITE_SETUP_SHA256;   // хэш кода первой настройки — в настройках сайта (site.php)
+const SESSION_COOKIE = SITE_COOKIE;
 const SESSION_DAYS = 30;
 const LOGIN_WINDOW = 900;      // 15 минут
 const LOGIN_MAX_FAILS = 5;     // с одного IP за окно
