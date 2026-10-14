@@ -19,6 +19,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 import content_kz  # noqa: E402
 import content_ru  # noqa: E402
+import lp_guestory  # noqa: E402
+import lp_render  # noqa: E402
 
 
 ROOT = Path(__file__).parent
@@ -743,6 +745,13 @@ def build():
             write(p, doc)
             paths.append(p)
     write("/404.html", build_404())
+    # Рекламные страницы заказчиков (/lp/…): не в sitemap, noindex. Ответы опроса — для проверки в lp-send.php.
+    lp = {}
+    for client in [lp_guestory.CLIENT]:
+        for p in client["pages"]:
+            write(f"/lp/{client['slug']}/{p['slug']}/", lp_render.render(client, p))
+        lp[client["slug"]] = lp_render.answers(client)
+    (DIST / "api" / "_lp-clients.json").write_text(json.dumps(lp, ensure_ascii=False), encoding="utf-8")
 
     # Блог и админка живут на хостинге (PHP, static/_blog/ и static/admin/); здесь — их оформление.
     (DIST / "_blog" / "parts.json").write_text(json.dumps(blog_parts(), ensure_ascii=False), encoding="utf-8")

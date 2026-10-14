@@ -69,15 +69,18 @@ Cron не нужен: заходы на сайт раз в 10 минут про�
 
 ## Рекламные страницы заказчиков (/lp/)
 
-Страницы только под трафик из Meta: `static/lp/<заказчик>/<страница>/index.html` (+ общие `lp.css`, `lp.js`).
-`noindex`, ссылок с сайта нет, в sitemap и SEO-аудит не попадают.
+Страницы только под трафик из Meta: `noindex`, ссылок с сайта нет, в sitemap и SEO-аудит не попадают.
+Тексты и опрос — `src/lp_<заказчик>.py`, шаблон — `src/lp_render.py`, оформление и логика опроса —
+`static/lp/<заказчик>/` (`lp.css`, `lp.js`, картинки). build.py собирает HTML в `dist/lp/…` и список
+допустимых ответов опроса `dist/api/_lp-clients.json` (по нему `lp-send.php` фильтрует заявку).
 
-- Сейчас: Guestory — `/lp/guestory/osnashenie/` (оснащение номерного фонда), `/lp/guestory/branding/` (брендирование).
+- Guestory (`src/lp_guestory.py`): `/lp/guestory/osnashenie/` (всё под ключ), `/rashodniki/` (расходники оптом),
+  `/prachechnaya/` (прачечное оборудование), `/horeca/` (общепит). Старая `/branding/` → 301 на оснащение.
 - Опрос → `/api/lp-send.php` → бот заявок. У каждого заказчика своя группа: в боте «🔗 Привязать группу» → `lp-guestory`.
   Пока группа не привязана, заявки приходят только владельцу в личку.
 - Настройки заказчика — вверху `static/lp/<заказчик>/lp.js`: `PIXEL_ID` (пусто — пиксель не грузится), `WA_PHONE`.
   События пикселя: `PageView`, `InitiateCheckout` (начал опрос), `Lead` (заявка), `Contact` (клик WhatsApp).
-- Новый заказчик: запись в `LP_CLIENTS` и `LP_ANSWERS` (`static/api/_lp.php`) + папка в `static/lp/`.
+- Новый заказчик: `src/lp_<заказчик>.py` + строка в build.py + папка `static/lp/<заказчик>/`.
 - В ссылках объявлений ставьте `utm_campaign` / `utm_content` — они видны в заявке.
 
 ## Деплой

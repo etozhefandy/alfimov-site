@@ -48,6 +48,7 @@
   var back = form.querySelector('.back');
   var next = form.querySelector('.next');
   var submit = form.querySelector('.submit');
+  var submitText = submit.textContent;
   var cur = 0, started = false, sending = false;
   form.querySelector('[name=ts]').value = Date.now();
 
@@ -108,7 +109,7 @@
       .catch(function (ex) {
         sending = false;
         submit.disabled = false;
-        submit.textContent = 'Получить предложение';
+        submit.textContent = submitText;
         err.textContent = ex.message === 'phone'
           ? 'Проверьте номер телефона — например, 8 701 234 56 78'
           : 'Не получилось отправить. Напишите нам в WhatsApp — кнопка ниже.';
