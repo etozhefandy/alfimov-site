@@ -275,7 +275,7 @@ try {
     }
     if ($method === 'GET' && $route === 'api/articles') {
         reply(['articles' => array_map('article_view', load_all()), 'now' => now()->format('Y-m-d\TH:i'),
-            'writer_model' => CLAUDE_MODEL]);
+            'writer_model' => claude_model()]);
     }
     if ($method === 'POST' && $route === 'api/articles') {
         $d = body();
@@ -391,7 +391,8 @@ try {
     if ($method === 'GET' && $route === 'api/settings') {
         $s = settings();
         reply(['login' => $s['login'] ?? '', 'anthropic_key' => mask((string) ($s['anthropic_key'] ?? '')),
-            'openai_key' => mask((string) ($s['openai_key'] ?? '')), 'writer_model' => CLAUDE_MODEL, 'image_model' => IMAGE_MODEL]);
+            'openai_key' => mask((string) ($s['openai_key'] ?? '')), 'writer_model' => claude_model(), 'image_model' => IMAGE_MODEL,
+            'models' => CLAUDE_MODELS]);
     }
     if ($method === 'POST' && $route === 'api/settings') {
         $d = body();
@@ -403,6 +404,12 @@ try {
             if (!str_starts_with($v, $prefix) || strlen($v) < 20) fail($field === 'anthropic_key' ? 'Ключ Claude начинается с sk-ant-' : 'Ключ OpenAI начинается с sk-');
             $s[$field] = $v;
             $changed[] = $field === 'anthropic_key' ? 'ключ Claude' : 'ключ OpenAI';
+        }
+        if (isset($d['claude_model'])) {
+            $d['claude_model'] = (string) $d['claude_model'];
+            if (!isset(CLAUDE_MODELS[$d['claude_model']])) fail('Неизвестная модель');
+            if (claude_model() !== $d['claude_model']) $changed[] = 'модель: ' . explode(' —', CLAUDE_MODELS[$d['claude_model']])[0];
+            $s['claude_model'] = $d['claude_model'];
         }
         if (($d['password_new'] ?? '') !== '') {
             if (!password_verify((string) ($d['password_current'] ?? ''), (string) $s['password_hash'])) fail('Текущий пароль неверный');

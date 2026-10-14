@@ -441,6 +441,8 @@ body:not(.view-edit) .mbar { display: none !important; }
         <label class="f">Ключ OpenAI (картинки) <span class="hint" id="s-oai-cur"></span>
           <input type="password" id="s-oai" placeholder="sk-…" autocomplete="off" spellcheck="false"></label>
         <p class="hint">Пустое поле — ключ не меняется. Ключи берутся на console.anthropic.com и platform.openai.com → API keys.</p>
+        <label class="f">Модель Claude <span class="hint">— пишет статьи, подбирает темы, готовит правки и ссылки; меняется сразу</span>
+          <select id="s-model"></select></label>
       </div>
     </section>
     <section class="card">
@@ -1311,6 +1313,8 @@ async function showSettings() {
     $("s-ant-cur").textContent = s.anthropic_key ? `— сейчас ${s.anthropic_key}` : "— не задан";
     $("s-oai-cur").textContent = s.openai_key ? `— сейчас ${s.openai_key}` : "— не задан";
     $("s-login").textContent = "логин: " + s.login;
+    $("s-model").innerHTML = Object.entries(s.models).map(([id, label]) => `<option value="${esc(id)}">${esc(label)}</option>`).join("");
+    $("s-model").value = s.writer_model;
   } catch (e) { toast(e.message, true); }
 }
 async function tgStatus() {
@@ -1333,6 +1337,13 @@ $("tg-unlink").onclick = async () => {
 $("b-settings").onclick = () => { showSettings(); tgStatus(); };
 $("keys-link").onclick = e => { e.preventDefault(); showSettings(); tgStatus(); };
 $("s-back").onclick = () => { document.body.classList.remove("view-settings"); checkKeys(); };
+$("s-model").onchange = async () => {
+  try {
+    const d = await api("/admin/api/settings", {method: "POST", body: JSON.stringify({claude_model: $("s-model").value})});
+    toast(d.changed.length ? "Сохранено: " + d.changed.join(", ") : "Ничего не изменилось");
+    $("model").textContent = "· " + $("s-model").value;
+  } catch (e) { toast(e.message, true); }
+};
 $("s-save").onclick = async () => {
   const b = $("s-save"); busy(b, true, "Сохраняю…");
   try {

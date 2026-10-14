@@ -4,7 +4,12 @@
 declare(strict_types=1);
 require_once __DIR__ . '/lib.php';
 
-const CLAUDE_MODEL = 'claude-opus-5-5';
+const CLAUDE_MODEL = 'claude-opus-5-5';   // по умолчанию; выбирается в «Настройках» админки
+// Модели Claude для статей, тем, правок и перелинковки. Цены — за 1 млн токенов (вход / выход), anthropic.com/pricing.
+const CLAUDE_MODELS = [
+    'claude-opus-5-5' => 'Opus 5.5 — сильнее всего ($4 / $20)',
+    'claude-sonnet-5-5' => 'Sonnet 5.5 — вдвое дешевле, для статей обычно хватает ($2 / $10)',
+];
 const IMAGE_MODEL = 'gpt-image-2';
 const IMAGE_FALLBACK = 'gpt-image-1.5';  // gpt-image-1 и dall-e-3 OpenAI выводит из работы
 const IMAGE_QUALITY = 'medium';
@@ -51,11 +56,18 @@ function P(string $key, array $vars = [])
  * Запрос к Claude со стримингом (длинные ответы без обрыва по таймауту) → [текст, stop_reason].
  * $post — подмена HTTP для тестов: fn(array $body): array [http_code, raw_sse_or_json].
  */
+/** Модель, выбранная в «Настройках» (неизвестная или пустая — по умолчанию). */
+function claude_model(): string
+{
+    $m = (string) (settings()['claude_model'] ?? '');
+    return isset(CLAUDE_MODELS[$m]) ? $m : CLAUDE_MODEL;
+}
+
 function claude(array $body, ?callable $post = null): array
 {
     $key = trim((string) (settings()['anthropic_key'] ?? ''));
     if ($post === null && $key === '') throw new AiError('Нет ключа Claude — вставьте его в «Настройках» админки');
-    $body = ['model' => CLAUDE_MODEL, 'stream' => true] + $body;
+    $body = ['model' => claude_model(), 'stream' => true] + $body;
     if ($post) {
         [$code, $raw] = $post($body);
     } else {
