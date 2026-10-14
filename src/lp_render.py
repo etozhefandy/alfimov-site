@@ -33,35 +33,41 @@ def _who(h):
     return '<div class="who"><b>Подходит для:</b>' + "".join(f"<span>{e(x)}</span>" for x in h["who"]) + "</div>"
 
 
-def _step(i, total, q):
+def _opt(o):
+    """Вариант ответа: строка или (подпись, ветка) — ветка решает, какие вопросы пойдут дальше."""
+    return (o, "") if isinstance(o, str) else o
+
+
+def _step(q):
     multi = q.get("multi", False)
-    kind = "multi" if multi else "one"
     inp = "checkbox" if multi else "radio"
     name = q["key"] + ("[]" if multi else "")
-    hint = f"Шаг {i} из {total}" + (" · можно несколько" if multi else "")
     cols = " cols" if q.get("cols", True) else ""
-    opts = "".join(
-        f'<label class="opt"><input type="{inp}" name="{name}" value="{e(o)}"><span>{e(o)}</span></label>' for o in q["options"]
-    )
+    opts = ""
+    for o in q["options"]:
+        label, branch = _opt(o)
+        data = f' data-branch="{branch}"' if branch else ""
+        opts += f'<label class="opt"><input type="{inp}" name="{name}" value="{e(label)}"{data}><span>{e(label)}</span></label>'
+    other = ""
+    if multi and "Другое" in q["options"]:
+        other = ('<label class="field other" hidden><span>Что именно?</span>'
+                 '<input name="comment" maxlength="300" placeholder="Напишите, что нужно"></label>')
+    when = f' data-when="{" ".join(q["when"])}"' if q.get("when") else ""
     return (
-        f'<div class="quiz-step" data-kind="{kind}"><div class="quiz-q">{e(q["q"])}</div>'
-        f'<div class="quiz-hint">{hint}</div><div class="opts{cols}">{opts}</div></div>'
+        f'<div class="quiz-step" data-kind="{"multi" if multi else "one"}"{when}><div class="quiz-q">{e(q["q"])}</div>'
+        f'<div class="quiz-hint"></div><div class="opts{cols}">{opts}</div>{other}</div>'
     )
 
 
 def _quiz(p):
     qz = p["quiz"]
-    total = len(qz["questions"]) + 1
-    steps = "".join(_step(i + 1, total, q) for i, q in enumerate(qz["questions"]))
+    steps = "".join(_step(q) for q in qz["questions"])
     contacts = (
         f'<div class="quiz-step" data-kind="contacts"><div class="quiz-q">{e(qz["contact_q"])}</div>'
-        f'<div class="quiz-hint">Шаг {total} из {total} · менеджер напишет в WhatsApp или позвонит</div>'
+        '<div class="quiz-hint" data-extra="менеджер напишет в WhatsApp или позвонит"></div>'
         '<label class="field"><span>Имя</span><input name="name" autocomplete="name" maxlength="80" required></label>'
         '<label class="field"><span>Телефон / WhatsApp</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel" '
-        'placeholder="8 7__ ___ __ __" maxlength="30" required></label>'
-        '<label class="field"><span>Город</span><input name="city" autocomplete="address-level2" maxlength="60"></label>'
-        '<label class="field"><span>Что ещё нужно? <i>необязательно</i></span>'
-        '<textarea name="comment" rows="2" maxlength="500" placeholder="Например: 200 комплектов тапочек ежемесячно"></textarea></label></div>'
+        'placeholder="8 7__ ___ __ __" maxlength="30" required></label></div>'
     )
     return f"""<section class="soft" id="form">
   <div class="wrap two">
@@ -257,14 +263,16 @@ def render(client, p):
 
 
 def answers(client):
-    """Допустимые ответы опроса для PHP: страница → поле → [подпись, варианты]. Чужие значения в заявку не попадут."""
-    return {
-        "name": client["name"],
-        "pages": {
-            p["slug"]: {
-                "title": p["lead_title"],
-                "questions": {q["key"]: [q["label"], q["options"]] for q in p["quiz"]["questions"]},
-            }
-            for p in client["pages"]
-        },
-    }
+    """Допустимые ответы опроса для PHP: страница → поле → [подпись, варианты]. Чужие значения в заявку не попадут.
+    Один и тот же вопрос в разных ветках («Что нужно» у отеля и ресторана) — варианты объединяются."""
+    pages = {}
+    for p in client["pages"]:
+        qs = {}
+        for q in p["quiz"]["questions"]:
+            opts = [_opt(o)[0] for o in q["options"]]
+            if q["key"] in qs:
+                qs[q["key"]][1] += [o for o in opts if o not in qs[q["key"]][1]]
+            else:
+                qs[q["key"]] = [q["label"], opts]
+        pages[p["slug"]] = {"title": p["lead_title"], "questions": qs}
+    return {"name": client["name"], "pages": pages}

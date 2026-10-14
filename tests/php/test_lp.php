@@ -31,6 +31,11 @@ check(str_contains($t2, 'Прачечное оборудование') && str_co
 check(str_contains($t, 'osn_test / video1'), 'метки кампании и объявления видны в заявке');
 check(str_contains($t, 'wa.me/77012345678'), 'ссылка на WhatsApp заявителя');
 
+$t3 = lp_lead_text('guestory', 'osnashenie', ['name' => 'Б', 'type' => 'Медцентр / клиника', 'med_type' => 'Стоматология',
+    'beds' => '10–30', 'need' => ['Халаты и униформа', 'Другое'], 'comment' => 'Бахилы'], ['+7', '7']);
+check(str_contains($t3, 'Объект: Медцентр / клиника') && str_contains($t3, 'Медцентр: Стоматология')
+    && str_contains($t3, 'Коек / кабинетов: 10–30') && str_contains($t3, '💬 Бахилы'), 'ветка медцентра: свои вопросы и «Другое» с пояснением');
+
 lp_register_sites();
 $hosts = array_column(tg_sites(), 'host');
 check(in_array('lp-guestory', $hosts, true) && $hosts[0] === 'alfimov.kz', 'Guestory в списке сайтов бота — можно привязать свою группу');
