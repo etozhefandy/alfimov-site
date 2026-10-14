@@ -1,4 +1,4 @@
-"""Сборка: оформление для PHP-блога и правила хостинга. PHP-часть — tests/php/test_blog.php (запускается отсюда)."""
+"""Сборка: оформление для PHP-блога и правила хостинга. PHP-часть — тесты движка (engine/tests/php) и свои tests/php, запускаются отсюда."""
 import json
 import shutil
 import subprocess
@@ -52,9 +52,10 @@ class BuildTest(unittest.TestCase):
         for f in sorted((build.DIST).rglob("*.php")):
             r = subprocess.run(["php", "-l", str(f)], capture_output=True, text=True)
             self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        for t in ("test_blog.php", "test_tg.php", "test_seo.php"):
-            r = subprocess.run(["php", str(ROOT / "tests" / "php" / t)], capture_output=True, text=True)
-            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        # тесты общего движка — на сборке этого сайта, потом свои (рекламные страницы)
+        for t in [*build.enginekit.php_tests(), *sorted((ROOT / "tests" / "php").glob("test_*.php"))]:
+            r = subprocess.run(["php", str(t), str(ROOT)], capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0, t.name + "\n" + r.stdout + r.stderr)
 
 
 if __name__ == "__main__":

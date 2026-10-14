@@ -86,6 +86,14 @@ Cron не нужен: заходы на сайт раз в 10 минут про�
 - Новый заказчик: `src/lp_<заказчик>.py` + строка в build.py + папка `static/lp/<заказчик>/`.
 - В ссылках объявлений ставьте `utm_campaign` / `utm_content` — они видны в заявке.
 
+## Общий движок
+
+Блог, ИИ-автор, очередь статей и автопилот, SEO-автопилот, админка, форма заявки с журналом и бот заявок —
+**общий движок** `engine/` (git submodule, etozhefandy/site-engine), один для alfimov.kz, metalbaza.kz и будущих сайтов.
+Свои у сайта: страницы (`build.py`, `src/`), стили, `static/.htaccess`, рекламные страницы (`static/lp`, `api/_lp.php`,
+`api/lp-send.php`, дополнение вебхука `api/_site.php`), настройки (`build.py` → `site_consts`) и тексты ниши для ИИ
+(`site/prompts.php`). Улучшения движка делаются в site-engine и подтягиваются: `git -C engine pull origin main`.
+
 ## Деплой
 
 Автоматический, без кнопок:

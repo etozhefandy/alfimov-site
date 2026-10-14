@@ -17,6 +17,9 @@ from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
+sys.path.insert(0, str(Path(__file__).parent / "engine"))
+import enginekit  # noqa: E402  (общий движок сайтов — git submodule engine/, etozhefandy/site-engine)
+import seo_audit  # noqa: E402  (из движка)
 import content_kz  # noqa: E402
 import content_ru  # noqa: E402
 import lp_guestory  # noqa: E402
@@ -730,6 +733,18 @@ def llms_txt():
     )
 
 
+# Настройки сайта для общего движка (enginekit.REQUIRED / DEFAULTS). Тексты ниши для ИИ — site/prompts.php.
+# Код первой настройки админки — только у владельца; здесь — его sha256. Имя cookie — прежнее, чтобы не разлогинить.
+def site_consts():
+    return {
+        "SITE_HOST": "alfimov.kz", "SITE_URL": SITE_URL, "SITE_BRAND": BRAND, "SITE_BRAND_UPPER": "ALFIMOV.KZ",
+        "SITE_DATA": "alfimov-data", "SITE_INDEXNOW_KEY": INDEXNOW_KEY,
+        "SITE_SETUP_SHA256": "5d90752c03e149d521e3a97043a8a776a552318744d6c5527618fdc0eb191efb",
+        "SITE_COOKIE": "alf_admin", "SITE_PHONE": PHONE_DISPLAY, "SITE_TG_LABEL": "продвижение", "SITE_TG_HUB_UP": 0,
+        "SITE_LEAD_NAME": True, "SITE_LEAD_CONSENT": False, "NICHE_AUTHOR": "",
+    }
+
+
 def php_str(v):
     return "'" + v.replace("\\", "\\\\").replace("'", "\\'") + "'"
 
@@ -737,7 +752,8 @@ def php_str(v):
 def build():
     if DIST.exists():
         shutil.rmtree(DIST)
-    shutil.copytree(STATIC, DIST)
+    enginekit.install(DIST)                              # общий движок: блог, ИИ, очередь статей, SEO, админка, заявки, бот
+    shutil.copytree(STATIC, DIST, dirs_exist_ok=True)    # файлы сайта поверх движка
 
     paths = []
     for c in LANGS:
@@ -753,7 +769,12 @@ def build():
         lp[client["slug"]] = lp_render.answers(client)
     (DIST / "api" / "_lp-clients.json").write_text(json.dumps(lp, ensure_ascii=False), encoding="utf-8")
 
-    # Блог и админка живут на хостинге (PHP, static/_blog/ и static/admin/); здесь — их оформление.
+    # Блог и админка — общий движок (engine/) на хостинге; здесь — настройки сайта, тексты ниши и оформление.
+    enginekit.write_site_php(DIST, site_consts())
+    enginekit.write_prompts(DIST, ROOT / "site" / "prompts.php")
+    missing = enginekit.check_htaccess(DIST)
+    if missing:
+        raise SystemExit("В static/.htaccess нет правил движка: " + "; ".join(missing))
     (DIST / "_blog" / "parts.json").write_text(json.dumps(blog_parts(), ensure_ascii=False), encoding="utf-8")
     (DIST / "_blog" / "sitemap.tpl").write_text(sitemap(paths), encoding="utf-8")
     # Статьи из репозитория — стартовый набор: админка один раз переносит их на хостинг при настройке.
@@ -773,7 +794,6 @@ def build():
         f"<?php\nreturn ['tg_token' => {php_str(token)}, 'tg_chat' => {php_str(chat)}];\n", encoding="utf-8"
     )
     print(f"Built {len(paths)} pages → {DIST}")
-    import seo_audit
     issues = seo_audit.audit(DIST)
     for i in issues:
         if i.severity != "info":
