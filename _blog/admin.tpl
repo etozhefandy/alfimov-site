@@ -441,7 +441,10 @@ body:not(.view-edit) .mbar { display: none !important; }
           <input type="password" id="s-ant" placeholder="sk-ant-…" autocomplete="off" spellcheck="false"></label>
         <label class="f">Ключ OpenAI (картинки) <span class="hint" id="s-oai-cur"></span>
           <input type="password" id="s-oai" placeholder="sk-…" autocomplete="off" spellcheck="false"></label>
-        <p class="hint">Пустое поле — ключ не меняется. Ключи берутся на console.anthropic.com и platform.openai.com → API keys.</p>
+        <label class="f">Учёт трат Claude (строка из бота) <span class="hint" id="s-spend-cur"></span>
+          <input type="password" id="s-spend" placeholder="https://…/api/public/ai-spend#aisp_…" autocomplete="off" spellcheck="false"></label>
+        <p class="hint">Пустое поле — ключ не меняется. Ключи берутся на console.anthropic.com и platform.openai.com → API keys.
+          Строка учёта — в боте: «💰 Балансы API» → Claude → «🔌 Подключить проект»; бот покажет, сколько тратит этот сайт. «off» — отключить.</p>
         <label class="f">Модель Claude <span class="hint">— пишет статьи, подбирает темы, готовит правки и ссылки; меняется сразу</span>
           <select id="s-model"></select></label>
       </div>
@@ -1318,6 +1321,7 @@ async function showSettings() {
     const s = await api("/admin/api/settings");
     $("s-ant-cur").textContent = s.anthropic_key ? `— сейчас ${s.anthropic_key}` : "— не задан";
     $("s-oai-cur").textContent = s.openai_key ? `— сейчас ${s.openai_key}` : "— не задан";
+    $("s-spend-cur").textContent = s.spend_link ? `— подключено: ${s.spend_link}` : "— не подключено";
     $("s-login").textContent = "логин: " + s.login;
     $("s-model").innerHTML = Object.entries(s.models).map(([id, label]) => `<option value="${esc(id)}">${esc(label)}</option>`).join("");
     $("s-model").value = s.writer_model;
@@ -1355,9 +1359,9 @@ $("s-save").onclick = async () => {
   const b = $("s-save"); busy(b, true, "Сохраняю…");
   try {
     const d = await api("/admin/api/settings", {method: "POST", body: JSON.stringify({
-      anthropic_key: $("s-ant").value, openai_key: $("s-oai").value,
+      anthropic_key: $("s-ant").value, openai_key: $("s-oai").value, spend_link: $("s-spend").value,
       password_current: $("s-pass-cur").value, password_new: $("s-pass-new").value})});
-    ["s-ant", "s-oai", "s-pass-cur", "s-pass-new"].forEach(id => { $(id).value = ""; });
+    ["s-ant", "s-oai", "s-spend", "s-pass-cur", "s-pass-new"].forEach(id => { $(id).value = ""; });
     toast(d.changed.length ? "Сохранено: " + d.changed.join(", ") : "Ничего не изменилось");
     await showSettings();
   } catch (e) { toast(e.message, true); }

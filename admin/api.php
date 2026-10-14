@@ -395,7 +395,8 @@ try {
         $s = settings();
         reply(['login' => $s['login'] ?? '', 'anthropic_key' => mask((string) ($s['anthropic_key'] ?? '')),
             'openai_key' => mask((string) ($s['openai_key'] ?? '')), 'writer_model' => claude_model(), 'image_model' => IMAGE_MODEL,
-            'models' => CLAUDE_MODELS]);
+            'models' => CLAUDE_MODELS,
+            'spend_link' => ($l = (string) ($s['spend_link'] ?? '')) === '' ? '' : (parse_url($l, PHP_URL_HOST) . ' · ключ ' . mask($l))]);
     }
     if ($method === 'POST' && $route === 'api/settings') {
         $d = body();
@@ -413,6 +414,16 @@ try {
             if (!isset(CLAUDE_MODELS[$d['claude_model']])) fail('Неизвестная модель');
             if (claude_model() !== $d['claude_model']) $changed[] = 'модель: ' . explode(' —', CLAUDE_MODELS[$d['claude_model']])[0];
             $s['claude_model'] = $d['claude_model'];
+        }
+        // 🧠💰 строка подключения учёта трат Claude из бота (report_ai_spend); «off» — отключить
+        $link = preg_replace('/\s+/', '', (string) ($d['spend_link'] ?? ''));
+        if ($link === 'off') {
+            unset($s['spend_link']);
+            $changed[] = 'учёт трат Claude отключён';
+        } elseif ($link !== '') {
+            if (!preg_match(SPEND_LINK_RE, $link)) fail('Строка учёта трат — из бота: «💰 Балансы API» → Claude → «🔌 Подключить проект»');
+            $s['spend_link'] = $link;
+            $changed[] = 'учёт трат Claude';
         }
         if (($d['password_new'] ?? '') !== '') {
             if (!password_verify((string) ($d['password_current'] ?? ''), (string) $s['password_hash'])) fail('Текущий пароль неверный');
