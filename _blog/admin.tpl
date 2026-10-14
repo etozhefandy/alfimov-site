@@ -339,6 +339,7 @@ body:not(.view-edit) .mbar { display: none !important; }
 
       <div class="row new-foot">
         <label class="f inline">Объём<select id="g-words"><option value="1000">~1000 слов</option><option value="1500" selected>~1500 слов</option><option value="2000">~2000 слов</option><option value="2500">~2500 слов</option></select></label>
+        <label class="f inline">Модель<select id="g-model" title="Кто пишет статьи, поставленные отсюда; по умолчанию — из «Настроек»"></select></label>
         <label class="f inline">Ритм<select id="i-week"><option value="1">1 в неделю (вт)</option><option value="2" selected>2 в неделю (вт, чт)</option><option value="3">3 в неделю (пн, ср, пт)</option></select></label>
         <span class="spacer"></span>
         <span class="ai-status" id="g-status"></span>
@@ -613,6 +614,11 @@ async function load(selectSlug) {
   articles = d.articles;
   $("now").textContent = "сейчас в Алматы: " + fmtDate(d.now);
   $("model").textContent = "· " + d.writer_model;
+  // список моделей для новых статей; выбранное здесь не трогаем при обновлении списка
+  if (!$("g-model").options.length) {
+    $("g-model").innerHTML = Object.entries(d.models).map(([id, label]) => `<option value="${esc(id)}">${esc(label.split(" —")[0])}</option>`).join("");
+    $("g-model").value = d.writer_model;
+  }
   $("cats").innerHTML = [...new Set(articles.map(a => a.category).filter(Boolean))].map(c => `<option value="${esc(c)}">`).join("");
   renderList();
   if (selectSlug) open(articles.find(a => a.slug === selectSlug) || null);
@@ -665,7 +671,7 @@ function renderQueue(d) {
   $("q-count").textContent = d.pending ? `· пишется ${d.pending}` : "";
   const items = d.items.filter(it => it.stage !== "cancelled").slice(0, 8);
   $("q-list").innerHTML = items.map(it => `<li class="${it.stage}"><b>${esc(it.title || it.topic || (it.origin === "auto" ? "Автопилот подбирает тему" : "Статья по источнику"))}</b>
-    <span class="st">${esc(qStatus(it))}</span>${it.origin !== "manual" ? `<span class="hint">${it.origin === "auto" ? "🤖" : "☑︎"}</span>` : ""}
+    <span class="st">${esc(qStatus(it))}</span>${it.model ? `<span class="hint">${it.model.includes("sonnet") ? "Sonnet" : "Opus"}</span>` : ""}${it.origin !== "manual" ? `<span class="hint">${it.origin === "auto" ? "🤖" : "☑︎"}</span>` : ""}
     ${it.stage === "done" ? `<button class="btn" data-qopen="${esc(it.slug)}">Открыть</button>` : ""}
     ${it.stage === "queued" ? `<button class="btn" data-qcancel="${it.id}">Отменить</button>` : ""}</li>`).join("");
   $("q-list").classList.toggle("hidden", !items.length);
@@ -687,7 +693,7 @@ const loadQueue = () => api("/admin/api/queue").then(renderQueue).catch(() => { 
 async function enqueue(body, btn) {
   busy(btn, true, "Ставлю в очередь…");
   try {
-    const d = await api("/admin/api/queue", {method: "POST", body: JSON.stringify({words: $("g-words").value, ...body})});
+    const d = await api("/admin/api/queue", {method: "POST", body: JSON.stringify({words: $("g-words").value, model: $("g-model").value, ...body})});
     qMine.add(d.item.id); qSeen[d.item.id] = d.item.stage; renderQueue(d);
     toast("Статья в очереди: текст и обложка уже готовятся. Когда будет готова — встанет на ближайший свободный день.");
     document.getElementById("q-card").scrollIntoView({behavior: "smooth", block: "start"});
@@ -1032,7 +1038,7 @@ document.addEventListener("click", async e => {
   if (e.target.id !== "t-bulk-go") return;
   const b = e.target; busy(b, true, "Ставлю в очередь…");
   try {
-    const d = await api("/admin/api/queue/topics", {method: "POST", body: JSON.stringify({ids: [...picked]})});
+    const d = await api("/admin/api/queue/topics", {method: "POST", body: JSON.stringify({ids: [...picked], words: $("g-words").value, model: $("g-model").value})});
     d.items.slice(0, d.added).forEach(it => { qMine.add(it.id); qSeen[it.id] = it.stage; });
     picked.clear(); renderQueue(d); renderTopics();
     toast(`В очереди статей: ${d.added}. Пишутся по очереди на сервере, страницу можно закрыть.`);
@@ -1342,6 +1348,7 @@ $("s-model").onchange = async () => {
     const d = await api("/admin/api/settings", {method: "POST", body: JSON.stringify({claude_model: $("s-model").value})});
     toast(d.changed.length ? "Сохранено: " + d.changed.join(", ") : "Ничего не изменилось");
     $("model").textContent = "· " + $("s-model").value;
+    $("g-model").value = $("s-model").value;
   } catch (e) { toast(e.message, true); }
 };
 $("s-save").onclick = async () => {

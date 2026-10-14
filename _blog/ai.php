@@ -56,9 +56,21 @@ function P(string $key, array $vars = [])
  * Запрос к Claude со стримингом (длинные ответы без обрыва по таймауту) → [текст, stop_reason].
  * $post — подмена HTTP для тестов: fn(array $body): array [http_code, raw_sse_or_json].
  */
-/** Модель, выбранная в «Настройках» (неизвестная или пустая — по умолчанию). */
+/**
+ * Модель для одной статьи из очереди (выбрана при постановке): claude_override('claude-…') — задать,
+ * claude_override(null) — сбросить, claude_override() — узнать.
+ */
+function claude_override(?string $m = null): ?string
+{
+    static $o = null;
+    if (func_num_args()) $o = $m !== null && isset(CLAUDE_MODELS[$m]) ? $m : null;
+    return $o;
+}
+
+/** Модель: выбранная для статьи, иначе из «Настроек» (неизвестная или пустая — по умолчанию). */
 function claude_model(): string
 {
+    if ($o = claude_override()) return $o;
     $m = (string) (settings()['claude_model'] ?? '');
     return isset(CLAUDE_MODELS[$m]) ? $m : CLAUDE_MODEL;
 }

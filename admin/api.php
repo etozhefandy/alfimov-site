@@ -195,6 +195,7 @@ function generate_input(array $d): array
         'keywords' => is_array($d['keywords'] ?? null) ? $d['keywords'] : preg_split('/[\n,;]+/u', (string) ($d['keywords'] ?? ''), -1, PREG_SPLIT_NO_EMPTY),
         'notes' => (string) ($d['notes'] ?? ''),
         'words' => max(500, min(4000, (int) ($d['words'] ?? 1500) ?: 1500)),
+        'model' => (string) ($d['model'] ?? ''),
     ];
 }
 
@@ -242,11 +243,13 @@ try {
         reply(['item' => $item] + queue_view());
     }
     if ($method === 'POST' && $route === 'api/queue/topics') {
-        $want = array_map('strval', (array) (body()['ids'] ?? []));
+        $d = body();
+        $want = array_map('strval', (array) ($d['ids'] ?? []));
         $n = 0;
         foreach (topics_load() as $t) {
             if (!in_array($t['id'], $want, true)) continue;
             queue_add(['topic' => $t['topic'], 'topic_key' => topic_key($t), 'origin' => 'bulk',
+                'words' => (int) ($d['words'] ?? 1500), 'model' => (string) ($d['model'] ?? ''),
                 'keywords' => array_values(array_unique(array_filter([(string) $t['main_keyword'], ...array_map('strval', $t['keywords'] ?? [])])))]);
             $n++;
         }
@@ -275,7 +278,7 @@ try {
     }
     if ($method === 'GET' && $route === 'api/articles') {
         reply(['articles' => array_map('article_view', load_all()), 'now' => now()->format('Y-m-d\TH:i'),
-            'writer_model' => claude_model()]);
+            'writer_model' => claude_model(), 'models' => CLAUDE_MODELS]);
     }
     if ($method === 'POST' && $route === 'api/articles') {
         $d = body();
