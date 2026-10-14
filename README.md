@@ -83,5 +83,9 @@ Plesk Git (репозиторий `alfimov-site.git`, ветка `deploy` → `/
 
 Секреты формы — файл `tg-config.php` рядом с `httpdocs` на хостинге (вне репозитория).
 
+Бот заявок (@alfimovkz_bot) общий для всех сайтов хостинга: alfimov.kz — главный (его `tg-config.php` и вебхук),
+другие сайты (metalbaza.kz) берут токен отсюда и записывают себя в `/var/www/vhosts/alfimov.kz/tg-sites/`.
+В боте «🔗 Привязать группу» спрашивает сайт — у каждого сайта своя группа. `static/api/_tg.php` одинаковый в обоих репозиториях.
+
 `./deploy.sh` (FTPS) и workflow `.github/workflows/deploy.yml` — запасные варианты, сейчас не используются:
 FTP-вход не настроен, а GitHub Actions на аккаунте заблокированы по биллингу.
