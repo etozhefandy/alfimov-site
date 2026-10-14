@@ -12,6 +12,8 @@
   --radius: 14px;
 }
 * { box-sizing: border-box; }
+/* display: inline-flex у .btn перебивает атрибут hidden — кнопки опроса показывались все сразу */
+[hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
 body {
   margin: 0; background: var(--bg); color: var(--ink);
@@ -127,6 +129,8 @@ section { padding: 48px 0; }
 .opt input:focus-visible + span { outline: 3px solid #b9b3e0; }
 .field { display: block; margin-bottom: 12px; }
 .field span { display: block; font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+.field span i { font-style: normal; font-weight: 500; color: var(--muted); }
+.field textarea { resize: vertical; }
 .field input, .field textarea { width: 100%; font: inherit; font-size: 17px; padding: 14px; border: 2px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink); }
 .field input:focus, .field textarea:focus { outline: none; border-color: var(--navy); }
 .quiz-nav { display: flex; gap: 10px; margin-top: 16px; }
