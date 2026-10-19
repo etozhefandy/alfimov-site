@@ -14,7 +14,7 @@ else
   git init -q "$TMP" && git -C "$TMP" checkout -q --orphan deploy-hub && git -C "$TMP" remote add origin "$REMOTE"
 fi
 find "$TMP" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
-cp engine/hub/index.php engine/hub/pult.php engine/hub/clients.php engine/hub/.htaccess engine/hub/robots.txt engine/static/api/_crm.php engine/static/api/_csp.php "$TMP"/
+cp engine/hub/index.php engine/hub/pult.php engine/hub/clients.php engine/hub/.htaccess engine/hub/robots.txt engine/static/api/_crm.php engine/static/api/_csp.php engine/static/api/_hub.php "$TMP"/
 echo "$SHA" > "$TMP/version.txt"
 cd "$TMP"
 git add -A

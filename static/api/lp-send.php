@@ -42,6 +42,7 @@ if (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
 else { header('Connection: close'); header('Content-Length: ' . ob_get_length()); @ob_end_flush(); @flush(); }
 $data = lp_lead_data($client, $page, $_POST, $phone);
 $r = crm_send($client, $data);
+hub_lead_add($data, true, $r);   // журнал заявок заказчика в пульте
 if (empty($r['ok'])) {   // заявка в Telegram уже есть — только предупреждаем, что в CRM она не попала
     $esc = htmlspecialchars((string) ($r['error'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     tg_on_site(lp_tg_site($client), fn() => tg_send_lead("⚠️ <b>Заявка не попала в CRM</b> ({$data['client_name']}): $esc\n\nВ Telegram она есть выше — перенесите вручную. Исправить подключение: admin.alfimov.kz"));
