@@ -36,6 +36,10 @@ $t3 = lp_lead_text('guestory', 'osnashenie', ['name' => 'Б', 'type' => 'Мед�
 check(str_contains($t3, 'Объект: Медцентр / клиника') && str_contains($t3, 'Медцентр: Стоматология')
     && str_contains($t3, 'Коек / кабинетов: 10–30') && str_contains($t3, 'Нужно: Стерилизаторы, Другое') && str_contains($t3, '💬 Бахилы'), 'ветка медцентра: свои вопросы и «Другое» с пояснением');
 
+$d = lp_lead_data('guestory', 'osnashenie', $post + ['utm_medium' => 'paid', 'fbclid' => 'F1'], ['+7 (701) 234-56-78', '77012345678']);
+check($d['utm'] === ['utm_medium' => 'paid', 'utm_campaign' => 'osn_test', 'utm_content' => 'video1', 'fbclid' => 'F1'], 'для CRM: метки рекламы и fbclid отдельными полями');
+check(in_array(['📦 Нужно', 'Текстиль'], $d['answers'], true) && $d['client_name'] === 'Guestory', 'для CRM: ответы опроса списком, только допустимые');
+
 lp_register_sites();
 $hosts = array_column(tg_sites(), 'host');
 check(in_array('lp-guestory', $hosts, true) && $hosts[0] === 'alfimov.kz', 'Guestory в списке сайтов бота — можно привязать свою группу');

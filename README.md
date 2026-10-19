@@ -99,6 +99,11 @@ Cron не нужен: заходы на сайт раз в 10 минут про�
 Код пульта — в движке (`engine/hub/`, см. engine/README.md). Выкладка: `./deploy-hub.sh` → ветка `deploy-hub` →
 Plesk Git субдомена admin.alfimov.kz (папка `/admin.alfimov.kz`). Версия на хостинге: https://admin.alfimov.kz/version.txt
 
+**CRM заказчика.** В пульте у каждого заказчика (карточка «Настройки и CRM») подключается Kommo, amoCRM, Bitrix24 или
+вебхук. Настройки и ключи — `hub-data/crm.json` в папке подписки (вне сайтов, не в git). `/api/lp-send.php` после ответа
+человеку шлёт заявку в Telegram-группу заказчика и в его CRM (`engine/static/api/_crm.php`: сделка + контакт + примечание
+с ответами и метками UTM). Не ушла в CRM — бот пишет в группу заказчика, ошибка в `hub-data/crm-log.json`.
+
 ## Деплой
 
 Автоматический, без кнопок:
