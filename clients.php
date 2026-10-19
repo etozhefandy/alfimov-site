@@ -99,6 +99,7 @@ function pult_client_page(array $client, string $msg = '', bool $good = true): v
     pult_page('Заказчик ' . $client['name'] . ' — пульт', $css . '<div class="wrap"><div class="top"><h1>' . pult_h($client['name']) . '</h1>'
         . '<a class="btn" href="/">← Пульт</a></div>' . $flash
         . '<div class="muted">Рекламные страницы на ' . pult_h($client['site']) . '</div><div class="row">' . $pages . '</div>'
+        . pult_client_tg($client)
         . pult_client_leads($client)
         . '<h2>Куда передавать заявки</h2><p class="muted">Заявка всегда приходит в Telegram. Если подключить CRM заказчика, она ещё создаст там сделку с контактом, '
         . 'ответами из опроса и метками рекламы (UTM). Если CRM не ответит, заявку в Telegram вы всё равно получите, а об ошибке напишет бот.</p>'
@@ -113,7 +114,7 @@ function pult_client_page(array $client, string $msg = '', bool $good = true): v
         . '<span class="hint">Куда отправлять заявку POST-запросом (JSON): Make, Zapier, n8n, своя CRM.</span></label>'
         . '<div data-for="kommo amocrm bitrix24">' . $stages . $users . $listsHint . '</div>'
         . '<div class="row"><button class="btn main" name="do" value="crm_save" type="submit">Сохранить</button></div>' . $tools . '</form>'
-        . $log . pult_client_links($client) . '</div>' . $js);
+        . $log . pult_client_capi($client) . pult_client_links($client) . '</div>' . $js);
 }
 
 /** Действия со страницы заказчика. */
@@ -130,6 +131,24 @@ function pult_client_action(array $client, string $do, array $post): void
             pult_client_page($client, $r['ok'] ? 'Сохранено, CRM отвечает. Выберите воронку и ответственного ниже и сохраните ещё раз.' : 'Сохранено, но CRM не подключилась: ' . $r['error'], $r['ok']);
         }
         pult_client_page($client, $cfg ? 'Сохранено, но не хватает адреса или ключа.' : 'Сохранено: заявки идут только в Telegram.', true);
+    }
+    if ($do === 'capi_save' || $do === 'capi_off' || $do === 'capi_test') {
+        $c = capi_config($slug);
+        if ($do === 'capi_off') { capi_save($slug, []); pult_client_page($client, 'Отправка в Meta с сервера отключена.'); }
+        if ($do === 'capi_save') {
+            $pixel = preg_replace('/\D/', '', (string) ($post['pixel'] ?? ''));
+            $token = trim((string) ($post['token'] ?? ''));
+            $c = ['pixel' => $pixel, 'token' => $token !== '' ? $token : (string) ($c['token'] ?? ''),
+                'test_code' => preg_replace('/[^A-Za-z0-9]/', '', (string) ($post['test_code'] ?? ''))];
+            if ($pixel !== '' && !preg_match('/^\d{10,20}$/', $pixel)) pult_client_page($client, 'ID пикселя — это 15–16 цифр из Events Manager', false);
+            capi_save($slug, $c);
+            pult_client_page($client, capi_enabled($c) ? 'Сохранено: заявки будут уходить в Meta и с сервера. Проверьте кнопкой «Отправить тестовое событие».'
+                : 'Сохранено, но для отправки нужны и ID пикселя, и токен.', true);
+        }
+        $ev = capi_event(['name' => 'Тест', 'phone' => '77000000000', 'page' => 'test', 'utm' => []],
+            ['ip' => (string) ($_SERVER['REMOTE_ADDR'] ?? ''), 'ua' => (string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 'event_id' => 'test-' . bin2hex(random_bytes(4))]);
+        $r = capi_send($slug, $ev, true);
+        pult_client_page($client, $r['ok'] ? 'Meta приняла тестовое событие — оно появится в «Тестовых событиях» Events Manager через минуту.' : 'Не получилось: ' . ($r['error'] ?? ''), $r['ok']);
     }
     $cfg = crm_config($slug);
     if ($do === 'crm_check') {
@@ -195,4 +214,41 @@ function pult_client_links(array $client): string
         . '<div class="scroll" style="margin-top:10px"><table><tr><th>Страница</th><th>Адрес</th><th></th></tr>' . $rows . '</table></div>'
         . '<script>document.querySelectorAll("[data-copy]").forEach(function(b){b.addEventListener("click",function(){var t=b.textContent;'
         . 'navigator.clipboard.writeText(b.getAttribute("data-copy")).then(function(){b.textContent="скопировано";setTimeout(function(){b.textContent=t},1500)})})})</script>';
+}
+
+/** Telegram-группа заказчика: привязана ли (бот хранит привязку в файле, путь к нему — в tg-sites/lp-<заказчик>.json). */
+function pult_client_tg(array $client): string
+{
+    $reg = json_decode((string) @file_get_contents(pult_base() . '/tg-sites/lp-' . $client['slug'] . '.json'), true);
+    $st = is_array($reg) && !empty($reg['state']) ? json_decode((string) @file_get_contents((string) $reg['state']), true) : null;
+    $how = 'В боте заявок: «🔗 Привязать группу» → выбрать «реклама ' . pult_h($client['name']) . '» → добавить бота в группу и написать там PIN.';
+    if (!is_array($reg)) return '<p class="muted">Telegram: бот ещё не знает этого заказчика — появится после первой заявки или сообщения боту.</p>';
+    if (!empty($st['lead_chat'])) return '<p><span class="pill ok">Telegram: группа «' . pult_h($st['lead_title'] ?? 'группа') . '»</span> '
+        . '<span class="muted">заявки идут вам в личку и в эту группу</span></p>';
+    return '<p><span class="pill warn">Telegram: группа не привязана</span> <span class="muted">заявки идут только вам в личку. ' . $how . '</span></p>';
+}
+
+/** Meta Conversions API: пиксель, токен, тестовый код. */
+function pult_client_capi(array $client): string
+{
+    $c = capi_config($client['slug']);
+    $tok = !empty($c['token']) ? 'сохранён ' . crm_mask((string) $c['token']) . ' — оставьте пустым, чтобы не менять' : '';
+    $log = '';
+    foreach (array_slice(array_filter(crm_read('capi-log'), fn($r) => ($r['client'] ?? '') === $client['slug']), 0, 6) as $r) {
+        $log .= '<tr><td>' . date('d.m H:i', (int) $r['t']) . (!empty($r['test']) ? ' · тест' : '') . '</td><td>'
+            . ($r['ok'] ? '<span class="pill ok">принято Meta</span>' : '<span class="pill bad">ошибка</span> ' . pult_h($r['error'])) . '</td></tr>';
+    }
+    return '<h2>Заявки в Meta с сервера (Conversions API)</h2>'
+        . '<p class="muted">Пиксель в браузере теряет часть заявок (блокировщики рекламы, iOS). Сервер отправит в Meta то же событие Lead — '
+        . 'Meta склеит его с браузерным и посчитает заявку один раз, а реклама лучше обучится. Телефон и имя уходят только в зашифрованном виде.</p>'
+        . '<form class="card crm" method="post" autocomplete="off"><input type="hidden" name="c" value="' . pult_h($client['slug']) . '">'
+        . '<label>ID пикселя<input name="pixel" inputmode="numeric" value="' . pult_h($c['pixel'] ?? '') . '" placeholder="например 1460843041888688"></label>'
+        . '<label>Токен доступа<input name="token" type="password" autocomplete="new-password" placeholder="' . pult_h($tok) . '">'
+        . '<span class="hint">Events Manager → пиксель → «Настройки» → «Conversions API» → «Создать маркер доступа». Делает администратор рекламного аккаунта заказчика.</span></label>'
+        . '<label>Тестовый код (необязательно)<input name="test_code" value="' . pult_h($c['test_code'] ?? '') . '" placeholder="TEST12345">'
+        . '<span class="hint">Events Manager → «Тестовые события» — нужен только для кнопки проверки.</span></label>'
+        . '<div class="row"><button class="btn main" name="do" value="capi_save" type="submit">Сохранить</button>'
+        . (capi_enabled($c) ? '<button class="btn" name="do" value="capi_test" type="submit">Отправить тестовое событие</button>'
+            . '<button class="btn" name="do" value="capi_off" type="submit" onclick="return confirm(\'Отключить отправку заявок в Meta с сервера?\')">Отключить</button>' : '')
+        . '</div></form>' . ($log ? '<div class="scroll" style="margin-top:10px"><table><tr><th>Когда</th><th>Итог</th></tr>' . $log . '</table></div>' : '');
 }

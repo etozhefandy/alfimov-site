@@ -5,6 +5,7 @@ require __DIR__ . '/pult.php';
 require is_file(__DIR__ . '/_crm.php') ? __DIR__ . '/_crm.php' : dirname(__DIR__) . '/static/api/_crm.php';
 require is_file(__DIR__ . '/_csp.php') ? __DIR__ . '/_csp.php' : dirname(__DIR__) . '/static/api/_csp.php';
 require is_file(__DIR__ . '/_hub.php') ? __DIR__ . '/_hub.php' : dirname(__DIR__) . '/static/api/_hub.php';
+require is_file(__DIR__ . '/_capi.php') ? __DIR__ . '/_capi.php' : dirname(__DIR__) . '/static/api/_capi.php';
 require __DIR__ . '/clients.php';
 
 // ---------------------------------------------------------------- маршруты
@@ -69,7 +70,7 @@ if ($do === 'watch' || $do === 'unwatch') {
     exit;
 }
 
-if (str_starts_with($do, 'crm_') || ($_GET['p'] ?? '') === 'client') {
+if (str_starts_with($do, 'crm_') || str_starts_with($do, 'capi_') || ($_GET['p'] ?? '') === 'client') {
     $client = pult_client((string) ($_POST['c'] ?? $_GET['c'] ?? ''));
     if (!$client) { http_response_code(404); pult_page('Нет такого заказчика', '<div class="wrap"><p>Заказчик не найден. <a href="/">В пульт</a></p></div>'); }
     if ($_SERVER['REQUEST_METHOD'] === 'POST') pult_client_action($client, $do, $_POST);
