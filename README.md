@@ -105,6 +105,8 @@ Plesk Git субдомена admin.alfimov.kz (папка `/admin.alfimov.kz`). 
 с ответами и метками UTM). Не ушла в CRM — бот пишет в группу заказчика, ошибка в `hub-data/crm-log.json`.
 Каждая заявка с /lp/ ещё пишется в журнал `hub-data/leads/<заказчик>/ГГГГ-ММ.jsonl` (`engine/static/api/_hub.php`) — в пульте
 таблица и CSV. Там же «Ссылки для рекламы» — адреса страниц и строка «Параметры URL» для Meta (UTM из названий кампании/группы/объявления).
+Conversions API: если в пульте у заказчика указаны пиксель и токен (`hub-data/capi.json`), `lp-send.php` шлёт в Meta
+событие Lead с сервера (`engine/static/api/_capi.php`) с тем же `event_id`, что и пиксель в браузере (`lp.js`), — Meta склеивает дубли.
 Проверку доменов/SSL раз в 12 часов будят сами сайты (`hub_tick_kick` в роутере блога → `admin.alfimov.kz/?tick=1`).
 
 ## Деплой
