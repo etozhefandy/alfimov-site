@@ -94,6 +94,11 @@ Cron не нужен: заходы на сайт раз в 10 минут про�
 `api/lp-send.php`, дополнение вебхука `api/_site.php`), настройки (`build.py` → `site_consts`) и тексты ниши для ИИ
 (`site/prompts.php`). Улучшения движка делаются в site-engine и подтягиваются: `git -C engine pull origin main`.
 
+## Пульт admin.alfimov.kz
+
+Код пульта — в движке (`engine/hub/`, см. engine/README.md). Выкладка: `./deploy-hub.sh` → ветка `deploy-hub` →
+Plesk Git субдомена admin.alfimov.kz (папка `/admin.alfimov.kz`). Версия на хостинге: https://admin.alfimov.kz/version.txt
+
 ## Деплой
 
 Автоматический, без кнопок:
