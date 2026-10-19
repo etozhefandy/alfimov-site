@@ -4,6 +4,7 @@
 // в Telegram (бот: «🔗 Привязать группу» → выбрать «lp-<заказчик>»), с заявками агентства они не смешиваются.
 declare(strict_types=1);
 require_once __DIR__ . '/_tg.php';
+require_once __DIR__ . '/_crm.php';
 
 /** Заказчики, их страницы и допустимые ответы опроса — собирает build.py из src/lp_<заказчик>.py. */
 function lp_clients(): array
@@ -38,29 +39,40 @@ function lp_answer(array $post, string $key, array $options): string
     return implode(', ', array_values(array_intersect($vals, $options)));
 }
 
-/** Текст заявки для Telegram. $phone — [красивый, цифры] из lead_phone(). */
-function lp_lead_text(string $client, string $page, array $post, array $phone): string
+/** Заявка в виде данных — для CRM и для текста в Telegram. $phone — [красивый, цифры] из lead_phone(). */
+function lp_lead_data(string $client, string $page, array $post, array $phone): array
 {
-    $esc = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     $cut = fn($k, $n) => mb_substr(trim((string) ($post[$k] ?? '')), 0, $n);
     $c = lp_clients()[$client];
     $pg = $c['pages'][$page] ?? ['title' => $page, 'questions' => []];
-    $lines = ["🔥 <b>Заявка {$esc($c['name'])}</b> · " . $esc($pg['title']), ''];
-    $lines[] = '👤 ' . $esc($cut('name', 80));
-    $lines[] = '📞 ' . $esc($phone[0]) . " · <a href=\"https://wa.me/{$phone[1]}\">WhatsApp</a>";
+    $answers = [];
     foreach ($pg['questions'] as $key => [$label, $options]) {
         $a = lp_answer($post, $key, $options);
-        if ($a !== '') $lines[] = "$label: " . $esc($a);
-    }
-    foreach (['city' => '📍 Город', 'comment' => '💬'] as $key => $label) {
-        $v = $cut($key, $key === 'comment' ? 500 : 60);
-        if ($v !== '') $lines[] = "$label " . $esc($v);
+        if ($a !== '') $answers[] = [$label, $a];
     }
     $utm = [];
-    foreach (['utm_source', 'utm_campaign', 'utm_content', 'utm_term'] as $k) {
+    foreach (['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'fbclid'] as $k) {
         $v = $cut($k, 100);
-        if ($v !== '') $utm[] = $esc($v);
+        if ($v !== '') $utm[$k] = $v;
     }
+    return ['client' => $client, 'client_name' => (string) $c['name'], 'page' => $page, 'page_title' => (string) $pg['title'],
+        'name' => $cut('name', 80), 'phone' => $phone[1], 'phone_pretty' => $phone[0], 'answers' => $answers,
+        'city' => $cut('city', 60), 'comment' => $cut('comment', 500), 'utm' => $utm];
+}
+
+/** Текст заявки для Telegram. */
+function lp_lead_text(string $client, string $page, array $post, array $phone): string
+{
+    $esc = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    $d = lp_lead_data($client, $page, $post, $phone);
+    $lines = ["🔥 <b>Заявка {$esc($d['client_name'])}</b> · " . $esc($d['page_title']), ''];
+    $lines[] = '👤 ' . $esc($d['name']);
+    $lines[] = '📞 ' . $esc($d['phone_pretty']) . " · <a href=\"https://wa.me/{$d['phone']}\">WhatsApp</a>";
+    foreach ($d['answers'] as [$label, $a]) $lines[] = "$label: " . $esc($a);
+    if ($d['city'] !== '') $lines[] = '📍 Город ' . $esc($d['city']);
+    if ($d['comment'] !== '') $lines[] = '💬 ' . $esc($d['comment']);
+    $utm = [];
+    foreach (['utm_source', 'utm_campaign', 'utm_content', 'utm_term'] as $k) if (isset($d['utm'][$k])) $utm[] = $esc($d['utm'][$k]);
     if ($utm) $lines[] = "\n📣 " . implode(' / ', $utm);
     return implode("\n", $lines);
 }
