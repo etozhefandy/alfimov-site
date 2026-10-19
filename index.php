@@ -4,6 +4,7 @@ declare(strict_types=1);
 require __DIR__ . '/pult.php';
 require is_file(__DIR__ . '/_crm.php') ? __DIR__ . '/_crm.php' : dirname(__DIR__) . '/static/api/_crm.php';
 require is_file(__DIR__ . '/_csp.php') ? __DIR__ . '/_csp.php' : dirname(__DIR__) . '/static/api/_csp.php';
+require is_file(__DIR__ . '/_hub.php') ? __DIR__ . '/_hub.php' : dirname(__DIR__) . '/static/api/_hub.php';
 require __DIR__ . '/clients.php';
 
 // ---------------------------------------------------------------- маршруты
@@ -11,6 +12,17 @@ require __DIR__ . '/clients.php';
 header('X-Robots-Tag: noindex, nofollow');
 header('Cache-Control: no-store');
 header('Referrer-Policy: same-origin');
+
+// Сайты с посетителями будят пульт раз в 12 часов (_hub.php: hub_tick_kick) — проверить домены и SSL и предупредить в Telegram.
+// Без входа: запрос ничего не показывает, а проверка сама не чаще раза в 12 часов.
+if (isset($_GET['tick'])) {
+    http_response_code(204);
+    if (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
+    ignore_user_abort(true);
+    @set_time_limit(180);
+    pult_monitor(false);
+    exit;
+}
 
 $do = (string) ($_POST['do'] ?? '');
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -61,6 +73,7 @@ if (str_starts_with($do, 'crm_') || ($_GET['p'] ?? '') === 'client') {
     $client = pult_client((string) ($_POST['c'] ?? $_GET['c'] ?? ''));
     if (!$client) { http_response_code(404); pult_page('Нет такого заказчика', '<div class="wrap"><p>Заказчик не найден. <a href="/">В пульт</a></p></div>'); }
     if ($_SERVER['REQUEST_METHOD'] === 'POST') pult_client_action($client, $do, $_POST);
+    if (isset($_GET['csv'])) pult_client_csv($client, (string) ($_GET['m'] ?? ''));
     pult_client_page($client);
 }
 

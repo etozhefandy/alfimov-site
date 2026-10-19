@@ -99,6 +99,7 @@ function pult_client_page(array $client, string $msg = '', bool $good = true): v
     pult_page('Заказчик ' . $client['name'] . ' — пульт', $css . '<div class="wrap"><div class="top"><h1>' . pult_h($client['name']) . '</h1>'
         . '<a class="btn" href="/">← Пульт</a></div>' . $flash
         . '<div class="muted">Рекламные страницы на ' . pult_h($client['site']) . '</div><div class="row">' . $pages . '</div>'
+        . pult_client_leads($client)
         . '<h2>Куда передавать заявки</h2><p class="muted">Заявка всегда приходит в Telegram. Если подключить CRM заказчика, она ещё создаст там сделку с контактом, '
         . 'ответами из опроса и метками рекламы (UTM). Если CRM не ответит, заявку в Telegram вы всё равно получите, а об ошибке напишет бот.</p>'
         . '<form id="crm" class="card crm" method="post" autocomplete="off"><input type="hidden" name="c" value="' . pult_h($slug) . '">'
@@ -112,7 +113,7 @@ function pult_client_page(array $client, string $msg = '', bool $good = true): v
         . '<span class="hint">Куда отправлять заявку POST-запросом (JSON): Make, Zapier, n8n, своя CRM.</span></label>'
         . '<div data-for="kommo amocrm bitrix24">' . $stages . $users . $listsHint . '</div>'
         . '<div class="row"><button class="btn main" name="do" value="crm_save" type="submit">Сохранить</button></div>' . $tools . '</form>'
-        . $log . '</div>' . $js);
+        . $log . pult_client_links($client) . '</div>' . $js);
 }
 
 /** Действия со страницы заказчика. */
@@ -141,4 +142,57 @@ function pult_client_action(array $client, string $do, array $post): void
         pult_client_page($client, !empty($r['skipped']) ? 'CRM не подключена.' : ($r['ok'] ? 'Тестовая заявка создана в CRM' . (!empty($r['id']) ? ' (№' . $r['id'] . ')' : '') . '. Проверьте её там и удалите.' : 'Не получилось: ' . $r['error']), !empty($r['ok']));
     }
     pult_client_page($client);
+}
+
+/** Заявки заказчика за месяц: таблица на странице заказчика. */
+function pult_client_leads(array $client): string
+{
+    $slug = $client['slug'];
+    $months = hub_lead_months($slug);
+    $month = in_array($_GET['m'] ?? '', $months, true) ? (string) $_GET['m'] : ($months[0] ?? date('Y-m'));
+    $leads = hub_leads($slug, $month);
+    $tabs = '';
+    foreach ($months as $m) $tabs .= '<a class="btn' . ($m === $month ? ' main' : '') . '" href="/?p=client&amp;c=' . pult_h($slug) . '&amp;m=' . $m . '">' . $m . '</a>';
+    if (!$leads) return '<h2>Заявки</h2><p class="muted">Заявок с рекламных страниц пока нет. Журнал ведётся с 20.10.2026 — раньше заявки были только в Telegram.</p>';
+    $rows = '';
+    foreach ($leads as $l) {
+        $ans = '';
+        foreach ((array) $l['answers'] as [$q, $a]) $ans .= '<div><span class="muted">' . pult_h(crm_label($q)) . ':</span> ' . pult_h($a) . '</div>';
+        if ($l['comment'] !== '') $ans .= '<div><span class="muted">Комментарий:</span> ' . pult_h($l['comment']) . '</div>';
+        $u = (array) ($l['utm'] ?? []);
+        $src = implode(' / ', array_filter([$u['utm_campaign'] ?? '', $u['utm_content'] ?? '', $u['utm_term'] ?? '']));
+        $crm = $l['crm'] === null ? '<span class="pill">только Telegram</span>'
+            : ($l['crm']['ok'] ? '<span class="pill ok">CRM' . ($l['crm']['id'] ? ' №' . pult_h($l['crm']['id']) : '') . '</span>' : '<span class="pill bad" title="' . pult_h($l['crm']['error']) . '">CRM: ошибка</span>');
+        $rows .= '<tr><td>' . date('d.m H:i', (int) $l['t']) . '</td><td><b>' . pult_h($l['name']) . '</b><br><a href="https://wa.me/' . pult_h($l['phone']) . '" target="_blank" rel="noopener">+' . pult_h($l['phone']) . '</a></td>'
+            . '<td>' . pult_h($l['page_title']) . '</td><td>' . $ans . '</td><td>' . ($src !== '' ? pult_h($src) : '<span class="muted">—</span>') . '</td><td>' . $crm . '</td></tr>';
+    }
+    return '<h2>Заявки · ' . count($leads) . ' за ' . pult_h($month) . '</h2><div class="row" style="margin:0 0 10px">' . $tabs
+        . '<a class="btn" href="/?p=client&amp;c=' . pult_h($slug) . '&amp;m=' . $month . '&amp;csv=1">Скачать CSV</a></div>'
+        . '<div class="scroll"><table><tr><th>Когда</th><th>Кто</th><th>Страница</th><th>Ответы</th><th>Реклама (кампания / объявление / группа)</th><th>Передача</th></tr>' . $rows . '</table></div>';
+}
+
+function pult_client_csv(array $client, string $month): void
+{
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="' . $client['slug'] . '-leads-' . preg_replace('/[^0-9-]/', '', $month) . '.csv"');
+    echo hub_leads_csv(hub_leads($client['slug'], $month));
+    exit;
+}
+
+/** Ссылки для объявлений Meta: адрес страницы + параметры URL, которые Meta сама заполнит названиями кампании, группы и объявления. */
+const PULT_META_PARAMS = 'utm_source=facebook&utm_medium=paid&utm_campaign={{campaign.name}}&utm_term={{adset.name}}&utm_content={{ad.name}}';
+
+function pult_client_links(array $client): string
+{
+    $rows = '';
+    foreach ($client['pages'] as [$t, $u]) {
+        $rows .= '<tr><td>' . pult_h($t) . '</td><td><code>' . pult_h($u) . '</code></td><td><button class="link" type="button" data-copy="' . pult_h($u) . '">скопировать</button></td></tr>';
+    }
+    return '<h2>Ссылки для рекламы</h2><p class="muted">В объявлении Meta: «Ссылка на сайт» — адрес страницы, а в поле «Параметры URL» — строка ниже. '
+        . 'Meta сама подставит названия кампании, группы и объявления, и в заявке будет видно, откуда она.</p>'
+        . '<div class="card" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><code style="flex:1;min-width:240px;word-break:break-all">' . pult_h(PULT_META_PARAMS) . '</code>'
+        . '<button class="btn" type="button" data-copy="' . pult_h(PULT_META_PARAMS) . '">Скопировать параметры</button></div>'
+        . '<div class="scroll" style="margin-top:10px"><table><tr><th>Страница</th><th>Адрес</th><th></th></tr>' . $rows . '</table></div>'
+        . '<script>document.querySelectorAll("[data-copy]").forEach(function(b){b.addEventListener("click",function(){var t=b.textContent;'
+        . 'navigator.clipboard.writeText(b.getAttribute("data-copy")).then(function(){b.textContent="скопировано";setTimeout(function(){b.textContent=t},1500)})})})</script>';
 }
