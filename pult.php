@@ -165,7 +165,7 @@ function pult_landings(): array
         foreach ((array) $all as $slug => $c) {
             $pages = [];
             foreach ((array) ($c['pages'] ?? []) as $p => $info) $pages[] = [(string) ($info['title'] ?? $p), $s['url'] . "/lp/$slug/$p/"];
-            $out[] = ['name' => (string) ($c['name'] ?? $slug), 'site' => $s['host'], 'pages' => $pages];
+            $out[] = ['slug' => (string) $slug, 'name' => (string) ($c['name'] ?? $slug), 'site' => $s['host'], 'pages' => $pages];
         }
     }
     return $out;
@@ -215,7 +215,7 @@ function pult_domain_days(string $host): ?int
 /** Домены под наблюдением: сайты хостинга + добавленные вручную (сайты заказчиков). */
 function pult_watch(): array
 {
-    $extra = pult_read('domains')['extra'] ?? ['guestory.kz'];
+    $extra = pult_read('domains')['extra'] ?? [];
     $list = array_merge(array_keys(pult_sites()), (array) $extra);
     return array_values(array_unique(array_filter($list)));
 }
@@ -401,7 +401,10 @@ function pult_dashboard(): void
     foreach (pult_landings() as $c) {
         $links = '';
         foreach ($c['pages'] as [$t, $u]) $links .= '<a class="btn" href="' . pult_h($u) . '" target="_blank" rel="noopener">' . pult_h($t) . '</a>';
-        $lp .= '<div class="card"><h3>' . pult_h($c['name']) . '</h3><div class="muted">страницы на ' . pult_h($c['site']) . '</div><div class="row">' . $links . '</div></div>';
+        $crm = crm_config($c['slug']);
+        $crm_pill = crm_enabled($crm) ? '<span class="pill ok">CRM: ' . pult_h(CRM_TYPES[$crm['type']]) . '</span>' : '<span class="pill">CRM не подключена</span>';
+        $lp .= '<div class="card"><h3>' . pult_h($c['name']) . '</h3><div class="muted">страницы на ' . pult_h($c['site']) . '</div>'
+            . '<div class="pills">' . $crm_pill . '</div><div class="row"><a class="btn main" href="/?p=client&amp;c=' . pult_h($c['slug']) . '">Настройки и CRM</a>' . $links . '</div></div>';
     }
     $lp = $lp ? '<h2>Рекламные страницы заказчиков</h2><div class="grid">' . $lp . '</div>' : '';
 
@@ -418,7 +421,7 @@ function pult_dashboard(): void
         . '<p class="muted">Проверено ' . ($checked ? date('d.m.Y H:i', $checked) : '—') . ' (Алматы). Проверка — раз в 12 часов при открытии пульта; '
         . 'если до конца меньше ' . PULT_WARN_DAYS . ' дней — бот пришлёт предупреждение. <a href="/?check=1">Проверить сейчас</a></p>'
         . '<form class="inline" method="post"><input type="hidden" name="do" value="watch">'
-        . '<input name="d" placeholder="домен заказчика, например guestory.kz" required style="flex:1;min-width:220px">'
+        . '<input name="d" placeholder="домен для слежения, например example.kz" required style="flex:1;min-width:220px">'
         . '<button class="btn" type="submit">Следить за доменом</button></form>';
 
     pult_page('Пульт ALFIMOV', '<div class="wrap"><div class="top"><h1>Пульт ALFIMOV</h1>'

@@ -2,6 +2,8 @@
 // Пульт admin.alfimov.kz — маршруты. Устройство и функции — в pult.php.
 declare(strict_types=1);
 require __DIR__ . '/pult.php';
+require is_file(__DIR__ . '/_crm.php') ? __DIR__ . '/_crm.php' : dirname(__DIR__) . '/static/api/_crm.php';
+require __DIR__ . '/clients.php';
 
 // ---------------------------------------------------------------- маршруты
 
@@ -52,6 +54,13 @@ if ($do === 'watch' || $do === 'unwatch') {
     pult_monitor(true);
     header('Location: /', true, 303);
     exit;
+}
+
+if (str_starts_with($do, 'crm_') || ($_GET['p'] ?? '') === 'client') {
+    $client = pult_client((string) ($_POST['c'] ?? $_GET['c'] ?? ''));
+    if (!$client) { http_response_code(404); pult_page('Нет такого заказчика', '<div class="wrap"><p>Заказчик не найден. <a href="/">В пульт</a></p></div>'); }
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') pult_client_action($client, $do, $_POST);
+    pult_client_page($client);
 }
 
 $p = (string) ($_GET['p'] ?? '');
