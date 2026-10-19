@@ -6,6 +6,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/_tg.php';
 require_once __DIR__ . '/_crm.php';
 require_once __DIR__ . '/_hub.php';
+require_once __DIR__ . '/_capi.php';
 
 /** Заказчики, их страницы и допустимые ответы опроса — собирает build.py из src/lp_<заказчик>.py. */
 function lp_clients(): array

@@ -117,6 +117,9 @@
     });
     var fd = new FormData(form);
     form.querySelectorAll('.quiz-step input').forEach(function (inp) { inp.disabled = false; });
+    // один id заявки для пикселя в браузере и для сервера (Conversions API) — Meta склеит их в одно событие
+    var leadId = 'lead-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    fd.append('event_id', leadId);
     fd.append('client', CLIENT);
     fd.append('page', page);
     Object.keys(utm).forEach(function (k) { fd.append(k, utm[k]); });
@@ -127,7 +130,7 @@
       .then(function (r) { return r.json().then(function (j) { return [r.status, j]; }); })
       .then(function (res) {
         if (res[1].ok) {
-          track('Lead', { content_name: page }, 'lead-' + Date.now());
+          track('Lead', { content_name: page }, leadId);
           form.innerHTML = document.getElementById('quiz-done').innerHTML;
           form.scrollIntoView({ behavior: 'smooth', block: 'center' });
           document.querySelectorAll('#quiz [data-wa]').forEach(function (a) {
