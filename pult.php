@@ -168,12 +168,13 @@ function pult_sites(): array
             if (realpath($root) === realpath(__DIR__)) continue;
             $src = (string) file_get_contents($f);
             $c = [];
-            foreach (['SITE_HOST', 'SITE_BRAND', 'SITE_URL'] as $k) {
+            foreach (['SITE_HOST', 'SITE_BRAND', 'SITE_URL', 'SITE_DATA'] as $k) {
                 $c[$k] = preg_match("/define\\('$k', '((?:[^'\\\\]|\\\\.)*)'\\)/", $src, $m) ? stripcslashes($m[1]) : '';
             }
             if ($c['SITE_HOST'] === '' || isset($sites[$c['SITE_HOST']]) || !is_file("$root/admin/api.php")) continue;
             $sites[$c['SITE_HOST']] = ['host' => $c['SITE_HOST'], 'brand' => $c['SITE_BRAND'] ?: $c['SITE_HOST'],
-                'url' => $c['SITE_URL'] ?: 'https://' . $c['SITE_HOST'], 'root' => $root];
+                'url' => $c['SITE_URL'] ?: 'https://' . $c['SITE_HOST'], 'root' => $root,
+                'data' => dirname($root) . '/' . ($c['SITE_DATA'] ?: 'alfimov-data')];
         }
     }
     ksort($sites);
@@ -449,8 +450,20 @@ function pult_dashboard(): void
         . '<input name="d" placeholder="домен для слежения, например example.kz" required style="flex:1;min-width:220px">'
         . '<button class="btn" type="submit">Следить за доменом</button></form>';
 
+    $csp = '';
+    foreach (pult_sites() as $s) {
+        $rows = array_slice(csp_summary($s['data'] . '/csp'), 0, 12);
+        $tr = '';
+        foreach ($rows as [$d, $src, $doc, $n]) $tr .= '<tr><td>' . pult_h($d) . '</td><td>' . pult_h($src) . '</td><td>' . pult_h($doc) . '</td><td>' . (int) $n . '</td></tr>';
+        $csp .= '<h3 style="font-size:15px;margin:14px 0 6px">' . pult_h($s['host']) . '</h3>' . ($tr
+            ? '<div class="scroll"><table><tr><th>Правило</th><th>Что загружалось</th><th>Страница</th><th>Раз</th></tr>' . $tr . '</table></div>'
+            : '<p class="muted" style="margin:0">Нарушений нет.</p>');
+    }
+    $csp = '<h2>Защита страниц (CSP) — за 7 дней</h2><p class="muted">Режим «только отчёт»: браузеры ничего не блокируют, а сообщают, '
+        . 'что загрузилось бы мимо правил. Когда таблицы пустые или в них только лишнее — правила можно включать всерьёз.</p>' . $csp;
+
     pult_page('Пульт ALFIMOV', '<div class="wrap"><div class="top"><h1>Пульт ALFIMOV</h1>'
         . '<form method="post" style="margin:0"><input type="hidden" name="do" value="logout"><button class="btn" type="submit">Выйти</button></form></div>'
-        . '<h2>Сайты</h2><div class="grid">' . $cards . '</div>' . $lp . $mon_html . '</div>');
+        . '<h2>Сайты</h2><div class="grid">' . $cards . '</div>' . $lp . $mon_html . $csp . '</div>');
 }
 

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 require __DIR__ . '/pult.php';
 require is_file(__DIR__ . '/_crm.php') ? __DIR__ . '/_crm.php' : dirname(__DIR__) . '/static/api/_crm.php';
+require is_file(__DIR__ . '/_csp.php') ? __DIR__ . '/_csp.php' : dirname(__DIR__) . '/static/api/_csp.php';
 require __DIR__ . '/clients.php';
 
 // ---------------------------------------------------------------- маршруты
