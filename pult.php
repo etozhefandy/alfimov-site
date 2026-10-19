@@ -14,6 +14,8 @@ const PULT_COOKIE = 'pult_s';
 const PULT_SESSION_DAYS = 30;
 const PULT_CODE_TTL = 300;          // код входа живёт 5 минут
 const PULT_CODE_TRIES = 5;          // неверных попыток на один код
+const PULT_CODE_LEN = 8;            // цифр в коде входа
+const PULT_FAILS_PER_HOUR = 10;     // неверных кодов в час в сумме — дальше вход закрыт на час (перебор)
 const PULT_SENDS_PER_HOUR = 6;      // кодов в час — больше не шлём (защита от спама владельцу)
 const PULT_MONITOR_TTL = 43200;     // проверка доменов и SSL — раз в 12 часов
 const PULT_WARN_DAYS = 30;          // предупреждать, если до конца домена/SSL меньше
@@ -94,26 +96,46 @@ function pult_end_session(): void
     setcookie(PULT_COOKIE, '', ['expires' => 1, 'path' => '/', 'secure' => !getenv('HUB_DEV'), 'httponly' => true, 'samesite' => 'Strict']);
 }
 
+/** Вход проверяем строго по одному запросу: иначе пачка параллельных запросов успеет перебрать больше «5 попыток». */
+function pult_login_locked(callable $fn)
+{
+    if (!is_dir(pult_data())) mkdir(pult_data(), 0750, true);
+    $f = fopen(pult_data() . '/.login.lock', 'c');
+    flock($f, LOCK_EX);
+    try { return $fn(); } finally { flock($f, LOCK_UN); fclose($f); }
+}
+
+function pult_login_closed(array $st): bool
+{
+    return count(array_filter((array) ($st['fails'] ?? []), fn($t) => $t > time() - 3600)) >= PULT_FAILS_PER_HOUR;
+}
+
 /** Отправить код входа владельцу в Telegram. → '' или текст ошибки. */
-function pult_send_code(): string
+function pult_send_code(): string { return pult_login_locked('pult_send_code_unlocked'); }
+
+function pult_send_code_unlocked(): string
 {
     $st = pult_read('login');
+    if (pult_login_closed($st)) return 'Слишком много неверных кодов. Вход закрыт на час.';
     $sent = array_values(array_filter($st['sent'] ?? [], fn($t) => $t > time() - 3600));
     if (count($sent) >= PULT_SENDS_PER_HOUR) return 'Слишком много кодов за час. Подождите немного.';
     if ($sent && end($sent) > time() - 30) return 'Код уже отправлен — проверьте Telegram. Новый можно запросить через 30 секунд.';
-    $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+    $code = str_pad((string) random_int(0, 10 ** PULT_CODE_LEN - 1), PULT_CODE_LEN, '0', STR_PAD_LEFT);
     $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? '?');
     if (!pult_tg_send("🔐 Код входа в пульт admin.alfimov.kz: <code>$code</code>\n\nДействует 5 минут. Запрос с IP $ip. "
         . "Если входите не вы — просто ничего не делайте.")) return 'Не получилось отправить код в Telegram. Попробуйте ещё раз.';
     $sent[] = time();
-    pult_write('login', ['hash' => password_hash($code, PASSWORD_DEFAULT), 'exp' => time() + PULT_CODE_TTL, 'tries' => 0, 'sent' => $sent]);
+    pult_write('login', ['hash' => password_hash($code, PASSWORD_DEFAULT), 'exp' => time() + PULT_CODE_TTL, 'tries' => 0, 'sent' => $sent, 'fails' => (array) ($st['fails'] ?? [])]);
     return '';
 }
 
 /** → '' при успехе или текст ошибки. */
-function pult_check_code(string $code): string
+function pult_check_code(string $code): string { return pult_login_locked(fn() => pult_check_code_unlocked($code)); }
+
+function pult_check_code_unlocked(string $code): string
 {
     $st = pult_read('login');
+    if (pult_login_closed($st)) return 'Слишком много неверных кодов. Вход закрыт на час.';
     if (empty($st['hash']) || time() > (int) ($st['exp'] ?? 0)) return 'Код устарел. Запросите новый.';
     if (password_verify(trim($code), $st['hash'])) {
         unset($st['hash'], $st['exp'], $st['tries']);
@@ -122,6 +144,9 @@ function pult_check_code(string $code): string
         return '';
     }
     $st['tries'] = (int) ($st['tries'] ?? 0) + 1;
+    $fails = array_values(array_filter((array) ($st['fails'] ?? []), fn($t) => $t > time() - 3600));
+    $fails[] = time();
+    $st['fails'] = $fails;
     if ($st['tries'] >= PULT_CODE_TRIES) unset($st['hash'], $st['exp']);
     pult_write('login', $st);
     usleep(400000);
@@ -349,8 +374,8 @@ function pult_login_page(string $error = '', bool $codeSent = false): void
             . '<input type="hidden" name="do" value="send"><button type="submit">Получить код в Telegram</button></form></div>');
     }
     pult_page('Вход — пульт', '<div class="login"><form method="post"><h1>Введите код</h1>'
-        . '<p class="muted">Отправили 6 цифр в Telegram. Код действует 5 минут.</p>'
-        . '<input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" autofocus>' . $e
+        . '<p class="muted">Отправили 8 цифр в Telegram. Код действует 5 минут.</p>'
+        . '<input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" autofocus>' . $e
         . '<button type="submit" name="do" value="code">Войти</button>'
         . '<button class="link" type="submit" name="do" value="send">Отправить новый код</button></form></div>');
 }
