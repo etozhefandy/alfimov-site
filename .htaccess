@@ -9,7 +9,12 @@ DirectoryIndex index.php
   RewriteCond %{HTTPS} off
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-  RewriteRule ^(\.git|README|tests?/|pult\.php|dev_router\.php) - [R=404,L,NC]
+  # снаружи открываются только сам пульт, robots.txt и version.txt — остальные файлы в папке (если вдруг остались) не видны
+  RewriteCond %{REQUEST_URI} !^/(index\.php|robots\.txt|version\.txt)?$
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteCond %{REQUEST_URI} !^/$
+  RewriteRule ^ - [R=404,L]
   RewriteRule ^s/([a-z0-9.-]+)/admin$ /s/$1/admin/ [L,R=301]
   RewriteRule ^s/([a-z0-9.-]+)/admin/$ index.php?site=$1&p=admin [L,QSA]
   RewriteRule ^s/([a-z0-9.-]+)/admin/(api|preview)/(.*)$ index.php?site=$1&p=api&r=$2/$3 [L,QSA]
