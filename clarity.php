@@ -10,11 +10,18 @@ const CLARITY_API = 'https://www.clarity.ms/export-data/api/v1/project-live-insi
 
 function pult_clarity_cfg(): array { return pult_read('clarity'); }
 
+/** Похож ли ключ на настоящий токен Clarity (JWT: три части через точку, не обрывок). Проверяем до отправки —
+ *  не тратим суточный лимит в 10 запросов на заведомо битый ключ (обрезали при копировании или он уже заменён новым). */
+function pult_clarity_token_ok(string $token): bool
+{
+    return strlen($token) >= 100 && substr_count($token, '.') === 2 && preg_match('#^[\w-]+\.[\w-]+\.[\w-]+$#', $token) === 1;
+}
+
 /** Запрос к Clarity → [код, разобранный JSON|null, сырой ответ]. В тестах HTTP подменяется $GLOBALS['CRM_HTTP']. */
 function pult_clarity_get(string $token, string $query): array
 {
     $headers = ['Authorization: Bearer ' . $token, 'Accept: application/json'];   // без Content-Type: у GET без тела их nginx отвечает 400
-    if (isset($GLOBALS['CRM_HTTP'])) { [$code, $body] = $GLOBALS['CRM_HTTP']('GET', CLARITY_API . "?$query", $headers, null); return [$code, $body, json_encode($body)]; }
+    if (isset($GLOBALS['CRM_HTTP'])) return $GLOBALS['CRM_HTTP']('GET', CLARITY_API . "?$query", $headers, null);
     $ch = curl_init(CLARITY_API . "?$query");
     curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 20, CURLOPT_HTTPHEADER => $headers, CURLOPT_USERAGENT => 'alfimov-pult']);
     $raw = (string) curl_exec($ch);
@@ -26,12 +33,17 @@ function pult_clarity_get(string $token, string $query): array
 /** Сводка за сутки по страницам. Clarity не приняла разбивку по страницам — берём сводку по сайту целиком. → [ok, данные|текст ошибки]. */
 function pult_clarity_fetch(string $token): array
 {
+    if (!pult_clarity_token_ok($token)) {
+        return [false, 'Ключ не похож на токен Clarity целиком (это длинная строка из трёх частей через точку) — '
+            . 'похоже, обрезался при копировании, или в Clarity уже создан новый. Скопируйте «Долгосрочный токен» заново и вставьте целиком.'];
+    }
     foreach (['numOfDays=1&dimension1=URL', 'numOfDays=1'] as $q) {
         [$code, $body, $raw] = pult_clarity_get($token, $q);
         if ($code === 200 && is_array($body)) return [true, $body];
         if ($code !== 400) break;   // 400 — не понравились параметры: пробуем проще
     }
-    $why = match ($code) { 0 => "нет связи с Clarity ($raw)", 401, 403 => 'Clarity не приняла ключ — создайте новый в Settings → Data export',
+    $why = match ($code) { 0 => "нет связи с Clarity ($raw)", 401, 403 => 'Clarity не приняла ключ — он мог устареть (в Clarity создан новый) или испортился при копировании; создайте новый в Settings → Data export и вставьте заново',
+        400 => 'Clarity отклонила запрос (400) — обычно это тоже испорченный при копировании или уже неактуальный ключ; создайте новый в Settings → Data export и вставьте целиком',
         429 => 'Clarity: исчерпан лимит 10 запросов в день, попробуйте завтра', default => "Clarity ответила ошибкой $code" };
     $detail = trim(mb_substr(strip_tags((string) $raw), 0, 160));
     return [false, $why . ($detail !== '' && $code !== 429 ? ": $detail" : '')];
