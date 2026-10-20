@@ -3,6 +3,7 @@
   // ---- настройки заказчика
   var PIXEL_ID = '1460843041888688'; // ID пикселя Guestory из Events Manager; пусто — пиксель не грузится
   var WA_PHONE = '77088884521';      // WhatsApp менеджера Guestory
+  var CLARITY_ID = '';               // проект Microsoft Clarity «Guestory LP» (тепловые карты, записи); пусто — не грузится
   var CLIENT = 'guestory';
 
   var page = document.body.getAttribute('data-page') || '';
@@ -27,6 +28,19 @@
     fbq('init', PIXEL_ID);
     fbq('track', 'PageView');
   }
+  // ---- Microsoft Clarity: куда смотрят и что нажимают. Поля ввода Clarity скрывает сама.
+  if (CLARITY_ID) {
+    (function (c, l, a, r, i, t, y) {
+      c[a] = c[a] || function () { (c[a].q = c[a].q || []).push(arguments); };
+      t = l.createElement(r); t.async = 1; t.src = 'https://www.clarity.ms/tag/' + i;
+      y = l.getElementsByTagName(r)[0]; y.parentNode.insertBefore(t, y);
+    })(window, document, 'clarity', 'script', CLARITY_ID);
+    clarity('set', 'page', page);
+    if (utm.utm_campaign) clarity('set', 'campaign', utm.utm_campaign);
+    if (utm.utm_content) clarity('set', 'ad', utm.utm_content);
+  }
+  function mark(ev) { if (window.clarity) clarity('event', ev); }
+
   function track(name, params, id) {
     if (window.fbq) fbq('track', name, params || {}, id ? { eventID: id } : undefined);
   }
@@ -36,7 +50,7 @@
     a.href = 'https://wa.me/' + WA_PHONE + '?text=' + encodeURIComponent(a.getAttribute('data-wa'));
     a.target = '_blank';
     a.rel = 'noopener';
-    a.addEventListener('click', function () { track('Contact', { content_name: page }); });
+    a.addEventListener('click', function () { track('Contact', { content_name: page }); mark('whatsapp'); });
   });
 
   // ---- опрос
@@ -86,7 +100,7 @@
   function answered(step) { return !!step.querySelector('input:checked'); }
 
   form.addEventListener('change', function (e) {
-    if (!started) { started = true; track('InitiateCheckout', { content_name: page }); }
+    if (!started) { started = true; track('InitiateCheckout', { content_name: page }); mark('quiz_start'); }
     var t = e.target;
     if (t.type === 'checkbox' && t.value === 'Другое') {   // «Другое» — открыть строку «Что именно?»
       var other = cur.querySelector('.other');
@@ -131,6 +145,7 @@
       .then(function (res) {
         if (res[1].ok) {
           track('Lead', { content_name: page }, leadId);
+          mark('lead');
           form.innerHTML = document.getElementById('quiz-done').innerHTML;
           form.scrollIntoView({ behavior: 'smooth', block: 'center' });
           document.querySelectorAll('#quiz [data-wa]').forEach(function (a) {
