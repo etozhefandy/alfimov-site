@@ -366,17 +366,32 @@ function pult_blog_stats(array $site): array
     return ['live' => $live, 'scheduled' => $scheduled, 'next' => $next];
 }
 
-/** Строка для карточки сайта: «N вышло · M в очереди · следующая …». */
+/** Строка для карточки сайта (plain text, для тестов и сравнения): «N вышло · M запланировано · следующая …». */
 function pult_blog_stats_line(array $site): string
 {
     $s = pult_blog_stats($site);
     if ($s['live'] === 0 && $s['scheduled'] === 0) return '';
-    $parts = [pult_h($s['live']) . ' ' . pult_ru_count($s['live'], 'статья вышла', 'статьи вышло', 'статей вышло')];
+    $parts = [$s['live'] . ' ' . pult_ru_count($s['live'], 'статья вышла', 'статьи вышло', 'статей вышло')];
     $parts[] = $s['scheduled'] > 0
-        ? pult_h($s['scheduled']) . ' ' . pult_ru_count($s['scheduled'], 'запланирована', 'запланированы', 'запланировано')
+        ? $s['scheduled'] . ' ' . pult_ru_count($s['scheduled'], 'запланирована', 'запланированы', 'запланировано')
         : 'ничего не запланировано';
     if ($s['next'] !== null) $parts[] = 'следующая ' . pult_day_label($s['next']) . ' в ' . date('H:i', $s['next']);
     return implode(' · ', $parts);
+}
+
+/** Та же статистика заметным значком на карточке сайта: крупные числа на голубой плашке, а не серым текстом. */
+function pult_blog_stats_badge(array $site): string
+{
+    $s = pult_blog_stats($site);
+    if ($s['live'] === 0 && $s['scheduled'] === 0) return '';
+    $next = $s['next'] !== null ? '<span class="bs-next">следующая ' . pult_h(pult_day_label($s['next'])) . ' в ' . date('H:i', $s['next']) . '</span>' : '';
+    return '<div class="blog-stats">'
+        . '<span class="bs-num">' . $s['live'] . '</span><span>' . pult_h(pult_ru_count($s['live'], 'статья вышла', 'статьи вышло', 'статей вышло')) . '</span>'
+        . '<span class="bs-sep">·</span>'
+        . ($s['scheduled'] > 0
+            ? '<span class="bs-num">' . $s['scheduled'] . '</span><span>' . pult_h(pult_ru_count($s['scheduled'], 'запланирована', 'запланированы', 'запланировано')) . '</span>'
+            : '<span>ничего не запланировано</span>')
+        . $next . '</div>';
 }
 
 /** «сегодня» / «завтра» / «21.10» — для даты $t относительно $now (по умолчанию — текущее время). */
@@ -470,6 +485,11 @@ h2 { font-size: 17px; margin: 28px 0 12px; }
   text-decoration: none; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
 .btn.main { background: #1769ff; border-color: #1769ff; color: #fff; }
 .pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.blog-stats { display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px; margin-top: 10px; padding: 8px 10px;
+  border-radius: 8px; background: #eaf1ff; font-size: 13px; color: #0c1011; }
+.blog-stats .bs-num { font-size: 17px; font-weight: 800; color: #1769ff; }
+.blog-stats .bs-sep { color: #b7c6e8; margin: 0 2px; }
+.blog-stats .bs-next { margin-left: auto; color: #3d4d73; font-weight: 600; }
 .pill { font-size: 13px; padding: 3px 8px; border-radius: 6px; background: #eef0f2; }
 .ok { background: #e6f4ea; color: #1e6b34; } .warn { background: #fff4e0; color: #8a5300; } .bad { background: #fdecec; color: #b3261e; }
 table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e3e5e8; border-radius: 10px; overflow: hidden; }
@@ -537,9 +557,9 @@ function pult_dashboard(string $msg = ''): void
     foreach (pult_sites() as $s) {
         $ver = is_file($s['root'] . '/version.txt') ? trim((string) file_get_contents($s['root'] . '/version.txt')) : '—';
         $d = $mon['domains'][$s['host']] ?? ['ssl' => null, 'domain' => null];
-        $blog = pult_blog_stats_line($s);
+        $blog = pult_blog_stats_badge($s);
         $cards .= '<div class="card"><h3>' . pult_h($s['brand']) . '</h3><div class="muted">' . pult_h($s['host']) . ' · сборка ' . pult_h($ver) . '</div>'
-            . ($blog !== '' ? '<div class="muted">' . $blog . '</div>' : '')
+            . $blog
             . '<div class="pills">' . pult_http_pill(array_key_exists('http', $d) ? $d['http'] : 0) . pult_days_pill($d['domain'], 'Домен') . (($d['http'] ?? 0) === -1 ? '<span class="pill bad">SSL: недействителен</span>' : pult_days_pill($d['ssl'], 'SSL')) . '</div>'
             . '<div class="row"><a class="btn main" href="/s/' . pult_h($s['host']) . '/admin/">Блог, SEO, заявки</a>'
             . '<a class="btn" href="' . pult_h($s['url']) . '/" target="_blank" rel="noopener">Открыть сайт</a></div></div>';
