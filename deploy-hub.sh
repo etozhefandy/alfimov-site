@@ -17,7 +17,7 @@ find "$TMP" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
 # все файлы пульта (кроме локального dev_router.php) + общие библиотеки движка, которые он подключает
 cp engine/hub/*.php engine/hub/.htaccess engine/hub/robots.txt "$TMP"/
 rm -f "$TMP/dev_router.php"
-cp engine/static/api/_crm.php engine/static/api/_csp.php engine/static/api/_hub.php engine/static/api/_capi.php "$TMP"/
+cp engine/static/api/_crm.php engine/static/api/_csp.php engine/static/api/_hub.php engine/static/api/_capi.php engine/static/api/_net.php "$TMP"/
 # пульт должен хотя бы запускаться: все require на месте и без синтаксических ошибок
 for f in "$TMP"/*.php; do php -l "$f" >/dev/null || { echo "Пульт не выложен: ошибка в $(basename "$f")"; exit 1; }; done
 ( cd "$TMP" && HUB_DEV=1 HUB_BASE="$(mktemp -d)" php -r 'ob_start(); $_SERVER["REQUEST_METHOD"]="GET"; include "index.php";' >/dev/null 2>"$TMP.err" ) || true
