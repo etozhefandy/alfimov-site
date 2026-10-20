@@ -168,13 +168,13 @@ function pult_sites(): array
             if (realpath($root) === realpath(__DIR__)) continue;
             $src = (string) file_get_contents($f);
             $c = [];
-            foreach (['SITE_HOST', 'SITE_BRAND', 'SITE_URL', 'SITE_DATA'] as $k) {
+            foreach (['SITE_HOST', 'SITE_BRAND', 'SITE_URL', 'SITE_DATA', 'SITE_CLARITY'] as $k) {
                 $c[$k] = preg_match("/define\\('$k', '((?:[^'\\\\]|\\\\.)*)'\\)/", $src, $m) ? stripcslashes($m[1]) : '';
             }
             if ($c['SITE_HOST'] === '' || isset($sites[$c['SITE_HOST']]) || !is_file("$root/admin/api.php")) continue;
             $sites[$c['SITE_HOST']] = ['host' => $c['SITE_HOST'], 'brand' => $c['SITE_BRAND'] ?: $c['SITE_HOST'],
                 'url' => $c['SITE_URL'] ?: 'https://' . $c['SITE_HOST'], 'root' => $root,
-                'data' => dirname($root) . '/' . ($c['SITE_DATA'] ?: 'alfimov-data')];
+                'data' => dirname($root) . '/' . ($c['SITE_DATA'] ?: 'alfimov-data'), 'clarity' => $c['SITE_CLARITY']];
         }
     }
     ksort($sites);
@@ -409,7 +409,7 @@ function pult_days_pill(?int $days, string $what): string
     return '<span class="pill ' . $cls . '">' . $what . ': ' . $txt . '</span>';
 }
 
-function pult_dashboard(): void
+function pult_dashboard(string $msg = ''): void
 {
     $mon = pult_monitor(isset($_GET['check']));
     $cards = '';
@@ -464,6 +464,6 @@ function pult_dashboard(): void
 
     pult_page('Пульт ALFIMOV', '<div class="wrap"><div class="top"><h1>Пульт ALFIMOV</h1>'
         . '<form method="post" style="margin:0"><input type="hidden" name="do" value="logout"><button class="btn" type="submit">Выйти</button></form></div>'
-        . '<h2>Сайты</h2><div class="grid">' . $cards . '</div>' . $lp . $mon_html . $csp . '</div>');
+        . '<h2>Сайты</h2><div class="grid">' . $cards . '</div>' . $lp . pult_clarity_block($msg) . $mon_html . $csp . '</div>');
 }
 

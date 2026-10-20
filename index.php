@@ -7,6 +7,7 @@ require is_file(__DIR__ . '/_csp.php') ? __DIR__ . '/_csp.php' : dirname(__DIR__
 require is_file(__DIR__ . '/_hub.php') ? __DIR__ . '/_hub.php' : dirname(__DIR__) . '/static/api/_hub.php';
 require is_file(__DIR__ . '/_capi.php') ? __DIR__ . '/_capi.php' : dirname(__DIR__) . '/static/api/_capi.php';
 require __DIR__ . '/clients.php';
+require __DIR__ . '/clarity.php';
 
 // ---------------------------------------------------------------- маршруты
 
@@ -22,6 +23,8 @@ if (isset($_GET['tick'])) {
     ignore_user_abort(true);
     @set_time_limit(180);
     pult_monitor(false);
+    pult_clarity_daily();     // сводка Clarity за сутки — раз в день
+    pult_clarity_weekly();    // по понедельникам — отчёт в Telegram
     exit;
 }
 
@@ -76,6 +79,21 @@ if (str_starts_with($do, 'crm_') || str_starts_with($do, 'capi_') || ($_GET['p']
     if ($_SERVER['REQUEST_METHOD'] === 'POST') pult_client_action($client, $do, $_POST);
     if (isset($_GET['csv'])) pult_client_csv($client, (string) ($_GET['m'] ?? ''));
     pult_client_page($client);
+}
+
+if ($do === 'clarity_key') {
+    $host = (string) ($_POST['h'] ?? '');
+    $token = trim((string) ($_POST['token'] ?? ''));
+    if (!isset(pult_sites()[$host]) || strlen($token) < 20) pult_dashboard('Вставьте ключ целиком (Clarity → Settings → Data export).');
+    $cfg = pult_clarity_cfg();
+    $cfg[$host] = ['token' => $token];
+    pult_write('clarity', $cfg);
+    @unlink(pult_clarity_dir($host) . '/' . date('Y-m-d') . '.json');   // забрать сводку сразу — заодно проверка ключа
+    $r = pult_clarity_daily()[$host] ?? '';
+    pult_dashboard($r === 'ok' ? "Ключ для $host работает, сводка за сутки получена." : "Ключ сохранён, но: $r");
+}
+if ($do === 'clarity_report') {
+    pult_dashboard(pult_clarity_weekly(true) ? 'Отчёт отправлен в Telegram.' : 'Отчёта нет: ещё не накоплено данных (нужен ключ и хотя бы сутки).');
 }
 
 $p = (string) ($_GET['p'] ?? '');
