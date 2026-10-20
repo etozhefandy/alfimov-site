@@ -747,6 +747,7 @@ def llms_txt():
 # Код первой настройки админки — только у владельца; здесь — его sha256. Имя cookie — прежнее, чтобы не разлогинить.
 def site_consts():
     return {
+        "SITE_CLARITY": CLARITY_ID,   # пульт берёт отсюда ссылку на проект Clarity
         "SITE_HOST": "alfimov.kz", "SITE_URL": SITE_URL, "SITE_BRAND": BRAND, "SITE_BRAND_UPPER": "ALFIMOV.KZ",
         "SITE_DATA": "alfimov-data", "SITE_INDEXNOW_KEY": INDEXNOW_KEY,
         "SITE_SETUP_SHA256": "5d90752c03e149d521e3a97043a8a776a552318744d6c5527618fdc0eb191efb",
