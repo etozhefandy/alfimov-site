@@ -422,3 +422,25 @@ section[id] { scroll-margin-top: 72px; }
 .art-body figure { margin: 40px 0; }
 .art-body figure img { width: 100%; height: auto; border-radius: var(--radius); display: block; }
 .art-body figcaption { margin-top: 10px; font-size: 14px; color: var(--muted); }
+
+/* попап-подсказка под статьёй блога (main.js показывает её по скроллу/времени, popup.php сайта — текст) */
+.art-popup {
+  position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 30; max-width: 380px; margin: 0 auto;
+  background: #fff; border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 16px 40px rgba(12, 16, 17, .14);
+  padding: 20px 44px 20px 20px; transform: translateY(16px); opacity: 0; transition: transform .3s var(--ease), opacity .3s var(--ease);
+  pointer-events: none;
+}
+.art-popup.on { transform: translateY(0); opacity: 1; pointer-events: auto; }
+.art-popup[hidden] { display: block; }   /* показывает/прячет .on, не атрибут — иначе не успеет анимироваться */
+.art-popup:not(.on) { display: none; }
+.art-popup-close {
+  position: absolute; top: 10px; right: 10px; width: 28px; height: 28px; border: 0; border-radius: 50%;
+  background: var(--soft); color: var(--ink-2); font-size: 18px; line-height: 1; cursor: pointer;
+}
+.art-popup-close:hover { background: var(--line); color: var(--ink); }
+.art-popup-eyebrow { margin: 0 0 6px; font-weight: 600; color: var(--ink); }
+.art-popup-text { margin: 0 0 16px; font-size: 14px; color: var(--ink-2); line-height: 1.5; }
+.art-popup-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+.art-popup-more { font-size: 13px; color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; }
+.art-popup-more:hover { color: var(--blue); }
+@media (min-width: 720px) { .art-popup { left: auto; right: 24px; bottom: 24px; margin: 0; } }

@@ -28,6 +28,41 @@
     items.forEach(function (el) { el.classList.add("in"); });
   }
 
+  // Попап под статьёй блога (_blog/popup.php сайта кладёт разметку, здесь — когда её показать).
+  // Один раз за вкладку: не чаще, чем за визит, и не раньше, чем человек начал читать.
+  (function () {
+    var popup = document.querySelector(".art-popup");
+    if (!popup) return;
+    var mark = function (ev) { if (window.clarity) clarity("event", ev); };
+    var shown = false;
+    function show() {
+      if (shown) return;
+      shown = true;
+      try { sessionStorage.setItem("popup_seen", "1"); } catch (e) {}
+      popup.hidden = false;
+      requestAnimationFrame(function () { popup.classList.add("on"); });
+      mark("popup_shown");
+      window.removeEventListener("scroll", onScroll);
+    }
+    function onScroll() {
+      var doc = document.documentElement;
+      var past = (window.scrollY + window.innerHeight) / doc.scrollHeight;
+      if (past > 0.5) show();
+    }
+    var seen = false;
+    try { seen = sessionStorage.getItem("popup_seen") === "1"; } catch (e) {}
+    if (!seen) {
+      window.addEventListener("scroll", onScroll, { passive: true });
+      setTimeout(show, 20000);
+    }
+    popup.querySelector(".art-popup-close").addEventListener("click", function () {
+      popup.classList.remove("on");
+      mark("popup_close");
+    });
+    var cta = popup.querySelector("[data-popup-cta]");
+    if (cta) cta.addEventListener("click", function () { mark("popup_click"); });
+  })();
+
   // Маска телефона: +7 (7XX) XXX-XX-XX. 8 в начале → 7, вставка «+7 701…» и «8701…» тоже работает.
   function phoneDigits(v) {
     var d = String(v).replace(/\D/g, "");
