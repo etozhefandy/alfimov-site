@@ -53,26 +53,35 @@
     a.addEventListener('click', function () { track('Contact', { content_name: page }); mark('whatsapp'); });
   });
 
-  // ---- маска телефона: набирают вразнобой (с +7, с 8, без пробелов) — показываем одинаково «8 701 234 56 78»,
-  // так меньше опечаток и пропущенных цифр, чем со свободным текстом.
-  function formatPhone(raw) {
-    var d = raw.replace(/\D/g, '');
-    if (!d) return '';
-    if (d.charAt(0) === '7' || d.charAt(0) === '8') d = d.slice(1);   // код страны/трест — не часть номера
-    d = d.slice(0, 10);
-    var out = '8';
-    if (d.length) out += ' ' + d.slice(0, 3);
-    if (d.length > 3) out += ' ' + d.slice(3, 6);
-    if (d.length > 6) out += ' ' + d.slice(6, 8);
-    if (d.length > 8) out += ' ' + d.slice(8, 10);
-    return out;
+  // ---- маска телефона: тот же вид, что на основном сайте, «+7 (701) 234-56-78». Пересчитывается с нуля на каждый
+  // ввод, поэтому порядок набора (с «8», с «+7», вставка готового номера) не важен и ничего не задваивается.
+  function phoneDigits(v) {
+    var raw = String(v).replace(/\D/g, '');
+    if (!raw) return '';
+    if (raw.charAt(0) === '7' || raw.charAt(0) === '8') raw = raw.slice(1);   // код страны/трест — не часть номера
+    return raw.slice(0, 10);
   }
-  document.querySelectorAll('input[name=phone]').forEach(function (el) {
-    el.addEventListener('input', function () {
-      el.value = formatPhone(el.value);
+  function phoneFormat(d, shown) {
+    if (!shown) return '';   // пусто, пока не набрали ни одной цифры — плейсхолдер виден как обычно
+    var r = '+7';
+    if (d.length) r += ' (' + d.slice(0, 3);
+    if (d.length > 3) r += ') ' + d.slice(3, 6);
+    if (d.length > 6) r += '-' + d.slice(6, 8);
+    if (d.length > 8) r += '-' + d.slice(8, 10);
+    return r;
+  }
+  document.querySelectorAll('input[name=phone]').forEach(function (inp) {
+    inp.addEventListener('input', function () {
+      var raw = inp.value.replace(/\D/g, '');
+      // вставили 10 цифр без кода страны (7012345678) — это и есть номер целиком, код 7 не отрезаем
+      var d = inp.value.indexOf('+') < 0 && raw.length === 10 ? raw : phoneDigits(inp.value);
+      inp.value = phoneFormat(d, raw.length > 0);
     });
   });
 
+  // ---- опрос
+  // ---- опрос
+  // ---- опрос
   // ---- опрос
   var form = document.getElementById('quiz');
   if (!form) return;
@@ -142,7 +151,7 @@
     var name = form.elements.name.value.trim();
     var phone = form.elements.phone.value.trim();
     if (!name) { err.textContent = 'Как к вам обращаться?'; return; }
-    if (phone.replace(/\D/g, '').length < 10) { err.textContent = 'Проверьте номер телефона'; return; }
+    if (phoneDigits(phone).length !== 10) { err.textContent = 'Проверьте номер телефона'; return; }
     // ответы из чужих веток (человек сменил тип объекта) и скрытое «Что именно?» не отправляем
     var p = path();
     steps.forEach(function (s) {
@@ -181,7 +190,7 @@
         submit.disabled = false;
         submit.textContent = submitText;
         err.textContent = ex.message === 'phone'
-          ? 'Проверьте номер телефона — например, 8 701 234 56 78'
+          ? 'Проверьте номер телефона — например, +7 (701) 234-56-78'
           : 'Не получилось отправить. Напишите нам в WhatsApp — кнопка ниже.';
       });
   });

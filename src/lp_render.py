@@ -67,7 +67,7 @@ def _quiz(p):
         '<div class="quiz-hint" data-extra="менеджер напишет в WhatsApp или позвонит"></div>'
         '<label class="field"><span>Имя</span><input name="name" autocomplete="name" maxlength="80" required></label>'
         '<label class="field"><span>Телефон / WhatsApp</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel" '
-        'placeholder="8 7__ ___ __ __" maxlength="30" required></label></div>'
+        'placeholder="+7 (701) 234-56-78" maxlength="30" required></label></div>'
     )
     return f"""<section class="soft" id="form">
   <div class="wrap two">
