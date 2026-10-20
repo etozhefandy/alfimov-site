@@ -680,6 +680,82 @@ def blog_parts():
     }
 
 
+# По теме статьи (её category + keywords + title) подбираем ближайшую услугу для попапа под статьёй —
+# первое совпадение побеждает, порядок важен (частное — раньше общего: TikTok раньше общего «таргета»).
+BLOG_POPUP_RULES = [
+    (["tiktok", "тикток", "тик ток"], "target-tiktok"),
+    (["таргет", "instagram", "инстаграм", "facebook", "фейсбук", " meta ", "meta ads"], "target-facebook-instagram"),
+    (["контекст", "google ads", "гугл рекл", "яндекс директ", "директ", "поисковая реклама"], "kontekstnaya-reklama"),
+    (["seo", "сео", "продвижение сайта", "поисковое продвижение", "поисковой выдач"], "seo-prodvizhenie"),
+    (["smm", "смм", "ведение инстаграм", "ведение соцсет", "контент-план", "контент план"], "smm"),
+    (["исследован", "анализ рынка", "аналитика рынка", "анализ конкурент"], "marketingovye-issledovaniya"),
+]
+BLOG_POPUP_DEFAULT = "kompleksnyj-marketing"
+
+
+def blog_popup_php():
+    """_blog/popup.php: попап под статьёй с предложением проконсультироваться по теме статьи (движок лишь
+    зовёт site_article_popup($article), если файл есть — static/_blog/lib.php, render_article()). Услуги и
+    тексты берём из content_ru.SERVICES, чтобы не дублировать их тут руками и не разойтись при правке."""
+    by_slug = {s["slug"]: s for s in content_ru.SERVICES_ALL}
+    for needles, slug in BLOG_POPUP_RULES:
+        assert slug in by_slug, f"blog_popup: нет услуги {slug!r} в content_ru.SERVICES"
+    assert BLOG_POPUP_DEFAULT in by_slug
+
+    def row(slug):
+        s = by_slug[slug]
+        return (f"    {php_str(slug)} => ['name' => {php_str(s['name'])}, 'short' => {php_str(s['short'])}, "
+                f"'url' => {php_str(url(content_ru, slug))}],")
+
+    used = {slug for _, slug in BLOG_POPUP_RULES} | {BLOG_POPUP_DEFAULT}
+    services_php = "\n".join(row(slug) for slug in used)
+    rules_php = ",\n".join(
+        "    [[" + ", ".join(php_str(n) for n in needles) + "], " + php_str(slug) + "]"
+        for needles, slug in BLOG_POPUP_RULES
+    )
+    wa_icon = icon("whatsapp").replace("'", "\\'")
+    return f"""<?php
+// Сгенерировано сборкой сайта (build.py: blog_popup_php) — не править руками.
+// Попап под статьёй блога: по теме статьи (category, keywords, заголовок) подбирает ближайшую услугу
+// агентства и предлагает бесплатную консультацию в WhatsApp. Показывается один раз за визит, после того
+// как человек прочитал часть статьи (main.js: .art-popup), закрывается крестиком.
+declare(strict_types=1);
+
+const BLOG_POPUP_WA = {php_str(WHATSAPP_URL)};
+const BLOG_POPUP_DEFAULT = {php_str(BLOG_POPUP_DEFAULT)};
+const BLOG_POPUP_RULES = [
+{rules_php},
+];
+const BLOG_POPUP_SERVICES = [
+{services_php}
+];
+
+function site_article_popup(array $a): string
+{{
+    $text = mb_strtolower($a['category'] . ' ' . implode(' ', $a['keywords']) . ' ' . $a['title']);
+    $slug = BLOG_POPUP_DEFAULT;
+    foreach (BLOG_POPUP_RULES as [$needles, $target]) {{
+        foreach ($needles as $n) {{
+            if (str_contains($text, $n)) {{ $slug = $target; break 2; }}
+        }}
+    }}
+    $s = BLOG_POPUP_SERVICES[$slug] ?? BLOG_POPUP_SERVICES[BLOG_POPUP_DEFAULT];
+    $e = fn($v) => htmlspecialchars((string) $v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    $wa = BLOG_POPUP_WA . '?text=' . rawurlencode(sprintf('Здравствуйте! Прочитал(а) статью «%s» — хочу консультацию по теме «%s».', $a['title'], $s['name']));
+    return '
+<aside class="art-popup" id="art-popup" data-popup-slug="' . $e($slug) . '" hidden>
+  <button class="art-popup-close" type="button" aria-label="Закрыть">&times;</button>
+  <p class="art-popup-eyebrow">Читаете про «' . $e($s['name']) . '»?</p>
+  <p class="art-popup-text">' . $e($s['short']) . ' Бесплатная консультация — обсудим именно вашу задачу.</p>
+  <div class="art-popup-row">
+    <a class="btn btn-sm" href="' . $e($wa) . '" target="_blank" rel="noopener" data-popup-cta>{wa_icon}Написать в WhatsApp</a>
+    <a class="art-popup-more" href="' . $e($s['url']) . '">Подробнее об услуге →</a>
+  </div>
+</aside>';
+}}
+"""
+
+
 # ---------------------------------------------------------------- build
 
 def write(path, content):
@@ -787,6 +863,7 @@ def build():
     if missing:
         raise SystemExit("В static/.htaccess нет правил движка: " + "; ".join(missing))
     (DIST / "_blog" / "parts.json").write_text(json.dumps(blog_parts(), ensure_ascii=False), encoding="utf-8")
+    (DIST / "_blog" / "popup.php").write_text(blog_popup_php(), encoding="utf-8")
     (DIST / "_blog" / "sitemap.tpl").write_text(sitemap(paths), encoding="utf-8")
     # Статьи из репозитория — стартовый набор: админка один раз переносит их на хостинг при настройке.
     seed = ROOT / "content" / "articles"
