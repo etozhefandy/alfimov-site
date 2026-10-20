@@ -53,6 +53,26 @@
     a.addEventListener('click', function () { track('Contact', { content_name: page }); mark('whatsapp'); });
   });
 
+  // ---- маска телефона: набирают вразнобой (с +7, с 8, без пробелов) — показываем одинаково «8 701 234 56 78»,
+  // так меньше опечаток и пропущенных цифр, чем со свободным текстом.
+  function formatPhone(raw) {
+    var d = raw.replace(/\D/g, '');
+    if (!d) return '';
+    if (d.charAt(0) === '7' || d.charAt(0) === '8') d = d.slice(1);   // код страны/трест — не часть номера
+    d = d.slice(0, 10);
+    var out = '8';
+    if (d.length) out += ' ' + d.slice(0, 3);
+    if (d.length > 3) out += ' ' + d.slice(3, 6);
+    if (d.length > 6) out += ' ' + d.slice(6, 8);
+    if (d.length > 8) out += ' ' + d.slice(8, 10);
+    return out;
+  }
+  document.querySelectorAll('input[name=phone]').forEach(function (el) {
+    el.addEventListener('input', function () {
+      el.value = formatPhone(el.value);
+    });
+  });
+
   // ---- опрос
   var form = document.getElementById('quiz');
   if (!form) return;
