@@ -346,6 +346,60 @@ function pult_monitor_run(bool $force): array
     return $m;
 }
 
+/** Статьи блога сайта — читаем JSON-файлы статей напрямую (не через lib.php сайта: у каждого сайта своя версия
+ *  движка с одинаковыми именами функций и констант — включить оба в одном процессе пульта нельзя, см. pult_sites()).
+ *  → ['live' => вышло, 'scheduled' => в очереди, 'next' => ближайшая дата выхода или null]. */
+function pult_blog_stats(array $site): array
+{
+    $live = 0;
+    $scheduled = 0;
+    $next = null;
+    foreach (glob($site['data'] . '/articles/*.json') ?: [] as $f) {
+        $a = json_decode((string) @file_get_contents($f), true);
+        if (!is_array($a) || ($a['status'] ?? '') !== 'scheduled') continue;
+        $at = strtotime((string) ($a['publish_at'] ?? ''));
+        if ($at === false) continue;
+        if ($at <= time()) { $live++; continue; }
+        $scheduled++;
+        if ($next === null || $at < $next) $next = $at;
+    }
+    return ['live' => $live, 'scheduled' => $scheduled, 'next' => $next];
+}
+
+/** Строка для карточки сайта: «N вышло · M в очереди · следующая …». */
+function pult_blog_stats_line(array $site): string
+{
+    $s = pult_blog_stats($site);
+    if ($s['live'] === 0 && $s['scheduled'] === 0) return '';
+    $parts = [pult_h($s['live']) . ' ' . pult_ru_count($s['live'], 'статья вышла', 'статьи вышло', 'статей вышло')];
+    $parts[] = $s['scheduled'] > 0
+        ? pult_h($s['scheduled']) . ' ' . pult_ru_count($s['scheduled'], 'запланирована', 'запланированы', 'запланировано')
+        : 'ничего не запланировано';
+    if ($s['next'] !== null) $parts[] = 'следующая ' . pult_day_label($s['next']) . ' в ' . date('H:i', $s['next']);
+    return implode(' · ', $parts);
+}
+
+/** «сегодня» / «завтра» / «21.10» — для даты $t относительно $now (по умолчанию — текущее время). */
+function pult_day_label(int $t, ?int $now = null): string
+{
+    $now ??= time();
+    $d = date('Y-m-d', $t);
+    if ($d === date('Y-m-d', $now)) return 'сегодня';
+    if ($d === date('Y-m-d', $now + 86400)) return 'завтра';
+    return date('d.m', $t);
+}
+
+/** Русское склонение по числу: 1, 2–4, 5+ (и 11–14 — всегда «пять»). */
+function pult_ru_count(int $n, string $one, string $few, string $many): string
+{
+    $n = abs($n) % 100;
+    $n1 = $n % 10;
+    if ($n > 10 && $n < 20) return $many;
+    if ($n1 === 1) return $one;
+    if ($n1 >= 2 && $n1 <= 4) return $few;
+    return $many;
+}
+
 // ---------------------------------------------------------------- админка сайта внутри пульта
 
 /** Полоска пульта над админкой сайта: назад и переключатель сайтов. */
@@ -483,7 +537,9 @@ function pult_dashboard(string $msg = ''): void
     foreach (pult_sites() as $s) {
         $ver = is_file($s['root'] . '/version.txt') ? trim((string) file_get_contents($s['root'] . '/version.txt')) : '—';
         $d = $mon['domains'][$s['host']] ?? ['ssl' => null, 'domain' => null];
+        $blog = pult_blog_stats_line($s);
         $cards .= '<div class="card"><h3>' . pult_h($s['brand']) . '</h3><div class="muted">' . pult_h($s['host']) . ' · сборка ' . pult_h($ver) . '</div>'
+            . ($blog !== '' ? '<div class="muted">' . $blog . '</div>' : '')
             . '<div class="pills">' . pult_http_pill(array_key_exists('http', $d) ? $d['http'] : 0) . pult_days_pill($d['domain'], 'Домен') . (($d['http'] ?? 0) === -1 ? '<span class="pill bad">SSL: недействителен</span>' : pult_days_pill($d['ssl'], 'SSL')) . '</div>'
             . '<div class="row"><a class="btn main" href="/s/' . pult_h($s['host']) . '/admin/">Блог, SEO, заявки</a>'
             . '<a class="btn" href="' . pult_h($s['url']) . '/" target="_blank" rel="noopener">Открыть сайт</a></div></div>';
