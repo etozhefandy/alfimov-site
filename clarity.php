@@ -10,14 +10,31 @@ const CLARITY_API = 'https://www.clarity.ms/export-data/api/v1/project-live-insi
 
 function pult_clarity_cfg(): array { return pult_read('clarity'); }
 
-/** Сводка за сутки по страницам. → [ok, данные|текст ошибки]. В тестах HTTP подменяется $GLOBALS['CRM_HTTP']. */
+/** Запрос к Clarity → [код, разобранный JSON|null, сырой ответ]. В тестах HTTP подменяется $GLOBALS['CRM_HTTP']. */
+function pult_clarity_get(string $token, string $query): array
+{
+    $headers = ['Authorization: Bearer ' . $token, 'Accept: application/json'];   // без Content-Type: у GET без тела их nginx отвечает 400
+    if (isset($GLOBALS['CRM_HTTP'])) { [$code, $body] = $GLOBALS['CRM_HTTP']('GET', CLARITY_API . "?$query", $headers, null); return [$code, $body, json_encode($body)]; }
+    $ch = curl_init(CLARITY_API . "?$query");
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 20, CURLOPT_HTTPHEADER => $headers, CURLOPT_USERAGENT => 'alfimov-pult']);
+    $raw = (string) curl_exec($ch);
+    $code = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+    $body = json_decode($raw, true);
+    return [$code, is_array($body) ? $body : null, $raw !== '' ? $raw : curl_error($ch)];
+}
+
+/** Сводка за сутки по страницам. Clarity не приняла разбивку по страницам — берём сводку по сайту целиком. → [ok, данные|текст ошибки]. */
 function pult_clarity_fetch(string $token): array
 {
-    [$code, $body, $err] = crm_http('GET', CLARITY_API . '?numOfDays=1&dimension1=URL', ['Authorization: Bearer ' . $token]);
-    if ($code === 200 && is_array($body)) return [true, $body];
-    $why = match ($code) { 0 => "нет связи с Clarity ($err)", 401, 403 => 'Clarity не приняла ключ — создайте новый в Settings → Data export',
+    foreach (['numOfDays=1&dimension1=URL', 'numOfDays=1'] as $q) {
+        [$code, $body, $raw] = pult_clarity_get($token, $q);
+        if ($code === 200 && is_array($body)) return [true, $body];
+        if ($code !== 400) break;   // 400 — не понравились параметры: пробуем проще
+    }
+    $why = match ($code) { 0 => "нет связи с Clarity ($raw)", 401, 403 => 'Clarity не приняла ключ — создайте новый в Settings → Data export',
         429 => 'Clarity: исчерпан лимит 10 запросов в день, попробуйте завтра', default => "Clarity ответила ошибкой $code" };
-    return [false, $why];
+    $detail = trim(mb_substr(strip_tags((string) $raw), 0, 160));
+    return [false, $why . ($detail !== '' && $code !== 429 ? ": $detail" : '')];
 }
 
 /** Число из ответа Clarity (бывают строки «9554»). */
@@ -42,8 +59,7 @@ function pult_clarity_pages(array $raw): array
         foreach ((array) ($m['information'] ?? []) as $row) {
             if (!is_array($row)) continue;
             $url = (string) ($row['URL'] ?? $row['Url'] ?? $row['url'] ?? '');
-            $path = $url === '' ? '' : (parse_url($url, PHP_URL_PATH) ?: '/');
-            if ($path === '') continue;
+            $path = $url === '' ? 'весь сайт' : (parse_url($url, PHP_URL_PATH) ?: '/');   // без разбивки по страницам — одна строка на сайт
             $p = &$pages[$path];
             $p ??= ['sessions' => 0.0, 'scroll' => null, 'active' => null, 'rage' => 0.0, 'dead' => 0.0, 'quickback' => 0.0, 'errors' => 0.0];
             switch ($name) {
@@ -186,7 +202,8 @@ function pult_clarity_block(string $msg = ''): string
             . '<form class="inline" method="post" autocomplete="off"><input type="hidden" name="do" value="clarity_key"><input type="hidden" name="h" value="' . pult_h($host) . '">'
             . '<input name="token" type="password" autocomplete="new-password" style="flex:1;min-width:160px" placeholder="' . (!empty($c['token']) ? 'ключ ' . pult_h(crm_mask((string) $c['token'])) : 'ключ Data export') . '">'
             . '<button class="btn" type="submit">' . (!empty($c['token']) ? 'Заменить' : 'Добавить') . '</button></form>'
-            . '<div class="row">' . $link . '</div></div>';
+            . '<div class="row">' . $link . (!empty($c['token']) ? '<form method="post" style="margin:0"><input type="hidden" name="do" value="clarity_retry"><input type="hidden" name="h" value="' . pult_h($host) . '">'
+              . '<button class="btn" type="submit">Проверить ещё раз</button></form>' : '') . '</div></div>';
     }
     $flash = $msg !== '' ? '<p class="muted"><b>' . pult_h($msg) . '</b></p>' : '';
     return '<h2>Поведение посетителей (Microsoft Clarity)</h2>' . $flash

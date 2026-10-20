@@ -92,6 +92,13 @@ if ($do === 'clarity_key') {
     $r = pult_clarity_daily()[$host] ?? '';
     pult_dashboard($r === 'ok' ? "Ключ для $host работает, сводка за сутки получена." : "Ключ сохранён, но: $r");
 }
+if ($do === 'clarity_retry') {
+    $host = (string) ($_POST['h'] ?? '');
+    if (empty(pult_clarity_cfg()[$host]['token'])) pult_dashboard('Сначала добавьте ключ.');
+    @unlink(pult_clarity_dir($host) . '/' . date('Y-m-d') . '.json');
+    $r = pult_clarity_daily()[$host] ?? '';
+    pult_dashboard($r === 'ok' ? "Clarity ответила, сводка для $host получена." : "Clarity: $r");
+}
 if ($do === 'clarity_report') {
     pult_dashboard(pult_clarity_weekly(true) ? 'Отчёт отправлен в Telegram.' : 'Отчёта нет: ещё не накоплено данных (нужен ключ и хотя бы сутки).');
 }
