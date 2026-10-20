@@ -15,10 +15,13 @@ header('X-Robots-Tag: noindex, nofollow');
 header('Cache-Control: no-store');
 header('Referrer-Policy: same-origin');
 
-// Сайты с посетителями будят пульт раз в 12 часов (_hub.php: hub_tick_kick) — проверить домены и SSL и предупредить в Telegram.
-// Без входа: запрос ничего не показывает, а проверка сама не чаще раза в 12 часов.
+// Сайты с посетителями будят пульт раз в 12 часов (_hub.php: hub_tick_kick) — проверить домены, SSL, сводку Clarity.
+// Только со служебным ключом (hub-data/tick.key, его читают сайты этой подписки) и в заголовке, не в адресе.
+// Без ключа или пока идёт прошлая проверка — сразу выходим (pult_monitor сам держит блокировку).
 if (isset($_GET['tick'])) {
+    $key = pult_tick_key();
     http_response_code(204);
+    if ($key === '' || !hash_equals($key, (string) ($_SERVER['HTTP_X_PULT_TICK'] ?? ''))) exit;
     if (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
     ignore_user_abort(true);
     @set_time_limit(180);
@@ -27,16 +30,18 @@ if (isset($_GET['tick'])) {
     pult_clarity_weekly();    // по понедельникам — отчёт в Telegram
     exit;
 }
+pult_tick_key();   // создать ключ, если его ещё нет — сайты начнут будить пульт
 
 $do = (string) ($_POST['do'] ?? '');
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // формы пульта — только со своих страниц
-    $o = parse_url((string) ($_SERVER['HTTP_ORIGIN'] ?? ''));
-    $origin = isset($o['host']) ? $o['host'] . (isset($o['port']) ? ':' . $o['port'] : '') : '';
-    if ($do !== '' && $origin !== '' && $origin !== ($_SERVER['HTTP_HOST'] ?? '')) {
-        http_response_code(403);
-        exit;
+if (!in_array($_SERVER['REQUEST_METHOD'] ?? 'GET', ['GET', 'HEAD'], true)) {
+    // всё, что меняет данные, — только со своих страниц: Origin (или Referer, если Origin нет) должен совпасть с пультом
+    $self = (getenv('HUB_DEV') ? 'http' : 'https') . '://' . ($_SERVER['HTTP_HOST'] ?? '');
+    $from = (string) ($_SERVER['HTTP_ORIGIN'] ?? '');
+    if ($from === '' || $from === 'null') {
+        $r = parse_url((string) ($_SERVER['HTTP_REFERER'] ?? ''));
+        $from = isset($r['scheme'], $r['host']) ? $r['scheme'] . '://' . $r['host'] . (isset($r['port']) ? ':' . $r['port'] : '') : '';
     }
+    if ($from !== $self) { http_response_code(403); exit; }
 }
 
 if (!pult_session()) {
@@ -46,7 +51,7 @@ if (!pult_session()) {
         echo '{"error":"Нужно войти в пульт"}';
         exit;
     }
-    if ($do === 'send') { $err = pult_send_code(); pult_login_page($err, $err === '' || !empty(pult_read('login')['hash'])); }
+    if ($do === 'send') { $err = pult_send_code(); pult_login_page($err, pult_has_challenge()); }
     if ($do === 'code') {
         $err = pult_check_code((string) ($_POST['code'] ?? ''));
         if ($err === '') {   // после входа — туда же, куда шли (только свои адреса)
@@ -54,17 +59,17 @@ if (!pult_session()) {
             header('Location: ' . (preg_match('#^/[^/\\]#', $back) || $back === '/' ? $back : '/'), true, 303);
             exit;
         }
-        pult_login_page($err, !empty(pult_read('login')['hash']));
+        pult_login_page($err, pult_has_challenge());
     }
     pult_login_page();
 }
 
-if ($do === 'logout') { pult_end_session(); header('Location: /', true, 303); exit; }
+if ($do === 'logout' || $do === 'logout_all') { pult_end_session($do === 'logout_all'); header('Location: /', true, 303); exit; }
 if ($do === 'watch' || $do === 'unwatch') {
     $d = strtolower(trim((string) ($_POST['d'] ?? '')));
     $d = preg_replace('#^https?://|/.*$#', '', $d);
     $cfg = pult_read('domains');
-    $extra = (array) ($cfg['extra'] ?? ['guestory.kz']);
+    $extra = (array) ($cfg['extra'] ?? []);
     if ($do === 'watch' && preg_match('/^[a-z0-9.-]+\.[a-z]{2,}$/', $d)) $extra[] = $d;
     if ($do === 'unwatch') $extra = array_values(array_diff($extra, [$d]));
     pult_write('domains', ['extra' => array_values(array_unique($extra))]);

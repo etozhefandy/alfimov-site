@@ -9,14 +9,16 @@
 // Все функции пульта — с префиксом pult_: в одном запросе с ними работает код движка сайта.
 declare(strict_types=1);
 date_default_timezone_set('Asia/Almaty');
+require_once is_file(__DIR__ . '/_net.php') ? __DIR__ . '/_net.php' : dirname(__DIR__) . '/static/api/_net.php';
 
 const PULT_COOKIE = 'pult_s';
 const PULT_SESSION_DAYS = 30;
 const PULT_CODE_TTL = 300;          // код входа живёт 5 минут
 const PULT_CODE_TRIES = 5;          // неверных попыток на один код
 const PULT_CODE_LEN = 8;            // цифр в коде входа
-const PULT_FAILS_PER_HOUR = 10;     // неверных кодов в час в сумме — дальше вход закрыт на час (перебор)
-const PULT_SENDS_PER_HOUR = 6;      // кодов в час — больше не шлём (защита от спама владельцу)
+const PULT_CHALLENGE = 'pult_c';   // cookie браузера, запросившего код: код проверяется только из этого браузера
+const PULT_SENDS_PER_HOUR = 20;     // кодов в час на всех — больше не шлём (спам владельцу); уже выданный код это не трогает
+const PULT_SENDS_PER_IP = 3;        // кодов с одного IP за 15 минут
 const PULT_MONITOR_TTL = 43200;     // проверка доменов и SSL — раз в 12 часов
 const PULT_WARN_DAYS = 30;          // предупреждать, если до конца домена/SSL меньше
 
@@ -77,80 +79,125 @@ function pult_session(): bool
     return (pult_read('sessions')[hash('sha256', $t)] ?? 0) > time();
 }
 
-function pult_start_session(): void
-{
-    $t = bin2hex(random_bytes(32));
-    $all = array_filter(pult_read('sessions'), fn($exp) => $exp > time());
-    $all[hash('sha256', $t)] = time() + PULT_SESSION_DAYS * 86400;
-    pult_write('sessions', $all);
-    setcookie(PULT_COOKIE, $t, ['expires' => time() + PULT_SESSION_DAYS * 86400, 'path' => '/',
-        'secure' => !getenv('HUB_DEV'), 'httponly' => true, 'samesite' => 'Strict']);
-}
-
-function pult_end_session(): void
-{
-    $t = (string) ($_COOKIE[PULT_COOKIE] ?? '');
-    $all = pult_read('sessions');
-    unset($all[hash('sha256', $t)]);
-    pult_write('sessions', $all);
-    setcookie(PULT_COOKIE, '', ['expires' => 1, 'path' => '/', 'secure' => !getenv('HUB_DEV'), 'httponly' => true, 'samesite' => 'Strict']);
-}
-
-/** Вход проверяем строго по одному запросу: иначе пачка параллельных запросов успеет перебрать больше «5 попыток». */
-function pult_login_locked(callable $fn)
+/** Все изменения файла сессий и входа — строго по одному запросу (иначе параллельные записи теряют друг друга). */
+function pult_locked(string $name, callable $fn)
 {
     if (!is_dir(pult_data())) mkdir(pult_data(), 0750, true);
-    $f = fopen(pult_data() . '/.login.lock', 'c');
+    $f = fopen(pult_data() . "/.$name.lock", 'c');
     flock($f, LOCK_EX);
     try { return $fn(); } finally { flock($f, LOCK_UN); fclose($f); }
 }
 
-function pult_login_closed(array $st): bool
+function pult_cookie(string $name, string $value, int $expires): void
 {
-    return count(array_filter((array) ($st['fails'] ?? []), fn($t) => $t > time() - 3600)) >= PULT_FAILS_PER_HOUR;
+    if (!headers_sent()) setcookie($name, $value, ['expires' => $expires, 'path' => '/', 'secure' => !getenv('HUB_DEV'), 'httponly' => true, 'samesite' => 'Strict']);
+    if ($expires > time()) $_COOKIE[$name] = $value; else unset($_COOKIE[$name]);   // и для остатка этого запроса
+}
+
+function pult_start_session(): void
+{
+    $t = bin2hex(random_bytes(32));
+    pult_locked('sessions', function () use ($t) {
+        $all = array_filter(pult_read('sessions'), fn($exp) => $exp > time());
+        $all[hash('sha256', $t)] = time() + PULT_SESSION_DAYS * 86400;
+        pult_write('sessions', $all);
+    });
+    pult_cookie(PULT_COOKIE, $t, time() + PULT_SESSION_DAYS * 86400);
+}
+
+function pult_end_session(bool $everywhere = false): void
+{
+    $t = (string) ($_COOKIE[PULT_COOKIE] ?? '');
+    pult_locked('sessions', function () use ($t, $everywhere) {
+        $all = $everywhere ? [] : pult_read('sessions');
+        unset($all[hash('sha256', $t)]);
+        pult_write('sessions', $all);
+    });
+    pult_cookie(PULT_COOKIE, '', 1);
+}
+
+// Вход: код уходит владельцу в Telegram и привязан к браузеру, который его запросил (cookie pult_c, в файле — только хэш).
+// Чужой браузер не может ни «сжечь» ваш код неверными попытками, ни заменить его своим запросом.
+
+function pult_challenge_key(): string
+{
+    $c = (string) ($_COOKIE[PULT_CHALLENGE] ?? '');
+    return strlen($c) === 64 ? hash('sha256', $c) : '';
+}
+
+/** Есть ли у этого браузера живой код. */
+function pult_has_challenge(): bool
+{
+    $k = pult_challenge_key();
+    $ch = $k !== '' ? (pult_read('login')['challenges'][$k] ?? null) : null;
+    return is_array($ch) && $ch['exp'] > time();
 }
 
 /** Отправить код входа владельцу в Telegram. → '' или текст ошибки. */
-function pult_send_code(): string { return pult_login_locked('pult_send_code_unlocked'); }
-
-function pult_send_code_unlocked(): string
+function pult_send_code(): string
 {
-    $st = pult_read('login');
-    if (pult_login_closed($st)) return 'Слишком много неверных кодов. Вход закрыт на час.';
-    $sent = array_values(array_filter($st['sent'] ?? [], fn($t) => $t > time() - 3600));
-    if (count($sent) >= PULT_SENDS_PER_HOUR) return 'Слишком много кодов за час. Подождите немного.';
-    if ($sent && end($sent) > time() - 30) return 'Код уже отправлен — проверьте Telegram. Новый можно запросить через 30 секунд.';
-    $code = str_pad((string) random_int(0, 10 ** PULT_CODE_LEN - 1), PULT_CODE_LEN, '0', STR_PAD_LEFT);
-    $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? '?');
-    if (!pult_tg_send("🔐 Код входа в пульт admin.alfimov.kz: <code>$code</code>\n\nДействует 5 минут. Запрос с IP $ip. "
-        . "Если входите не вы — просто ничего не делайте.")) return 'Не получилось отправить код в Telegram. Попробуйте ещё раз.';
-    $sent[] = time();
-    pult_write('login', ['hash' => password_hash($code, PASSWORD_DEFAULT), 'exp' => time() + PULT_CODE_TTL, 'tries' => 0, 'sent' => $sent, 'fails' => (array) ($st['fails'] ?? [])]);
+    return pult_locked('login', function () {
+        $st = pult_read('login');
+        $now = time();
+        $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? '?');
+        $st['challenges'] = array_filter((array) ($st['challenges'] ?? []), fn($c) => $c['exp'] > $now);
+        $st['sent'] = array_values(array_filter((array) ($st['sent'] ?? []), fn($t) => $t > $now - 3600));
+        $byIp = array_values(array_filter((array) ($st['ips'][$ip] ?? []), fn($t) => $t > $now - 900));
+        $mine = $st['challenges'][pult_challenge_key()] ?? null;
+        if ($mine && $mine['sent'] > $now - 30) return 'Код уже отправлен — проверьте Telegram. Новый можно запросить через 30 секунд.';
+        if (count($byIp) >= PULT_SENDS_PER_IP) return 'Слишком много кодов с этого адреса. Подождите 15 минут.';
+        if (count($st['sent']) >= PULT_SENDS_PER_HOUR) return 'Слишком много кодов за час. Подождите немного.';
+        $code = str_pad((string) random_int(0, 10 ** PULT_CODE_LEN - 1), PULT_CODE_LEN, '0', STR_PAD_LEFT);
+        if (!pult_tg_send("🔐 Код входа в пульт admin.alfimov.kz: <code>$code</code>\n\nДействует 5 минут, только в браузере, где его запросили. "
+            . "Запрос с IP $ip. Если входите не вы — просто ничего не делайте.")) return 'Не получилось отправить код в Telegram. Попробуйте ещё раз.';
+        $cookie = bin2hex(random_bytes(32));
+        unset($st['challenges'][pult_challenge_key()]);   // прежний код этого же браузера больше не нужен
+        $st['challenges'][hash('sha256', $cookie)] = ['hash' => password_hash($code, PASSWORD_DEFAULT), 'exp' => $now + PULT_CODE_TTL, 'tries' => 0, 'sent' => $now];
+        $st['sent'][] = $now;
+        $byIp[] = $now;
+        $st['ips'] = array_filter(array_map(fn($ts) => array_values(array_filter((array) $ts, fn($t) => $t > $now - 900)), (array) ($st['ips'] ?? [])));
+        $st['ips'][$ip] = $byIp;
+        pult_write('login', $st);
+        pult_cookie(PULT_CHALLENGE, $cookie, $now + PULT_CODE_TTL);
+        return '';
+    });
+}
+
+/** → '' при успехе или текст ошибки. Проверка одного кода — строго по одному запросу: параллельные не дадут лишних попыток и двух сессий. */
+function pult_check_code(string $code): string
+{
+    $r = pult_locked('login', function () use ($code) {
+        $st = pult_read('login');
+        $k = pult_challenge_key();
+        $ch = $k !== '' ? ($st['challenges'][$k] ?? null) : null;
+        if (!is_array($ch) || $ch['exp'] <= time()) return 'Код устарел. Запросите новый.';
+        if (password_verify(trim($code), $ch['hash'])) {
+            unset($st['challenges'][$k]);
+            pult_write('login', $st);
+            return 'ok';
+        }
+        $ch['tries']++;
+        if ($ch['tries'] >= PULT_CODE_TRIES) unset($st['challenges'][$k]); else $st['challenges'][$k] = $ch;
+        pult_write('login', $st);
+        usleep(400000);
+        return $ch['tries'] >= PULT_CODE_TRIES ? 'Код сгорел после 5 ошибок. Запросите новый.' : 'Неверный код';
+    });
+    if ($r !== 'ok') return $r;
+    pult_cookie(PULT_CHALLENGE, '', 1);
+    pult_start_session();
     return '';
 }
 
-/** → '' при успехе или текст ошибки. */
-function pult_check_code(string $code): string { return pult_login_locked(fn() => pult_check_code_unlocked($code)); }
-
-function pult_check_code_unlocked(string $code): string
+/** Служебный ключ запуска проверок (?tick): лежит в hub-data, сайты подписки шлют его в заголовке X-Pult-Tick. */
+function pult_tick_key(): string
 {
-    $st = pult_read('login');
-    if (pult_login_closed($st)) return 'Слишком много неверных кодов. Вход закрыт на час.';
-    if (empty($st['hash']) || time() > (int) ($st['exp'] ?? 0)) return 'Код устарел. Запросите новый.';
-    if (password_verify(trim($code), $st['hash'])) {
-        unset($st['hash'], $st['exp'], $st['tries']);
-        pult_write('login', $st);
-        pult_start_session();
-        return '';
+    $f = pult_data() . '/tick.key';
+    if (!is_file($f)) {
+        if (!is_dir(pult_data()) && !@mkdir(pult_data(), 0750, true)) return '';
+        @file_put_contents($f, bin2hex(random_bytes(24)), LOCK_EX);
+        @chmod($f, 0600);
     }
-    $st['tries'] = (int) ($st['tries'] ?? 0) + 1;
-    $fails = array_values(array_filter((array) ($st['fails'] ?? []), fn($t) => $t > time() - 3600));
-    $fails[] = time();
-    $st['fails'] = $fails;
-    if ($st['tries'] >= PULT_CODE_TRIES) unset($st['hash'], $st['exp']);
-    pult_write('login', $st);
-    usleep(400000);
-    return $st['tries'] >= PULT_CODE_TRIES ? 'Код сгорел после 5 ошибок. Запросите новый.' : 'Неверный код';
+    return trim((string) @file_get_contents($f));
 }
 
 // ---------------------------------------------------------------- сайты
@@ -199,23 +246,34 @@ function pult_landings(): array
 
 // ---------------------------------------------------------------- мониторинг доменов и SSL
 
-/** Открывается ли сайт: HTTP-код главной (после переадресаций) или null — не ответил. */
+/** Открывается ли сайт: HTTP-код главной (переадресации — вручную, каждый адрес проверяется, см. _net.php) или null — не ответил. */
 function pult_http(string $host): ?int
 {
-    $ch = curl_init("https://$host/");
-    curl_setopt_array($ch, [CURLOPT_NOBODY => true, CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 5,
-        CURLOPT_TIMEOUT => 8, CURLOPT_RETURNTRANSFER => true, CURLOPT_USERAGENT => 'alfimov-pult-monitor']);
-    curl_exec($ch);
-    $code = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-    $ssl_ok = !in_array(curl_errno($ch), [51, 58, 60], true);   // 51/58/60 — сертификат не прошёл проверку
-    return $code ?: ($ssl_ok ? null : -1);   // -1 — сертификат не прошёл проверку
+    $url = "https://$host/";
+    for ($hop = 0; $hop < 5; $hop++) {
+        $t = net_target($url, true);
+        if (!$t) return null;   // адрес ведёт во внутреннюю сеть — не ходим
+        $ch = curl_init($url);
+        net_pin($ch, $t);
+        curl_setopt_array($ch, [CURLOPT_NOBODY => true, CURLOPT_TIMEOUT => 8, CURLOPT_RETURNTRANSFER => true, CURLOPT_USERAGENT => 'alfimov-pult-monitor']);
+        curl_exec($ch);
+        $code = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        if (in_array(curl_errno($ch), [51, 58, 60], true)) return -1;   // сертификат не прошёл проверку
+        $next = (string) curl_getinfo($ch, CURLINFO_REDIRECT_URL);
+        if ($code >= 300 && $code < 400 && $next !== '') { $url = $next; continue; }
+        return $code ?: null;
+    }
+    return null;
 }
 
 function pult_ssl_days(string $host): ?int
 {
+    $t = net_target("https://$host/");
+    if (!$t) return null;
+    $ip = str_contains($t['ip'], ':') ? '[' . $t['ip'] . ']' : $t['ip'];
     $ctx = stream_context_create(['ssl' => ['capture_peer_cert' => true, 'SNI_enabled' => true, 'peer_name' => $host,
         'verify_peer' => false, 'verify_peer_name' => false]]);
-    $s = @stream_socket_client("ssl://$host:443", $errno, $err, 6, STREAM_CLIENT_CONNECT, $ctx);
+    $s = @stream_socket_client("ssl://$ip:443", $errno, $err, 6, STREAM_CLIENT_CONNECT, $ctx);
     if (!$s) return null;
     $cert = stream_context_get_params($s)['options']['ssl']['peer_certificate'] ?? null;
     fclose($s);
@@ -247,6 +305,15 @@ function pult_watch(): array
 }
 
 function pult_monitor(bool $force = false): array
+{
+    // Одна проверка за раз: параллельные запросы (тик от сайтов, открытый пульт) не запускают ту же работу ещё раз.
+    if (!is_dir(pult_data())) mkdir(pult_data(), 0750, true);
+    $lock = fopen(pult_data() . '/.monitor.lock', 'c');
+    if (!$lock || !flock($lock, LOCK_EX | LOCK_NB)) return pult_read('monitor');
+    try { return pult_monitor_run($force); } finally { flock($lock, LOCK_UN); fclose($lock); }
+}
+
+function pult_monitor_run(bool $force): array
 {
     $m = pult_read('monitor');
     $fresh = !$force && (int) ($m['checked'] ?? 0) > time() - PULT_MONITOR_TTL;
@@ -463,7 +530,8 @@ function pult_dashboard(string $msg = ''): void
         . 'что загрузилось бы мимо правил. Когда таблицы пустые или в них только лишнее — правила можно включать всерьёз.</p>' . $csp;
 
     pult_page('Пульт ALFIMOV', '<div class="wrap"><div class="top"><h1>Пульт ALFIMOV</h1>'
-        . '<form method="post" style="margin:0"><input type="hidden" name="do" value="logout"><button class="btn" type="submit">Выйти</button></form></div>'
+        . '<form method="post" style="margin:0;display:flex;gap:8px"><button class="btn" type="submit" name="do" value="logout">Выйти</button>'
+        . '<button class="btn" type="submit" name="do" value="logout_all" onclick="return confirm(\'Выйти на всех устройствах?\')">Выйти везде</button></form></div>'
         . '<h2>Сайты</h2><div class="grid">' . $cards . '</div>' . $lp . pult_clarity_block($msg) . $mon_html . $csp . '</div>');
 }
 
