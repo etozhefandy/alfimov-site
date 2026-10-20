@@ -6,6 +6,7 @@ if (!defined('SITE_TG_HUB_UP')) define('SITE_TG_HUB_UP', 0);
 if (!defined('SITE_LEAD_NAME')) define('SITE_LEAD_NAME', true);
 if (!defined('SITE_LEAD_CONSENT')) define('SITE_LEAD_CONSENT', false);
 if (!defined('NICHE_AUTHOR')) define('NICHE_AUTHOR', '');
+if (!defined('SITE_CLARITY')) define('SITE_CLARITY', 'z0he5x2t9s');
 if (!defined('SITE_HOST')) define('SITE_HOST', 'alfimov.kz');
 if (!defined('SITE_URL')) define('SITE_URL', 'https://alfimov.kz');
 if (!defined('SITE_BRAND')) define('SITE_BRAND', 'Alfimov');
