@@ -15,7 +15,7 @@ else
 fi
 find "$TMP" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
 # все файлы пульта (кроме локального dev_router.php) + общие библиотеки движка, которые он подключает
-cp engine/hub/*.php engine/hub/.htaccess engine/hub/robots.txt "$TMP"/
+cp engine/hub/*.php engine/hub/.htaccess engine/hub/robots.txt engine/hub/favicon.svg "$TMP"/
 rm -f "$TMP/dev_router.php"
 cp engine/static/api/_crm.php engine/static/api/_csp.php engine/static/api/_hub.php engine/static/api/_capi.php engine/static/api/_net.php "$TMP"/
 # пульт должен хотя бы запускаться: все require на месте и без синтаксических ошибок
