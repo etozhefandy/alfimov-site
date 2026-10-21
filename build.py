@@ -331,7 +331,9 @@ def page(c, *, path, title, desc, body, schema, alt_path, noindex=False, og_type
 <link rel="manifest" href="/assets/brand/site.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="{FONT_URL}">
+<link rel="preload" as="style" href="{FONT_URL}">
+<link rel="stylesheet" href="{FONT_URL}" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="{FONT_URL}"></noscript>
 <link rel="stylesheet" href="/assets/style.css?v={ASSET_VER}">
 <script>document.documentElement.classList.add('js')</script>
 <script type="application/ld+json">{json.dumps(graph, ensure_ascii=False)}</script>
