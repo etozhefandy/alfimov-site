@@ -16,13 +16,13 @@ const BLOG_POPUP_RULES = [
     [['исследован', 'анализ рынка', 'аналитика рынка', 'анализ конкурент'], 'marketingovye-issledovaniya'],
 ];
 const BLOG_POPUP_SERVICES = [
-    'target-facebook-instagram' => ['name' => 'Таргет в Facebook и Instagram', 'short' => 'Реклама в Meta: заявки, продажи и сообщения в директ и WhatsApp.', 'url' => '/target-facebook-instagram/'],
     'smm' => ['name' => 'SMM-продвижение', 'short' => 'Ведение Instagram и TikTok: стратегия, контент, рост аудитории.', 'url' => '/smm/'],
-    'marketingovye-issledovaniya' => ['name' => 'Маркетинговые исследования', 'short' => 'Анализ рынка, конкурентов и аудитории перед запуском и ростом.', 'url' => '/marketingovye-issledovaniya/'],
     'kompleksnyj-marketing' => ['name' => 'Комплексный маркетинг', 'short' => 'Маркетинг под ключ: стратегия и все каналы в одной команде.', 'url' => '/kompleksnyj-marketing/'],
+    'target-tiktok' => ['name' => 'Таргет в TikTok', 'short' => 'Реклама в TikTok Ads: охват молодой аудитории, заявки и продажи.', 'url' => '/target-tiktok/'],
+    'marketingovye-issledovaniya' => ['name' => 'Маркетинговые исследования', 'short' => 'Анализ рынка, конкурентов и аудитории перед запуском и ростом.', 'url' => '/marketingovye-issledovaniya/'],
+    'target-facebook-instagram' => ['name' => 'Таргет в Facebook и Instagram', 'short' => 'Реклама в Meta: заявки, продажи и сообщения в директ и WhatsApp.', 'url' => '/target-facebook-instagram/'],
     'seo-prodvizhenie' => ['name' => 'SEO-продвижение', 'short' => 'Вывод сайта в топ Google и Яндекса по запросам вашего бизнеса.', 'url' => '/seo-prodvizhenie/'],
     'kontekstnaya-reklama' => ['name' => 'Контекстная реклама', 'short' => 'Google Ads и Яндекс Директ: заявки от тех, кто уже ищет ваш продукт.', 'url' => '/kontekstnaya-reklama/'],
-    'target-tiktok' => ['name' => 'Таргет в TikTok', 'short' => 'Реклама в TikTok Ads: охват молодой аудитории, заявки и продажи.', 'url' => '/target-tiktok/'],
 ];
 
 function site_article_popup(array $a): string
