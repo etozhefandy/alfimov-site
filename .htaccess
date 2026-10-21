@@ -9,8 +9,8 @@ DirectoryIndex index.php
   RewriteCond %{HTTPS} off
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-  # снаружи открываются только сам пульт, robots.txt и version.txt — остальные файлы в папке (если вдруг остались) не видны
-  RewriteCond %{REQUEST_URI} !^/(index\.php|robots\.txt|version\.txt)?$
+  # снаружи открываются только сам пульт, robots.txt, version.txt и favicon.svg — остальные файлы в папке (если вдруг остались) не видны
+  RewriteCond %{REQUEST_URI} !^/(index\.php|robots\.txt|version\.txt|favicon\.svg)?$
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteCond %{REQUEST_URI} !^/$
