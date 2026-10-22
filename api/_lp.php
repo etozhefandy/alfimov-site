@@ -78,3 +78,16 @@ function lp_lead_text(string $client, string $page, array $post, array $phone): 
     if ($utm) $lines[] = "\n📣 " . implode(' / ', $utm);
     return implode("\n", $lines);
 }
+
+/** Что написать в Telegram после попытки передать заявку в CRM заказчика. null — CRM не подключена, писать нечего. */
+function lp_crm_status_text(string $client, array $r): ?string
+{
+    if (!empty($r['skipped'])) return null;
+    if (!empty($r['ok'])) {
+        $type = CRM_TYPES[crm_config($client)['type'] ?? ''] ?? 'CRM';
+        return "✅ Заявка ушла в $type" . (!empty($r['id']) ? " · №{$r['id']}" : '');
+    }
+    $name = (string) (lp_clients()[$client]['name'] ?? $client);
+    $esc = htmlspecialchars((string) ($r['error'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    return "⚠️ <b>Заявка не попала в CRM</b> ($name): $esc\n\nВ Telegram она есть выше — перенесите вручную. Исправить подключение: admin.alfimov.kz";
+}
