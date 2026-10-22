@@ -46,8 +46,6 @@ hub_lead_add($data, true, $r);   // журнал заявок заказчика
 // то же событие Lead в Meta с сервера (если в пульте подключён Conversions API) — с id пикселя, чтобы не задвоилось
 capi_send($client, capi_event($data, ['ip' => (string) ($_SERVER['REMOTE_ADDR'] ?? ''), 'ua' => (string) ($_SERVER['HTTP_USER_AGENT'] ?? ''),
     'url' => (string) ($_SERVER['HTTP_REFERER'] ?? ''), 'cookies' => $_COOKIE, 'event_id' => (string) ($_POST['event_id'] ?? '')]));
-if (empty($r['ok'])) {   // заявка в Telegram уже есть — только предупреждаем, что в CRM она не попала
-    $esc = htmlspecialchars((string) ($r['error'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-    tg_on_site(lp_tg_site($client), fn() => tg_send_lead("⚠️ <b>Заявка не попала в CRM</b> ({$data['client_name']}): $esc\n\nВ Telegram она есть выше — перенесите вручную. Исправить подключение: admin.alfimov.kz"));
-}
+// заявка в Telegram уже есть — вдогонку короткая строка, дошла ли она ещё и до CRM (молчит, только если CRM вообще не подключена)
+if ($status = lp_crm_status_text($client, $r)) tg_on_site(lp_tg_site($client), fn() => tg_send_lead($status));
 exit;

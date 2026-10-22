@@ -40,6 +40,15 @@ $d = lp_lead_data('guestory', 'osnashenie', $post + ['utm_medium' => 'paid', 'fb
 check($d['utm'] === ['utm_medium' => 'paid', 'utm_campaign' => 'osn_test', 'utm_content' => 'video1', 'fbclid' => 'F1'], 'для CRM: метки рекламы и fbclid отдельными полями');
 check(in_array(['📦 Нужно', 'Текстиль'], $d['answers'], true) && $d['client_name'] === 'Guestory', 'для CRM: ответы опроса списком, только допустимые');
 
+echo "статус передачи в CRM\n";
+check(lp_crm_status_text('guestory', ['ok' => true, 'skipped' => true]) === null, 'CRM не подключена — ничего не пишем вдогонку');
+crm_save('guestory', ['type' => 'kommo', 'host' => 'guestory.kommo.com', 'token' => 'tok']);
+check(lp_crm_status_text('guestory', ['ok' => true, 'id' => 42]) === '✅ Заявка ушла в Kommo · №42', 'успех — короткое подтверждение с номером сделки');
+check(lp_crm_status_text('guestory', ['ok' => true]) === '✅ Заявка ушла в Kommo', 'успех без номера (вебхук не всегда его отдаёт) — подтверждение без «№»');
+check(lp_crm_status_text('guestory', ['ok' => false, 'error' => 'нет доступа']) ===
+    "⚠️ <b>Заявка не попала в CRM</b> (Guestory): нет доступа\n\nВ Telegram она есть выше — перенесите вручную. Исправить подключение: admin.alfimov.kz",
+    'провал — предупреждение с причиной, заявка не теряется (уже есть в Telegram)');
+
 lp_register_sites();
 $hosts = array_column(tg_sites(), 'host');
 check(in_array('lp-guestory', $hosts, true) && $hosts[0] === 'alfimov.kz', 'Guestory в списке сайтов бота — можно привязать свою группу');
