@@ -32,8 +32,8 @@ $cfg = tg_cfg();
 if (empty($cfg['tg_token']) || empty($cfg['tg_chat'])) reply(false, 503);
 lp_register_sites();
 $text = lp_lead_text($client, $page, $_POST, $phone);
-$ok = tg_on_site(lp_tg_site($client), fn() => tg_send_lead($text));
-if (!$ok) reply(false, 502);
+$sent = tg_on_site(lp_tg_site($client), fn() => tg_send_lead($text));
+if (!$sent) reply(false, 502);
 
 // Человеку отвечаем сразу, а в CRM заказчика (если подключена в пульте) отправляем уже после ответа.
 http_response_code(200);
@@ -46,6 +46,8 @@ hub_lead_add($data, true, $r);   // журнал заявок заказчика
 // то же событие Lead в Meta с сервера (если в пульте подключён Conversions API) — с id пикселя, чтобы не задвоилось
 capi_send($client, capi_event($data, ['ip' => (string) ($_SERVER['REMOTE_ADDR'] ?? ''), 'ua' => (string) ($_SERVER['HTTP_USER_AGENT'] ?? ''),
     'url' => (string) ($_SERVER['HTTP_REFERER'] ?? ''), 'cookies' => $_COOKIE, 'event_id' => (string) ($_POST['event_id'] ?? '')]));
-// заявка в Telegram уже есть — вдогонку короткая строка, дошла ли она ещё и до CRM (молчит, только если CRM вообще не подключена)
-if ($status = lp_crm_status_text($client, $r)) tg_on_site(lp_tg_site($client), fn() => tg_send_lead($status));
+// статус CRM дописывается в то же сообщение (а не вторым) — молчим, только если CRM вообще не подключена
+if ($status = lp_crm_status_text($client, $r)) {
+    tg_on_site(lp_tg_site($client), fn() => tg_edit_lead($sent, $text . "\n\n" . $status));
+}
 exit;
