@@ -364,6 +364,12 @@ def faq_block(c, items, num):
 </section>"""
 
 
+def type_tc(*parts):
+    """Число «символов» для CSS-анимации печатающегося заголовка (.type, style.css) — сумма длин текста, в разумных пределах."""
+    n = sum(len(p) for p in parts if p)
+    return max(8, min(40, n))
+
+
 def flow(steps, loop_text=None):
     """Схема пути: горизонтальная на десктопе, вертикальная на мобиле."""
     items = "".join(
@@ -462,7 +468,7 @@ def build_home(c):
 <section class="hero">
   <div class="wrap">
     <p class="hero-kicker rv">{e(h['hero_kicker'])}</p>
-    <h1 class="rv">{e(h['hero_title_pre'])} <em>{e(h['hero_title_accent'])}</em>{title_post}</h1>
+    <h1 class="type" style="--tc:{type_tc(h['hero_title_pre'], h['hero_title_accent'], h.get('hero_title_post', ''))}"><span class="type-text">{e(h['hero_title_pre'])} <em>{e(h['hero_title_accent'])}</em>{title_post}</span></h1>
     <div class="hero-row">
       <p class="hero-lead rv">{e(h['hero_lead'])}</p>
       <div class="hero-cta rv">
@@ -534,7 +540,7 @@ def build_service(c, s):
 <section class="hero hero-svc">
   <div class="wrap">
     <nav class="crumbs rv" aria-label="breadcrumbs"><a href="{url(c)}">{e(ui['breadcrumbs_home'])}</a><span>/</span><a href="{url(c)}#services">{e(ui['nav_services'])}</a></nav>
-    <h1 class="rv">{e(s['h1'])}</h1>
+    <h1 class="type" style="--tc:{type_tc(s['h1'])}"><span class="type-text">{e(s['h1'])}</span></h1>
     <div class="hero-row">
       <p class="hero-lead rv">{e(s['lead'])}</p>
       <div class="hero-cta rv">

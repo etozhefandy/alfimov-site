@@ -15,8 +15,8 @@
     });
   }
 
-  // Появление блоков при прокрутке (CSS-переходы, без тяжёлых библиотек)
-  var items = document.querySelectorAll(".rv");
+  // Появление блоков при прокрутке (CSS-переходы, без тяжёлых библиотек) — .type тот же механизм, своя анимация в CSS
+  var items = document.querySelectorAll(".rv, .type");
   if ("IntersectionObserver" in window) {
     var io = new IntersectionObserver(function (entries) {
       entries.forEach(function (en) {

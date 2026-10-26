@@ -50,6 +50,20 @@ section[id] { scroll-margin-top: 72px; }
 .js .rv { opacity: 0; transform: translateY(14px); transition: opacity .7s var(--ease), transform .7s var(--ease); }
 .js .rv.in { opacity: 1; transform: none; }
 
+/* печатающийся заголовок (h1): --tc задаёт build.py — число символов, от него зависит и скорость, и шаги clip-path.
+   clip-path — на внутреннем .type-text, не на самом .type (h1): clip-path на наблюдаемом элементе ломает
+   срабатывание IntersectionObserver в части браузеров — элемент с ним считается невидимым и никогда не «входит». */
+.js .type-text { display: inline-block; clip-path: inset(0 100% 0 0); }
+.js .type.in .type-text { animation: type-in calc(var(--tc, 16) * .045s + .2s) steps(var(--tc, 16), end) forwards; }
+.js .type.in .type-text::after {
+  content: ""; display: inline-block; width: .08em; height: .78em; margin-left: .05em; background: var(--blue);
+  vertical-align: -.05em; opacity: 0;
+  animation: type-blink .5s ease-in-out 3 forwards;
+  animation-delay: calc(var(--tc, 16) * .045s + .2s);
+}
+@keyframes type-in { to { clip-path: inset(0 0 0 0); } }
+@keyframes type-blink { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+
 /* logo */
 .logo { display: inline-flex; color: var(--ink); text-decoration: none; }
 .logo svg { height: 18px; width: auto; }
@@ -202,6 +216,9 @@ section[id] { scroll-margin-top: 72px; }
   background: var(--bg); border: 1px solid var(--ink);
 }
 .flow-n { display: block; font-family: var(--font-mono); font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+/* шаги появляются по очереди, а не все разом — --i задаёт build.py (flow()) */
+.js .flow li { opacity: 0; transform: translateY(10px); transition: opacity .5s var(--ease), transform .5s var(--ease); transition-delay: calc(var(--i, 0) * .09s); }
+.js .flow.in li { opacity: 1; transform: none; }
 .flow h3 { font-size: 22px; margin-bottom: 8px; }
 .flow li p { color: var(--ink-2); font-size: 15px; margin: 0; max-width: 32ch; }
 .sec-soft .flow li::after { background: var(--soft); }
@@ -362,7 +379,9 @@ section[id] { scroll-margin-top: 72px; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition: none !important; animation: none !important; }
-  .js .rv { opacity: 1; transform: none; }
+  .js .rv, .js .flow li { opacity: 1; transform: none; }
+  .js .type-text { clip-path: none; }
+  .js .type-text::after { display: none; }
 }
 
 /* blog: список и статья */
