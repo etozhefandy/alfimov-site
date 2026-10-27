@@ -364,10 +364,21 @@ def faq_block(c, items, num):
 </section>"""
 
 
-def type_tc(*parts):
-    """Число «символов» для CSS-анимации печатающегося заголовка (.type, style.css) — сумма длин текста, в разумных пределах."""
-    n = sum(len(p) for p in parts if p)
-    return max(8, min(40, n))
+def type_words(parts):
+    """Печатающийся заголовок (.type, style.css): каждое слово — свой <span> с индексом --i,
+    чтобы текст появлялся по словам в порядке чтения, а не всей строкой/всеми строками сразу.
+    parts — [(текст, em)], em оборачивает слово в <em> (акцент)."""
+    out, i = [], 0
+    for text, em in parts:
+        if not text:
+            continue
+        for word in text.split(" "):
+            if not word:
+                continue
+            span = f'<span class="tw" style="--i:{i}">{e(word)}</span>'
+            out.append(f"<em>{span}</em>" if em else span)
+            i += 1
+    return " ".join(out)
 
 
 def flow(steps, loop_text=None):
@@ -439,7 +450,6 @@ def home_blog_block(c, n):
 
 def build_home(c):
     h, ui = c.HOME, c.UI
-    title_post = f" {e(h['hero_title_post'])}" if h.get("hero_title_post") else ""
     facts = "".join(f'<li><b>{e(a)}</b><span>{e(b)}</span></li>' for a, b in h["hero_facts"])
 
     visible = {s["slug"] for s in c.SERVICES}
@@ -468,7 +478,7 @@ def build_home(c):
 <section class="hero">
   <div class="wrap">
     <p class="hero-kicker rv">{e(h['hero_kicker'])}</p>
-    <h1 class="type" style="--tc:{type_tc(h['hero_title_pre'], h['hero_title_accent'], h.get('hero_title_post', ''))}"><span class="type-text">{e(h['hero_title_pre'])} <em>{e(h['hero_title_accent'])}</em>{title_post}</span></h1>
+    <h1 class="type">{type_words([(h['hero_title_pre'], False), (h['hero_title_accent'], True), (h.get('hero_title_post', ''), False)])}</h1>
     <div class="hero-row">
       <p class="hero-lead rv">{e(h['hero_lead'])}</p>
       <div class="hero-cta rv">
@@ -540,7 +550,7 @@ def build_service(c, s):
 <section class="hero hero-svc">
   <div class="wrap">
     <nav class="crumbs rv" aria-label="breadcrumbs"><a href="{url(c)}">{e(ui['breadcrumbs_home'])}</a><span>/</span><a href="{url(c)}#services">{e(ui['nav_services'])}</a></nav>
-    <h1 class="type" style="--tc:{type_tc(s['h1'])}"><span class="type-text">{e(s['h1'])}</span></h1>
+    <h1 class="type">{type_words([(s['h1'], False)])}</h1>
     <div class="hero-row">
       <p class="hero-lead rv">{e(s['lead'])}</p>
       <div class="hero-cta rv">
