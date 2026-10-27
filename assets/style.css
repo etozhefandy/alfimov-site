@@ -50,19 +50,15 @@ section[id] { scroll-margin-top: 72px; }
 .js .rv { opacity: 0; transform: translateY(14px); transition: opacity .7s var(--ease), transform .7s var(--ease); }
 .js .rv.in { opacity: 1; transform: none; }
 
-/* печатающийся заголовок (h1): --tc задаёт build.py — число символов, от него зависит и скорость, и шаги clip-path.
-   clip-path — на внутреннем .type-text, не на самом .type (h1): clip-path на наблюдаемом элементе ломает
-   срабатывание IntersectionObserver в части браузеров — элемент с ним считается невидимым и никогда не «входит». */
-.js .type-text { display: inline-block; clip-path: inset(0 100% 0 0); }
-.js .type.in .type-text { animation: type-in calc(var(--tc, 16) * .045s + .2s) steps(var(--tc, 16), end) forwards; }
-.js .type.in .type-text::after {
-  content: ""; display: inline-block; width: .08em; height: .78em; margin-left: .05em; background: var(--blue);
-  vertical-align: -.05em; opacity: 0;
-  animation: type-blink .5s ease-in-out 3 forwards;
-  animation-delay: calc(var(--tc, 16) * .045s + .2s);
+/* печатающийся заголовок (h1): слово — свой <span class="tw" style="--i:N"> (build.py), появляются по очереди.
+   Раньше был clip-path на всю строку — на переносе он «печатал» все строки параллельно (один и тот же % слева
+   на каждой строке), а не по порядку чтения; по словам и перенос не мешает, и быстрее — не ждать. */
+.js .type .tw { display: inline-block; opacity: 0; transform: translateY(.35em); filter: blur(3px); }
+.js .type.in .tw {
+  animation: word-in .5s var(--ease) forwards;
+  animation-delay: calc(min(var(--i, 0), 10) * .06s);
 }
-@keyframes type-in { to { clip-path: inset(0 0 0 0); } }
-@keyframes type-blink { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+@keyframes word-in { to { opacity: 1; transform: none; filter: blur(0); } }
 
 /* logo */
 .logo { display: inline-flex; color: var(--ink); text-decoration: none; }
@@ -379,9 +375,7 @@ section[id] { scroll-margin-top: 72px; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition: none !important; animation: none !important; }
-  .js .rv, .js .flow li { opacity: 1; transform: none; }
-  .js .type-text { clip-path: none; }
-  .js .type-text::after { display: none; }
+  .js .rv, .js .flow li, .js .type .tw { opacity: 1; transform: none; filter: none; }
 }
 
 /* blog: список и статья */
