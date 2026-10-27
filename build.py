@@ -40,10 +40,12 @@ INSTAGRAM = "etozhefandy"
 INSTAGRAM_URL = f"https://www.instagram.com/{INSTAGRAM}/"
 # Шрифты: заголовки с засечками Source Serif 4 + текст IBM Plex Sans + цифры и метки IBM Plex Mono.
 # Все три полностью покрывают казахский (ә ғ қ ң ө ұ ү һ і) — проверено по таблицам символов шрифтов.
-FONT_URL = (
-    "https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600"
-    "&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
-)
+# Заголовочный шрифт — отдельным запросом с display=optional: если не успел прогрузиться почти сразу (он
+# предзагружен через preload), браузер весь показ страницы держит запасной Georgia и не подменяет её потом
+# «на лету» — не должно быть заметного скачка шрифта после печати заголовка. Текстовым шрифтам (они мельче,
+# подмена не бросается в глаза) оставлен обычный display=swap — так текст не ждёт загрузки шрифта вообще.
+FONT_URL_HEAD = "https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=optional"
+FONT_URL_BODY = "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
 # Microsoft Clarity — тепловые карты кликов и прокрутки, записи визитов (clarity.microsoft.com). Пусто — не ставится.
 # Поля ввода Clarity по умолчанию скрывает (телефоны в записи не попадают). Источники Clarity разрешены в CSP (static/.htaccess).
 CLARITY_ID = "z0he5x2t9s"
@@ -331,9 +333,11 @@ def page(c, *, path, title, desc, body, schema, alt_path, noindex=False, og_type
 <link rel="manifest" href="/assets/brand/site.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="preload" as="style" href="{FONT_URL}">
-<link rel="stylesheet" href="{FONT_URL}" media="print" onload="this.media='all'">
-<noscript><link rel="stylesheet" href="{FONT_URL}"></noscript>
+<link rel="preload" as="style" href="{FONT_URL_HEAD}">
+<link rel="preload" as="style" href="{FONT_URL_BODY}">
+<link rel="stylesheet" href="{FONT_URL_HEAD}" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="{FONT_URL_BODY}" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="{FONT_URL_HEAD}"><link rel="stylesheet" href="{FONT_URL_BODY}"></noscript>
 <link rel="stylesheet" href="/assets/style.css?v={ASSET_VER}">
 <script>document.documentElement.classList.add('js')</script>
 <script type="application/ld+json">{json.dumps(graph, ensure_ascii=False)}</script>
