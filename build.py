@@ -754,11 +754,17 @@ const BLOG_POPUP_SERVICES = [
 
 function site_article_popup(array $a): string
 {{
-    $text = mb_strtolower($a['category'] . ' ' . implode(' ', $a['keywords']) . ' ' . $a['title']);
+    // сначала ищем по одной только категории статьи — так заголовок/ключевые слова статьи про SMM,
+    // упоминающие «Instagram» (это же канал SMM), не перехватывает более раннее правило про таргет;
+    // категория реже бывает многословной и почти всегда недвусмысленно называет саму услугу
+    $category = mb_strtolower($a['category']);
+    $text = $category . ' ' . mb_strtolower(implode(' ', $a['keywords']) . ' ' . $a['title']);
     $slug = BLOG_POPUP_DEFAULT;
-    foreach (BLOG_POPUP_RULES as [$needles, $target]) {{
-        foreach ($needles as $n) {{
-            if (str_contains($text, $n)) {{ $slug = $target; break 2; }}
+    foreach ([$category, $text] as $pass) {{
+        foreach (BLOG_POPUP_RULES as [$needles, $target]) {{
+            foreach ($needles as $n) {{
+                if (str_contains($pass, $n)) {{ $slug = $target; break 3; }}
+            }}
         }}
     }}
     $s = BLOG_POPUP_SERVICES[$slug] ?? BLOG_POPUP_SERVICES[BLOG_POPUP_DEFAULT];
