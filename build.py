@@ -816,18 +816,8 @@ def sitemap(paths):
     )
 
 
-# Роботы ИИ-поиска (ChatGPT, Perplexity, Claude, Gemini, Apple, Яндекс) — пускаем явно: на сайт
-# ссылаются в ответах нейросетей только если их робот может его прочитать.
-AI_BOTS = ["OAI-SearchBot", "ChatGPT-User", "GPTBot", "PerplexityBot", "Perplexity-User", "ClaudeBot",
-           "Claude-SearchBot", "Claude-User", "Google-Extended", "Applebot-Extended", "YandexAdditional", "Bingbot"]
-ROBOTS_RULES = "Allow: /\nDisallow: /api/\nDisallow: /admin/\nDisallow: /_blog/\n"
 # IndexNow: мгновенное уведомление Bing (→ ChatGPT, Copilot) и Яндекса о новых и изменённых страницах.
 INDEXNOW_KEY = "c4a1f0e2b7d94e1f8a3c6b5d2e9f7a10"
-
-
-def robots_txt():
-    groups = ["User-agent: *\n" + ROBOTS_RULES] + [f"User-agent: {b}\n" + ROBOTS_RULES for b in AI_BOTS]
-    return "\n".join(groups) + f"\nSitemap: {SITE_URL}/sitemap.xml\nHost: {SITE_URL}\n"
 
 
 def llms_txt():
@@ -897,7 +887,7 @@ def build():
     seed = ROOT / "content" / "articles"
     if seed.is_dir():
         shutil.copytree(seed, DIST / "_blog" / "seed")
-    (DIST / "robots.txt").write_text(robots_txt(), encoding="utf-8")
+    (DIST / "robots.txt").write_text(enginekit.robots_txt(SITE_URL, extra_public_api=["lp-send.php"]), encoding="utf-8")
     (DIST / "_blog" / "llms.tpl").write_text(llms_txt(), encoding="utf-8")
     (DIST / f"{INDEXNOW_KEY}.txt").write_text(INDEXNOW_KEY, encoding="utf-8")
     # Какая сборка сейчас на хостинге: https://alfimov.kz/version.txt
