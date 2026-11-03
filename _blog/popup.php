@@ -16,22 +16,28 @@ const BLOG_POPUP_RULES = [
     [['исследован', 'анализ рынка', 'аналитика рынка', 'анализ конкурент'], 'marketingovye-issledovaniya'],
 ];
 const BLOG_POPUP_SERVICES = [
-    'target-facebook-instagram' => ['name' => 'Таргет в Facebook и Instagram', 'short' => 'Реклама в Meta: заявки, продажи и сообщения в директ и WhatsApp.', 'url' => '/target-facebook-instagram/'],
-    'seo-prodvizhenie' => ['name' => 'SEO-продвижение', 'short' => 'Вывод сайта в топ Google и Яндекса по запросам вашего бизнеса.', 'url' => '/seo-prodvizhenie/'],
+    'target-tiktok' => ['name' => 'Таргет в TikTok', 'short' => 'Реклама в TikTok Ads: охват молодой аудитории, заявки и продажи.', 'url' => '/target-tiktok/'],
     'kontekstnaya-reklama' => ['name' => 'Контекстная реклама', 'short' => 'Google Ads и Яндекс Директ: заявки от тех, кто уже ищет ваш продукт.', 'url' => '/kontekstnaya-reklama/'],
+    'target-facebook-instagram' => ['name' => 'Таргет в Facebook и Instagram', 'short' => 'Реклама в Meta: заявки, продажи и сообщения в директ и WhatsApp.', 'url' => '/target-facebook-instagram/'],
+    'smm' => ['name' => 'SMM-продвижение', 'short' => 'Ведение Instagram и TikTok: стратегия, контент, рост аудитории.', 'url' => '/smm/'],
     'marketingovye-issledovaniya' => ['name' => 'Маркетинговые исследования', 'short' => 'Анализ рынка, конкурентов и аудитории перед запуском и ростом.', 'url' => '/marketingovye-issledovaniya/'],
     'kompleksnyj-marketing' => ['name' => 'Комплексный маркетинг', 'short' => 'Маркетинг под ключ: стратегия и все каналы в одной команде.', 'url' => '/kompleksnyj-marketing/'],
-    'smm' => ['name' => 'SMM-продвижение', 'short' => 'Ведение Instagram и TikTok: стратегия, контент, рост аудитории.', 'url' => '/smm/'],
-    'target-tiktok' => ['name' => 'Таргет в TikTok', 'short' => 'Реклама в TikTok Ads: охват молодой аудитории, заявки и продажи.', 'url' => '/target-tiktok/'],
+    'seo-prodvizhenie' => ['name' => 'SEO-продвижение', 'short' => 'Вывод сайта в топ Google и Яндекса по запросам вашего бизнеса.', 'url' => '/seo-prodvizhenie/'],
 ];
 
 function site_article_popup(array $a): string
 {
-    $text = mb_strtolower($a['category'] . ' ' . implode(' ', $a['keywords']) . ' ' . $a['title']);
+    // сначала ищем по одной только категории статьи — так заголовок/ключевые слова статьи про SMM,
+    // упоминающие «Instagram» (это же канал SMM), не перехватывает более раннее правило про таргет;
+    // категория реже бывает многословной и почти всегда недвусмысленно называет саму услугу
+    $category = mb_strtolower($a['category']);
+    $text = $category . ' ' . mb_strtolower(implode(' ', $a['keywords']) . ' ' . $a['title']);
     $slug = BLOG_POPUP_DEFAULT;
-    foreach (BLOG_POPUP_RULES as [$needles, $target]) {
-        foreach ($needles as $n) {
-            if (str_contains($text, $n)) { $slug = $target; break 2; }
+    foreach ([$category, $text] as $pass) {
+        foreach (BLOG_POPUP_RULES as [$needles, $target]) {
+            foreach ($needles as $n) {
+                if (str_contains($pass, $n)) { $slug = $target; break 3; }
+            }
         }
     }
     $s = BLOG_POPUP_SERVICES[$slug] ?? BLOG_POPUP_SERVICES[BLOG_POPUP_DEFAULT];
