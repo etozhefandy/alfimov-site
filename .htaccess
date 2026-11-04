@@ -62,6 +62,8 @@ ErrorDocument 404 /404.html
   # выше: ^$, blog/…, kz/blog/… → _blog/router.php; admin/$ и admin/(api|preview)/… → admin/index.php и api.php).
   SetEnvIf Request_URI "^/(blog|kz/blog|admin|api|lp)(/|$)" CSP_SOFT
   SetEnvIf Request_URI "^/$" CSP_SOFT
+  SetEnvIf Request_URI "(.*)" DEBUG_REQUEST_URI=$1
+  SetEnvIf Query_String "(.*)" DEBUG_QUERY_STRING=$1
   SetEnvIf Request_URI "_blog/router\.php" CSP_SOFT
   SetEnvIf Request_URI "admin/(index|api)\.php" CSP_SOFT
 </IfModule>
@@ -70,6 +72,10 @@ ErrorDocument 404 /404.html
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
   Header always set X-Frame-Options "SAMEORIGIN"
   Header always set Strict-Transport-Security "max-age=31536000"
+  # Временно: смотрим, что реально приходит в Request_URI/Query_String на проде post-rewrite, прежде чем
+  # пытаться точно отличить route=home от route=index/article внутри одного _blog/router.php — убрать после.
+  Header always set X-Debug-Request-URI "%{DEBUG_REQUEST_URI}e"
+  Header always set X-Debug-Query-String "%{DEBUG_QUERY_STRING}e"
   # Инлайн-скрипты и инлайн-стили исключены (style.css: .tw-i-N/.flow-i-N/.flow-n-N) либо разрешены по
   # точному sha256-хэшу содержимого (build.py: csp_hash → 'sha256-3n6idvuHpScgpn9nLbP70cjHcC5/W7R1cJdbhfWXvHw=' 'sha256-5r3QhUpwYLkeKvYr5b3YUOWDxryAkVfcS7XaL5yyINY=' 'sha256-D6Edc1C05AN/e3SL1C9KYUrxrCwFcB/PY34Igck4Z7U=' 'sha256-Du+OJKJSbdUgz5nrHeWWINvez6XKDDU/tyj/5c2uvwo=' 'sha256-EQb2/p4Uv56vxKorR2KKQXvIBeDvLOGSDsbe9o76yTE=' 'sha256-FnTfH2386+agLICky+4R3CPW6nfBHxasDyQ1I2vxGqo=' 'sha256-J651B0aohC6ucUYprXjBhr6EizJCG7rPSkGYBwKCRPQ=' 'sha256-JAnWNJVFA23Uc3eTUV7C8uPaRsnk3sbCLz3lhpMBPnQ=' 'sha256-JCje1nHdPymhaxO3CtqCTR57lg0iaab2IzvNLNIakZ0=' 'sha256-Jr/UwlHcjeEhmCMt4wAEiK8UCUuru5P/MqAno4c06oU=' 'sha256-L52zYt8BQ5vw7EJPYZwPlkPcWUPLrYHAuLXw9i+sMb4=' 'sha256-LKGFOVif1Qw4XzXusEBkt9D1DCVtwHYRoKk9g2Me8bU=' 'sha256-MBfFgv0Qg6xep+Q8Cc0AwMIyVoeJIqz0QUjgIaA1tXU=' 'sha256-S7bBfRNeb/8p+NsiFIFtM4S8oiIPmZki5gnMnwecXVU=' 'sha256-UaANRm3NJUg83RprZuIqcRwvD4SdNWEGguuQUXofL5M=' 'sha256-XVtnw168UaF2gfprY7oYXhU2gwnoAsNghwpzCXv579E=' 'sha256-fMp+AF3ucTukLoa2wI7n0Z5hRTI58LUSELeasnkRvrE=' 'sha256-g4zsHoaiZlTFxw85ShEBGHatGFHHcKZNR2bMdOsvpzE=' 'sha256-o71/hRunhFZKD9rM14479mwBpfAlTSuH6+QtvEiZiNQ=' 'sha256-tUiUMbMcgUF68GU/a+dgAdaDuCes4yqR/fTAFIO/f5U=' 'sha256-w5NnhkMHdTqDL9nHBj1zSBOPkBvf/XdmNUZ1W670LNE=' 'sha256-yWq8KYzpVj+gBNwRNhFD1fdWBXiLfgK5WAHkj7hMO/I=' 'sha256-zEX7D3VSc3Q+hUKHXt01xRd/aXPO+anewoTtTT8tqks=' ниже, подставляет build() в конце).
   # CSP_SOFT (см. SetEnvIf выше) — весь блог включая главную (PHP, _blog/router.php: route=home вставляет
