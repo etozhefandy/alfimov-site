@@ -59,6 +59,13 @@ section[id] { scroll-margin-top: 72px; }
   animation-delay: calc(min(var(--i, 0), 10) * .06s);
 }
 @keyframes word-in { to { opacity: 1; transform: none; filter: blur(0); } }
+/* --i классом, не inline style="" (CSP script/style-src без unsafe-inline); число задаёт build.py (type_words) */
+.tw-i-0 { --i: 0 } .tw-i-1 { --i: 1 } .tw-i-2 { --i: 2 } .tw-i-3 { --i: 3 } .tw-i-4 { --i: 4 } .tw-i-5 { --i: 5 } .tw-i-6 { --i: 6 } .tw-i-7 { --i: 7 }
+.tw-i-8 { --i: 8 } .tw-i-9 { --i: 9 } .tw-i-10 { --i: 10 } .tw-i-11 { --i: 11 } .tw-i-12 { --i: 12 } .tw-i-13 { --i: 13 } .tw-i-14 { --i: 14 } .tw-i-15 { --i: 15 }
+.tw-i-16 { --i: 16 } .tw-i-17 { --i: 17 } .tw-i-18 { --i: 18 } .tw-i-19 { --i: 19 } .tw-i-20 { --i: 20 } .tw-i-21 { --i: 21 } .tw-i-22 { --i: 22 } .tw-i-23 { --i: 23 }
+.tw-i-24 { --i: 24 } .tw-i-25 { --i: 25 } .tw-i-26 { --i: 26 } .tw-i-27 { --i: 27 } .tw-i-28 { --i: 28 } .tw-i-29 { --i: 29 } .tw-i-30 { --i: 30 } .tw-i-31 { --i: 31 }
+.tw-i-32 { --i: 32 } .tw-i-33 { --i: 33 } .tw-i-34 { --i: 34 } .tw-i-35 { --i: 35 } .tw-i-36 { --i: 36 } .tw-i-37 { --i: 37 } .tw-i-38 { --i: 38 } .tw-i-39 { --i: 39 }
+.tw-i-40 { --i: 40 }
 
 /* logo */
 .logo { display: inline-flex; color: var(--ink); text-decoration: none; }
@@ -213,6 +220,11 @@ section[id] { scroll-margin-top: 72px; }
 }
 .flow-n { display: block; font-family: var(--font-mono); font-size: 13px; color: var(--muted); margin-bottom: 8px; }
 /* шаги появляются по очереди, а не все разом — --i задаёт build.py (flow()) */
+/* --i/--n классом, не inline style="" (CSP script/style-src без unsafe-inline) */
+.flow-i-0 { --i: 0 } .flow-i-1 { --i: 1 } .flow-i-2 { --i: 2 } .flow-i-3 { --i: 3 } .flow-i-4 { --i: 4 } .flow-i-5 { --i: 5 } .flow-i-6 { --i: 6 } .flow-i-7 { --i: 7 }
+.flow-i-8 { --i: 8 } .flow-i-9 { --i: 9 } .flow-i-10 { --i: 10 } .flow-i-11 { --i: 11 } .flow-i-12 { --i: 12 } .flow-i-13 { --i: 13 } .flow-i-14 { --i: 14 } .flow-i-15 { --i: 15 }
+.flow-n-1 { --n: 1 } .flow-n-2 { --n: 2 } .flow-n-3 { --n: 3 } .flow-n-4 { --n: 4 } .flow-n-5 { --n: 5 } .flow-n-6 { --n: 6 } .flow-n-7 { --n: 7 } .flow-n-8 { --n: 8 }
+.flow-n-9 { --n: 9 } .flow-n-10 { --n: 10 } .flow-n-11 { --n: 11 } .flow-n-12 { --n: 12 }
 .js .flow li { opacity: 0; transform: translateY(10px); transition: opacity .5s var(--ease), transform .5s var(--ease); transition-delay: calc(var(--i, 0) * .09s); }
 .js .flow.in li { opacity: 1; transform: none; }
 .flow h3 { font-size: 22px; margin-bottom: 8px; }
