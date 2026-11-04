@@ -498,7 +498,7 @@ CASES_DRAFT = [
 # Organization-схеме (build.py org_schema) и на /politika-konfidencialnosti/.
 LEGAL = {
     "entity": "ИП «оооехали»",
-    "street": "проспект Абылай хана, 5/3, 169",
+    "street": "проспект Абылай хана, 5/3",
     "city": "Астана",
     "iin": "960602350573",
     "iik": "KZ32722S000039522401",
