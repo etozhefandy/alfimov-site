@@ -7,6 +7,7 @@
 Дизайн по design brief: Marketing × Data × Technology — белый, почти чёрный,
 серые и один синий акцент; типографика и сетка вместо декора.
 """
+import base64
 import hashlib
 import html
 import json
@@ -46,14 +47,32 @@ INSTAGRAM_URL = f"https://www.instagram.com/{INSTAGRAM}/"
 # подмена не бросается в глаза) оставлен обычный display=swap — так текст не ждёт загрузки шрифта вообще.
 FONT_URL_HEAD = "https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=optional"
 FONT_URL_BODY = "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+# CSP script-src без 'unsafe-inline': каждый инлайн-скрипт разрешён по точному хэшу его содержимого,
+# не по тегу. Хэши собираются по ходу сборки (csp_hash) и в конце прописываются в dist/.htaccess
+# вместо %%SCRIPT_HASHES%%. Текст скрипта всегда берётся из той же переменной, что идёт в HTML, —
+# хэш гарантированно совпадёт с тем, что реально отрендерилось.
+CSP_SCRIPT_HASHES = set()
+
+
+def csp_hash(script_text):
+    digest = hashlib.sha256(script_text.encode("utf-8")).digest()
+    token = "'sha256-" + base64.b64encode(digest).decode("ascii") + "'"
+    CSP_SCRIPT_HASHES.add(token)
+    return script_text
+
+
 # Microsoft Clarity — тепловые карты кликов и прокрутки, записи визитов (clarity.microsoft.com). Пусто — не ставится.
 # Поля ввода Clarity по умолчанию скрывает (телефоны в записи не попадают). Источники Clarity разрешены в CSP (static/.htaccess).
 CLARITY_ID = "z0he5x2t9s"
-CLARITY_TAG = (
-    '<script>(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};'
+CLARITY_JS = (
+    '(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};'
     't=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];'
-    f'y.parentNode.insertBefore(t,y)}})(window,document,"clarity","script","{CLARITY_ID}");</script>'
+    f'y.parentNode.insertBefore(t,y)}})(window,document,"clarity","script","{CLARITY_ID}");'
 ) if CLARITY_ID else ""
+CLARITY_TAG = f"<script>{csp_hash(CLARITY_JS)}</script>" if CLARITY_JS else ""
+
+JS_CLASS_ADDER = "document.documentElement.classList.add('js')"
+csp_hash(JS_CLASS_ADDER)
 
 ASSET_VER = hashlib.md5(
     b"".join((STATIC / "assets" / f).read_bytes() for f in ("style.css", "main.js"))
@@ -300,6 +319,7 @@ def footer(c):
 
 def page(c, *, path, title, desc, body, schema, alt_path, noindex=False, og_type="website", image=None):
     graph = {"@context": "https://schema.org", "@graph": [org_schema(), *schema]}
+    graph_json = csp_hash(json.dumps(graph, ensure_ascii=False))
     o = other_lang(c)
     alternates = ""
     if alt_path is None:
@@ -341,12 +361,12 @@ def page(c, *, path, title, desc, body, schema, alt_path, noindex=False, og_type
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="{FONT_URL_HEAD}">
 <link rel="preload" as="style" href="{FONT_URL_BODY}">
-<link rel="stylesheet" href="{FONT_URL_HEAD}" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="{FONT_URL_BODY}" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="{FONT_URL_HEAD}" media="print" class="js-async-css">
+<link rel="stylesheet" href="{FONT_URL_BODY}" media="print" class="js-async-css">
 <noscript><link rel="stylesheet" href="{FONT_URL_HEAD}"><link rel="stylesheet" href="{FONT_URL_BODY}"></noscript>
 <link rel="stylesheet" href="/assets/style.css?v={ASSET_VER}">
-<script>document.documentElement.classList.add('js')</script>
-<script type="application/ld+json">{json.dumps(graph, ensure_ascii=False)}</script>
+<script>{JS_CLASS_ADDER}</script>
+<script type="application/ld+json">{graph_json}</script>
 </head>
 <body>
 {header(c, alt_path)}
@@ -385,7 +405,7 @@ def type_words(parts):
         for word in text.split(" "):
             if not word:
                 continue
-            span = f'<span class="tw" style="--i:{i}">{e(word)}</span>'
+            span = f'<span class="tw tw-i-{min(i, 40)}">{e(word)}</span>'
             out.append(f"<em>{span}</em>" if em else span)
             i += 1
     return " ".join(out)
@@ -394,11 +414,14 @@ def type_words(parts):
 def flow(steps, loop_text=None):
     """Схема пути: горизонтальная на десктопе, вертикальная на мобиле."""
     items = "".join(
-        f'<li style="--i:{i}"><span class="flow-n">{i + 1:02d}</span><h3>{e(t)}</h3><p>{e(d)}</p></li>'
+        f'<li class="flow-i-{min(i, 15)}"><span class="flow-n">{i + 1:02d}</span><h3>{e(t)}</h3><p>{e(d)}</p></li>'
         for i, (t, d) in enumerate(steps)
     )
     loop = f'<p class="flow-loop">↺ {e(loop_text)}</p>' if loop_text else ""
-    return f'<div class="flow rv" style="--n:{len(steps)}"><ol>{items}</ol>{loop}</div>'
+    n = len(steps)
+    if not 1 <= n <= 12:
+        raise ValueError(f"flow(): {n} шагов — нет готового класса flow-n-{n} в style.css (сейчас 1..12)")
+    return f'<div class="flow rv flow-n-{n}"><ol>{items}</ol>{loop}</div>'
 
 
 def service_rows(c, exclude=None):
@@ -971,6 +994,13 @@ def build():
     (DIST / "api" / "config.php").write_text(
         f"<?php\nreturn ['tg_token' => {php_str(token)}, 'tg_chat' => {php_str(chat)}];\n", encoding="utf-8"
     )
+    # CSP script-src: хэши всех инлайн-скриптов, встреченных при сборке (csp_hash) — собрались выше,
+    # пока строились все страницы (page()). Плейсхолдер — в static/.htaccess.
+    ht_path = DIST / ".htaccess"
+    ht = ht_path.read_text(encoding="utf-8")
+    if "%%SCRIPT_HASHES%%" not in ht:
+        raise SystemExit("В static/.htaccess нет %%SCRIPT_HASHES%% — CSP script-src будет без хэшей")
+    ht_path.write_text(ht.replace("%%SCRIPT_HASHES%%", " ".join(sorted(CSP_SCRIPT_HASHES))), encoding="utf-8")
     print(f"Built {len(paths)} pages → {DIST}")
     issues = seo_audit.audit(DIST)
     for i in issues:
