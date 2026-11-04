@@ -61,6 +61,7 @@ ASSET_VER = hashlib.md5(
 
 LANGS = [content_ru, content_kz]
 HREFLANG = {"ru": "ru-KZ", "kk": "kk-KZ"}
+PRIVACY_PATH = "/politika-konfidencialnosti/"
 
 e = html.escape
 
@@ -139,6 +140,11 @@ def org_schema():
         "image": f"{SITE_URL}/assets/og.png",
         "telephone": PHONE_TEL,
         "priceRange": "$$",
+        # legalName/taxID — реквизиты для доверия (контакты/политика), без streetAddress: агентство
+        # работает удалённо, без офиса для визитов — PostalAddress с улицей читался бы как заявка
+        # на физическую точку, а это не так (см. находку local-SEO аудита: country-only — верно).
+        "legalName": content_ru.LEGAL["entity"],
+        "taxID": content_ru.LEGAL["iin"],
         "address": {"@type": "PostalAddress", "addressCountry": "KZ"},
         "areaServed": {"@type": "Country", "name": "Kazakhstan"},
         "contactPoint": {"@type": "ContactPoint", "telephone": PHONE_TEL, "contactType": "sales",
@@ -257,7 +263,7 @@ def lead_form(c, source, title=None, lead=None, num="→"):
       <label class="fld"><span>{e(ui['form_message'])}</span><textarea name="message" rows="2" maxlength="1000"></textarea></label>
       <button class="btn btn-lg" type="submit">{e(ui['form_submit'])} {icon('arrow', 'ic ic-sm')}</button>
       <p class="form-status" role="status" aria-live="polite"></p>
-      <p class="consent">{e(ui['form_consent'])}</p>
+      <p class="consent">{e(ui['form_consent'])} <a href="{PRIVACY_PATH}">{e(ui.get('footer_privacy', ''))}</a></p>
     </form>
   </div>
 </section>"""
@@ -288,7 +294,7 @@ def footer(c):
       </ul>
     </div>
   </div>
-  <div class="wrap ftr-bottom"><span>© {date.today().year} ALFIMOV.KZ</span><span>{e(ui['rights'])}</span></div>
+  <div class="wrap ftr-bottom"><span>© {date.today().year} ALFIMOV.KZ</span><span>{e(ui['rights'])}</span><a href="{PRIVACY_PATH}">{e(ui.get('footer_privacy', ''))}</a></div>
 </footer>"""
 
 
@@ -615,6 +621,22 @@ def build_service(c, s):
     return path, page(c, path=path, title=s["meta_title"], desc=s["meta_desc"], body=body, schema=schema, alt_path=alt)
 
 
+def legal_block(num):
+    """Реквизиты — пока только у alfimov.kz (RU), см. content_ru.LEGAL."""
+    g = content_ru.LEGAL
+    rows = "".join(f"<p>{e(line)}</p>" for line in (
+        g["entity"], f"Адрес: г. {g['city']}, {g['street']}", f"ИИН: {g['iin']}", f"ИИК: {g['iik']}",
+        g["bank"], f"БИК: {g['bik']}", g["signatory"],
+    ))
+    return f"""
+<section class="sec">
+  <div class="wrap split">
+    <div class="split-head rv">{eyebrow(num, content_ru.CONTACTS['legal_title'])}<h2>{e(content_ru.CONTACTS['legal_title'])}</h2></div>
+    <div class="prose rv">{rows}</div>
+  </div>
+</section>"""
+
+
 def build_contacts(c):
     k, ui = c.CONTACTS, c.UI
     path = url(c, "kontakty")
@@ -634,10 +656,34 @@ def build_contacts(c):
     <div class="prose rv"><p>{e(k['area_text'])}</p></div>
   </div>
 </section>
+{legal_block('02') if c is content_ru else ""}
 {lead_form(c, 'contacts')}
 """
     schema = [breadcrumbs_schema([(ui["breadcrumbs_home"], url(c)), (k["h1"], path)])]
     return path, page(c, path=path, title=k["meta_title"], desc=k["meta_desc"], body=body, schema=schema, alt_path=alt)
+
+
+def build_privacy():
+    c, ui = content_ru, content_ru.UI
+    g = content_ru.LEGAL
+    k = content_ru.PRIVACY
+    path = PRIVACY_PATH
+    secs = "".join(
+        f'<div class="prose rv"><h2>{e(title)}</h2><p>{e(text.format(**g))}</p></div>'
+        for title, text in k["sections"]
+    )
+    body = f"""
+<section class="hero hero-svc">
+  <div class="wrap">
+    <nav class="crumbs rv" aria-label="breadcrumbs"><a href="{url(c)}">{e(ui['breadcrumbs_home'])}</a></nav>
+    <h1 class="rv">{e(k['h1'])}</h1>
+    <p class="hero-lead rv">{e(k['lead'])}</p>
+  </div>
+</section>
+<section class="sec"><div class="wrap">{secs}</div></section>
+"""
+    schema = [breadcrumbs_schema([(ui["breadcrumbs_home"], url(c)), (k["h1"], path)])]
+    return path, page(c, path=path, title=k["meta_title"], desc=k["meta_desc"], body=body, schema=schema, alt_path=None)
 
 
 def build_404():
@@ -866,6 +912,9 @@ def build():
             write(p, doc)
             paths.append(p)
     write("/404.html", build_404())
+    p, doc = build_privacy()
+    write(p, doc)
+    paths.append(p)
     # Рекламные страницы заказчиков (/lp/…): не в sitemap, noindex. Ответы опроса — для проверки в lp-send.php.
     lp = {}
     for client in [lp_guestory.CLIENT]:
