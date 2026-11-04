@@ -52,23 +52,25 @@ ErrorDocument 404 /404.html
   RewriteRule ^(.*[^/])$ /$1/ [L,R=301]
 </IfModule>
 
+<IfModule mod_setenvif.c>
+  # CSP enforced только на чисто статических страницах (build.py: page(), без единого PHP-роута на них);
+  # остальное (переменная CSP_SOFT) — на Report-Only. SetEnvIf вместо <If>/ap_expr: тот же результат
+  # локально (Apache 2.4.67) и в Plesk почему-то различался на <If> с "&&"/"||" — SetEnvIf старше и проще.
+  SetEnvIf Request_URI "^/(blog|kz/blog|admin|api|lp)(/|$)" CSP_SOFT
+  SetEnvIf Request_URI "^/(kz/)?$" CSP_SOFT
+</IfModule>
 <IfModule mod_headers.c>
   Header always set X-Content-Type-Options "nosniff"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
   Header always set X-Frame-Options "SAMEORIGIN"
   Header always set Strict-Transport-Security "max-age=31536000"
-  # CSP enforced — только на чисто статических страницах (build.py: page(), без единого PHP-роута на них).
   # Инлайн-скрипты и инлайн-стили исключены (style.css: .tw-i-N/.flow-i-N/.flow-n-N) либо разрешены по
   # точному sha256-хэшу содержимого (build.py: csp_hash → %%SCRIPT_HASHES%% ниже, подставляет build() в конце).
-  # Report-Only для: блога (PHP, JSON-LD статьи меняется на лету из админки), главной (route=home —
+  # CSP_SOFT (см. SetEnvIf выше) — блог (PHP, JSON-LD статьи меняется на лету из админки), главная (route=home —
   # lib.php:render_home() вставляет карточки статей с inline style="margin:…", мимо build.py),
-  # админки (вся SPA — один большой инлайн-скрипт) и страниц заказчиков (/lp/, не проверялись отдельно).
-  <If "%{REQUEST_URI} !~ m#^/(blog|kz/blog|admin|api|lp)(/|$)# && %{REQUEST_URI} !~ m#^/(kz/)?$#">
-    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' %%SCRIPT_HASHES%% https://connect.facebook.net https://cdn.jsdelivr.net https://www.clarity.ms https://*.clarity.ms; style-src 'self' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://www.facebook.com https://cdn.jsdelivr.net https://*.clarity.ms https://c.bing.com; connect-src 'self' https://*.clarity.ms https://c.bing.com https://www.facebook.com https://connect.facebook.net https://e1-0850197d5e074be58352ddc860645af6.ecs.us-east-1.on.aws; frame-src 'self' https://www.facebook.com; frame-ancestors 'self'; base-uri 'self'; form-action 'self' https://www.facebook.com; object-src 'none'; report-uri /api/csp-report.php"
-  </If>
-  <If "%{REQUEST_URI} =~ m#^/(blog|kz/blog|admin|api|lp)(/|$)# || %{REQUEST_URI} =~ m#^/(kz/)?$#">
-    Header always set Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline' https://connect.facebook.net https://cdn.jsdelivr.net https://www.clarity.ms https://*.clarity.ms; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://www.facebook.com https://cdn.jsdelivr.net https://*.clarity.ms https://c.bing.com; connect-src 'self' https://*.clarity.ms https://c.bing.com https://www.facebook.com https://connect.facebook.net https://e1-0850197d5e074be58352ddc860645af6.ecs.us-east-1.on.aws; frame-src 'self' https://www.facebook.com; frame-ancestors 'self'; base-uri 'self'; form-action 'self' https://www.facebook.com; object-src 'none'; report-uri /api/csp-report.php"
-  </If>
+  # админка (вся SPA — один большой инлайн-скрипт) и страницы заказчиков (/lp/, не проверялись отдельно).
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' %%SCRIPT_HASHES%% https://connect.facebook.net https://cdn.jsdelivr.net https://www.clarity.ms https://*.clarity.ms; style-src 'self' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://www.facebook.com https://cdn.jsdelivr.net https://*.clarity.ms https://c.bing.com; connect-src 'self' https://*.clarity.ms https://c.bing.com https://www.facebook.com https://connect.facebook.net https://e1-0850197d5e074be58352ddc860645af6.ecs.us-east-1.on.aws; frame-src 'self' https://www.facebook.com; frame-ancestors 'self'; base-uri 'self'; form-action 'self' https://www.facebook.com; object-src 'none'; report-uri /api/csp-report.php" env=!CSP_SOFT
+  Header always set Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline' https://connect.facebook.net https://cdn.jsdelivr.net https://www.clarity.ms https://*.clarity.ms; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://www.facebook.com https://cdn.jsdelivr.net https://*.clarity.ms https://c.bing.com; connect-src 'self' https://*.clarity.ms https://c.bing.com https://www.facebook.com https://connect.facebook.net https://e1-0850197d5e074be58352ddc860645af6.ecs.us-east-1.on.aws; frame-src 'self' https://www.facebook.com; frame-ancestors 'self'; base-uri 'self'; form-action 'self' https://www.facebook.com; object-src 'none'; report-uri /api/csp-report.php" env=CSP_SOFT
   Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
   <FilesMatch "\.(css|js|svg|png|jpg|jpeg|webp|woff2)$">
     Header set Cache-Control "public, max-age=31536000, immutable"
