@@ -840,16 +840,39 @@ def write(path, content):
     target.write_text(content, encoding="utf-8")
 
 
+LASTMOD_FILE = ROOT / "sitemap-lastmod.json"
+
+
+def page_lastmod(paths):
+    """lastmod по странице: сегодня — только если её HTML реально изменился с прошлой сборки (хэш),
+    иначе — дата из прошлого раза. Карта хэшей живёт в sitemap-lastmod.json (коммитится в репозиторий),
+    иначе каждый деплой показывал бы в sitemap сегодняшнюю дату для всех страниц сразу, даже без правок."""
+    today = date.today().isoformat()
+    prev = json.loads(LASTMOD_FILE.read_text(encoding="utf-8")) if LASTMOD_FILE.is_file() else {}
+    out = {}
+    for p in paths:
+        target = DIST / p.lstrip("/")
+        if p.endswith("/"):
+            target = target / "index.html"
+        content = target.read_bytes() if target.is_file() else b""
+        h = hashlib.sha256(content).hexdigest()
+        prior = prev.get(p, {})
+        out[p] = {"hash": h, "date": prior.get("date", today) if prior.get("hash") == h else today}
+    LASTMOD_FILE.write_text(json.dumps(out, ensure_ascii=False, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    return {p: v["date"] for p, v in out.items()}
+
+
 def sitemap(paths):
     """Страницы с парой RU/KZ. Статьи блога в карту добавляет PHP на хостинге (_blog/sitemap.tpl)."""
-    today = date.today().isoformat()
     ru_paths = [p for p in paths if not p.startswith("/kz/")]
+    all_pairs = [p for ru in ru_paths for p in (ru, "/kz" + ru)]
+    lastmod = page_lastmod(all_pairs)
     rows = []
     for ru in ru_paths:
         kz = "/kz" + ru
         for p in (ru, kz):
             rows.append(
-                f"<url><loc>{SITE_URL}{p}</loc><lastmod>{today}</lastmod>"
+                f"<url><loc>{SITE_URL}{p}</loc><lastmod>{lastmod[p]}</lastmod>"
                 f'<xhtml:link rel="alternate" hreflang="ru-KZ" href="{SITE_URL}{ru}"/>'
                 f'<xhtml:link rel="alternate" hreflang="kk-KZ" href="{SITE_URL}{kz}"/>'
                 f'<xhtml:link rel="alternate" hreflang="x-default" href="{SITE_URL}{ru}"/></url>'

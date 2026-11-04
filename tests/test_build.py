@@ -2,6 +2,7 @@
 import json
 import shutil
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -30,6 +31,33 @@ class BuildTest(unittest.TestCase):
         self.assertFalse((build.DIST / "blog").exists())
         self.assertFalse((build.DIST / "sitemap.xml").exists())  # её отдаёт PHP вместе со статьями
         self.assertIn("</urlset>", (build.DIST / "_blog" / "sitemap.tpl").read_text(encoding="utf-8"))
+
+    def test_sitemap_lastmod_only_moves_when_a_page_actually_changes(self):
+        # sitemap-lastmod.json подменяем на время теста — иначе page_lastmod() перезаписал бы реальный
+        # файл сайта только тестовыми путями и стёр бы накопленную историю остальных страниц.
+        real_file = build.LASTMOD_FILE
+        with tempfile.TemporaryDirectory() as tmp:
+            build.LASTMOD_FILE = Path(tmp) / "sitemap-lastmod.json"
+            try:
+                (build.DIST / "t-unchanged").mkdir(parents=True, exist_ok=True)
+                (build.DIST / "t-unchanged" / "index.html").write_text("контент не меняется", encoding="utf-8")
+                (build.DIST / "t-changed").mkdir(parents=True, exist_ok=True)
+                (build.DIST / "t-changed" / "index.html").write_text("версия A", encoding="utf-8")
+                import hashlib
+                build.LASTMOD_FILE.write_text(json.dumps({
+                    "/t-unchanged/": {"hash": hashlib.sha256("контент не меняется".encode()).hexdigest(), "date": "2020-01-01"},
+                    "/t-changed/": {"hash": hashlib.sha256("версия A".encode()).hexdigest(), "date": "2020-01-01"},
+                }), encoding="utf-8")
+
+                (build.DIST / "t-changed" / "index.html").write_text("версия B", encoding="utf-8")
+                result = build.page_lastmod(["/t-unchanged/", "/t-changed/"])
+
+                self.assertEqual(result["/t-unchanged/"], "2020-01-01", "контент не менялся — старая дата из карты сохраняется, не «сегодня»")
+                self.assertNotEqual(result["/t-changed/"], "2020-01-01", "контент поменялся — дата переехала на сегодня")
+            finally:
+                build.LASTMOD_FILE = real_file
+                shutil.rmtree(build.DIST / "t-unchanged", ignore_errors=True)
+                shutil.rmtree(build.DIST / "t-changed", ignore_errors=True)
 
     def test_hosting_rules(self):
         ht = (build.DIST / ".htaccess").read_text(encoding="utf-8")
