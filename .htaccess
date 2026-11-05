@@ -33,6 +33,10 @@ ErrorDocument 404 /404.html
   RewriteRule ^llms\.txt$ _blog/router.php?route=llms [L]
   RewriteRule ^blog/$ _blog/router.php?route=index [L]
   RewriteRule ^blog/media/([A-Za-z0-9._-]+)$ _blog/router.php?route=media&f=$1 [L]
+  # Статьи про цену ведения объединены в одну (2026-11-05) — старые адреса 301 на объединённую, чтобы не терять
+  # ссылки и позиции в Google
+  RewriteRule ^blog/vedenie-instagram-cena-mesyac/?$ /blog/skolko-stoit-vedenie-instagram/ [L,R=301]
+  RewriteRule ^blog/vedenie-socsetej-stoimost/?$ /blog/skolko-stoit-vedenie-instagram/ [L,R=301]
   RewriteRule ^blog/([a-z0-9-]+)/$ _blog/router.php?route=article&slug=$1 [L]
   # Блог на казахском (static/_blog/lib.php: blog_path('kk')) — та же обложка PHP, без adres media: картинки общие
   RewriteRule ^kz/blog$ /kz/blog/ [L,R=301]
