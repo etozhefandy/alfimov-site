@@ -7,6 +7,7 @@ require_once __DIR__ . '/_tg.php';
 require_once __DIR__ . '/_crm.php';
 require_once __DIR__ . '/_hub.php';
 require_once __DIR__ . '/_capi.php';
+require_once __DIR__ . '/_geo.php';
 
 /** Заказчики, их страницы и допустимые ответы опроса — собирает build.py из src/lp_<заказчик>.py. */
 function lp_clients(): array
@@ -41,8 +42,9 @@ function lp_answer(array $post, string $key, array $options): string
     return implode(', ', array_values(array_intersect($vals, $options)));
 }
 
-/** Заявка в виде данных — для CRM и для текста в Telegram. $phone — [красивый, цифры] из lead_phone(). */
-function lp_lead_data(string $client, string $page, array $post, array $phone): array
+/** Заявка в виде данных — для CRM и для текста в Telegram. $phone — [красивый, цифры] из lead_phone().
+ * $geo — страна/город по IP (lead_geo в _geo.php), необязательно. */
+function lp_lead_data(string $client, string $page, array $post, array $phone, array $geo = ['country' => '', 'city' => '']): array
 {
     $cut = fn($k, $n) => mb_substr(trim((string) ($post[$k] ?? '')), 0, $n);
     $c = lp_clients()[$client];
@@ -59,20 +61,22 @@ function lp_lead_data(string $client, string $page, array $post, array $phone): 
     }
     return ['client' => $client, 'client_name' => (string) $c['name'], 'page' => $page, 'page_title' => (string) $pg['title'],
         'name' => $cut('name', 80), 'phone' => $phone[1], 'phone_pretty' => $phone[0], 'answers' => $answers,
-        'city' => $cut('city', 60), 'comment' => $cut('comment', 500), 'utm' => $utm];
+        'city' => $cut('city', 60), 'comment' => $cut('comment', 500), 'utm' => $utm,
+        'geo_country' => (string) ($geo['country'] ?? ''), 'geo_city' => (string) ($geo['city'] ?? '')];
 }
 
 /** Текст заявки для Telegram. */
-function lp_lead_text(string $client, string $page, array $post, array $phone): string
+function lp_lead_text(string $client, string $page, array $post, array $phone, array $geo = ['country' => '', 'city' => '']): string
 {
     $esc = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-    $d = lp_lead_data($client, $page, $post, $phone);
+    $d = lp_lead_data($client, $page, $post, $phone, $geo);
     $lines = ["🔥 <b>Заявка {$esc($d['client_name'])}</b> · " . $esc($d['page_title']), ''];
     $lines[] = '👤 ' . $esc($d['name']);
     $lines[] = '📞 ' . $esc($d['phone_pretty']) . " · <a href=\"https://wa.me/{$d['phone']}\">WhatsApp</a>";
     foreach ($d['answers'] as [$label, $a]) $lines[] = "$label: " . $esc($a);
     if ($d['city'] !== '') $lines[] = '📍 Город ' . $esc($d['city']);
     if ($d['comment'] !== '') $lines[] = '💬 ' . $esc($d['comment']);
+    if (function_exists('lead_geo_line') && lead_geo_line($geo) !== '') $lines[] = '🌍 По IP: ' . $esc(lead_geo_line($geo));
     $utm = [];
     foreach (['utm_source', 'utm_campaign', 'utm_content', 'utm_term'] as $k) if (isset($d['utm'][$k])) $utm[] = $esc($d['utm'][$k]);
     if ($utm) $lines[] = "\n📣 " . implode(' / ', $utm);
