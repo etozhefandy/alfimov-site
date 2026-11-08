@@ -31,7 +31,8 @@ if (lead_rate_limited()) reply(false, 429);
 $cfg = tg_cfg();
 if (empty($cfg['tg_token']) || empty($cfg['tg_chat'])) reply(false, 503);
 lp_register_sites();
-$text = lp_lead_text($client, $page, $_POST, $phone);
+$geo = lead_geo((string) ($_SERVER['REMOTE_ADDR'] ?? ''));
+$text = lp_lead_text($client, $page, $_POST, $phone, $geo);
 $sent = tg_on_site(lp_tg_site($client), fn() => tg_send_lead($text));
 if (!$sent) reply(false, 502);
 
@@ -40,7 +41,7 @@ http_response_code(200);
 echo json_encode(['ok' => true]);
 if (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
 else { header('Connection: close'); header('Content-Length: ' . ob_get_length()); @ob_end_flush(); @flush(); }
-$data = lp_lead_data($client, $page, $_POST, $phone);
+$data = lp_lead_data($client, $page, $_POST, $phone, $geo);
 $r = crm_send($client, $data);
 hub_lead_add($data, true, $r);   // журнал заявок заказчика в пульте
 // то же событие Lead в Meta с сервера (если в пульте подключён Conversions API) — с id пикселя, чтобы не задвоилось
