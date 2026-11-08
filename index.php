@@ -3,6 +3,7 @@
 declare(strict_types=1);
 require __DIR__ . '/pult.php';
 require is_file(__DIR__ . '/_crm.php') ? __DIR__ . '/_crm.php' : dirname(__DIR__) . '/static/api/_crm.php';
+require is_file(__DIR__ . '/_foreign_leads.php') ? __DIR__ . '/_foreign_leads.php' : dirname(__DIR__) . '/static/api/_foreign_leads.php';
 require is_file(__DIR__ . '/_csp.php') ? __DIR__ . '/_csp.php' : dirname(__DIR__) . '/static/api/_csp.php';
 require is_file(__DIR__ . '/_hub.php') ? __DIR__ . '/_hub.php' : dirname(__DIR__) . '/static/api/_hub.php';
 require is_file(__DIR__ . '/_capi.php') ? __DIR__ . '/_capi.php' : dirname(__DIR__) . '/static/api/_capi.php';
@@ -65,6 +66,7 @@ if (!pult_session()) {
 }
 
 if ($do === 'logout' || $do === 'logout_all') { pult_end_session($do === 'logout_all'); header('Location: /', true, 303); exit; }
+if ($do === 'lead_done') { foreign_lead_set_status((string) ($_POST['id'] ?? ''), 'done'); header('Location: /', true, 303); exit; }
 if ($do === 'watch' || $do === 'unwatch') {
     $d = strtolower(trim((string) ($_POST['d'] ?? '')));
     $d = preg_replace('#^https?://|/.*$#', '', $d);

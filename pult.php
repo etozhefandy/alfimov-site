@@ -550,6 +550,23 @@ function pult_days_pill(?int $days, string $what): string
     return '<span class="pill ' . $cls . '">' . $what . ': ' . $txt . '</span>';
 }
 
+/** Заявки чужих сайтов из общей Telegram-группы (foreign_lead_capture в _tg.php) — только новые, с кнопкой «обработано». */
+function pult_foreign_leads_block(): string
+{
+    $leads = array_values(array_filter(foreign_leads_list(), fn($l) => ($l['status'] ?? 'new') === 'new'));
+    if (!$leads) return '';
+    $rows = '';
+    foreach ($leads as $l) {
+        $when = str_replace('T', ' ', substr((string) $l['at'], 0, 16));
+        $rows .= '<tr><td>' . pult_h($when) . '</td><td>' . pult_h($l['domain']) . '</td><td>' . pult_h($l['name']) . '</td>'
+            . '<td>' . pult_h($l['phone']) . '</td><td style="max-width:280px">' . pult_h(mb_substr((string) $l['message'], 0, 140)) . '</td>'
+            . '<td><form method="post" style="margin:0"><input type="hidden" name="do" value="lead_done">'
+            . '<input type="hidden" name="id" value="' . pult_h($l['id']) . '"><button class="link" type="submit">✅ обработано</button></form></td></tr>';
+    }
+    return '<h2>Заявки с других сайтов (общая группа)</h2>'
+        . '<div class="scroll"><table><tr><th>Когда</th><th>Сайт</th><th>Имя</th><th>Телефон</th><th>Сообщение</th><th></th></tr>' . $rows . '</table></div>';
+}
+
 function pult_dashboard(string $msg = ''): void
 {
     $mon = pult_monitor(isset($_GET['check']));
@@ -608,6 +625,6 @@ function pult_dashboard(string $msg = ''): void
     pult_page('Пульт ALFIMOV', '<div class="wrap"><div class="top"><h1>Пульт ALFIMOV</h1>'
         . '<form method="post" style="margin:0;display:flex;gap:8px"><button class="btn" type="submit" name="do" value="logout">Выйти</button>'
         . '<button class="btn" type="submit" name="do" value="logout_all" onclick="return confirm(\'Выйти на всех устройствах?\')">Выйти везде</button></form></div>'
-        . '<h2>Сайты</h2><div class="grid">' . $cards . '</div>' . $lp . pult_clarity_block($msg) . $mon_html . $csp . '</div>');
+        . '<h2>Сайты</h2><div class="grid">' . $cards . '</div>' . $lp . pult_foreign_leads_block() . pult_clarity_block($msg) . $mon_html . $csp . '</div>');
 }
 
