@@ -12,6 +12,7 @@ import hashlib
 import html
 import json
 import os
+import re
 import shutil
 import sys
 from datetime import date
@@ -318,6 +319,9 @@ def footer(c):
 
 
 def page(c, *, path, title, desc, body, schema, alt_path, noindex=False, og_type="website", image=None):
+    if image is None:
+        card_title = re.sub(r"\s*[|—]\s*(ALFIMOV\.KZ|Alfimov)\s*$", "", title, flags=re.I).strip() or title
+        image = enginekit.og_card(DIST, path, card_title, dark="#0c1011", accent="#1769ff", domain="ALFIMOV.KZ")
     graph = {"@context": "https://schema.org", "@graph": [org_schema(), *schema]}
     graph_json = csp_hash(json.dumps(graph, ensure_ascii=False))
     o = other_lang(c)
