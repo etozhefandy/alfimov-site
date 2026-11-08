@@ -579,6 +579,7 @@ function pult_dashboard(string $msg = ''): void
             . $blog
             . '<div class="pills">' . pult_http_pill(array_key_exists('http', $d) ? $d['http'] : 0) . pult_days_pill($d['domain'], 'Домен') . (($d['http'] ?? 0) === -1 ? '<span class="pill bad">SSL: недействителен</span>' : pult_days_pill($d['ssl'], 'SSL')) . '</div>'
             . '<div class="row"><a class="btn main" href="/s/' . pult_h($s['host']) . '/admin/">Блог, SEO, заявки</a>'
+            . '<a class="btn" href="/?p=client&amp;c=' . pult_h($s['host']) . '">CRM</a>'
             . '<a class="btn" href="' . pult_h($s['url']) . '/" target="_blank" rel="noopener">Открыть сайт</a></div></div>';
     }
     if ($cards === '') $cards = '<div class="card muted">Сайтов на движке в этой подписке не найдено.</div>';

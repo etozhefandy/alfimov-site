@@ -3,10 +3,16 @@
 // Библиотека передачи — _crm.php (та же, что принимает заявки на сайте).
 declare(strict_types=1);
 
-/** Заказчик по slug из рекламных страниц на сайтах хостинга. */
+/**
+ * «Заказчик» для страницы CRM в пульте: либо настоящий заказчик с рекламными страницами
+ * (_lp-clients.json), либо сам сайт движка (alfimov.kz, metalbaza.kz) — для заявок с него самого,
+ * не с рекламных страниц. У сайта kind = 'site': своя группа и свой журнал заявок уже есть в его
+ * собственной админке, здесь только подключение CRM.
+ */
 function pult_client(string $slug): ?array
 {
     foreach (pult_landings() as $c) if ($c['slug'] === $slug) return $c;
+    foreach (pult_sites() as $s) if ($s['host'] === $slug) return ['slug' => $s['host'], 'name' => $s['brand'], 'site' => $s['host'], 'pages' => [], 'kind' => 'site'];
     return null;
 }
 
@@ -82,6 +88,7 @@ function pult_client_page(array $client, string $msg = '', bool $good = true): v
     $log = $log ? '<h2>Последние передачи в CRM</h2><div class="scroll"><table><tr><th>Когда</th><th>CRM</th><th>Итог</th></tr>' . $log . '</table></div>'
         : '<p class="muted">Заявки в CRM пока не передавались.</p>';
 
+    $isSite = ($client['kind'] ?? '') === 'site';
     $flash = $msg ? '<p class="flash ' . ($good ? 'ok' : 'bad') . '">' . pult_h($msg) . '</p>' : '';
     $enabled = crm_enabled($c);
     $tools = $enabled
@@ -96,15 +103,19 @@ function pult_client_page(array $client, string $msg = '', bool $good = true): v
         . 'document.querySelectorAll("[data-for]").forEach(function(e){var k=e.getAttribute("data-for").split(" ");e.hidden=!(k.indexOf(v)>=0);e.querySelectorAll("input,select").forEach(function(i){i.disabled=e.hidden})});'
         . 'var h=document.querySelector("[name=host]");if(h)h.placeholder=v==="kommo"?"guestory.kommo.com":"guestory.amocrm.ru"}t.addEventListener("change",f);f()})()</script>';
 
-    pult_page('Заказчик ' . $client['name'] . ' — пульт', $css . '<div class="wrap"><div class="top"><h1>' . pult_h($client['name']) . '</h1>'
-        . '<a class="btn" href="/">← Пульт</a></div>' . $flash
-        . '<div class="muted">Рекламные страницы на ' . pult_h($client['site']) . '</div><div class="row">' . $pages . '</div>'
-        . pult_client_tg($client)
-        . pult_client_leads($client)
-        . '<h2>Куда передавать заявки</h2><p class="muted">Заявка всегда приходит в Telegram. Если подключить CRM заказчика, она ещё создаст там сделку с контактом, '
+    $top = $isSite
+        ? '<div class="muted">Заявки с самого сайта ' . pult_h($client['site']) . ' (не с рекламных страниц) — своя группа Telegram '
+            . 'и журнал заявок у сайта в его собственной админке; здесь только подключение CRM.</div>'
+        : '<div class="muted">Рекламные страницы на ' . pult_h($client['site']) . '</div><div class="row">' . $pages . '</div>'
+            . pult_client_tg($client) . pult_client_leads($client);
+    $crmWho = $isSite ? 'CRM' : 'CRM заказчика';
+
+    pult_page(($isSite ? 'Сайт ' : 'Заказчик ') . $client['name'] . ' — пульт', $css . '<div class="wrap"><div class="top"><h1>' . pult_h($client['name']) . '</h1>'
+        . '<a class="btn" href="/">← Пульт</a></div>' . $flash . $top
+        . '<h2>Куда передавать заявки</h2><p class="muted">Заявка всегда приходит в Telegram. Если подключить ' . pult_h($crmWho) . ', она ещё создаст там сделку с контактом, '
         . 'ответами из опроса и метками рекламы (UTM). Если CRM не ответит, заявку в Telegram вы всё равно получите, а об ошибке напишет бот.</p>'
         . '<form id="crm" class="card crm" method="post" autocomplete="off"><input type="hidden" name="c" value="' . pult_h($slug) . '">'
-        . '<label>CRM заказчика<select name="type">' . $types . '</select></label>'
+        . '<label>' . pult_h($crmWho) . '<select name="type">' . $types . '</select></label>'
         . '<label data-for="kommo amocrm">Адрес аккаунта<input name="host" value="' . pult_h($c['host'] ?? '') . '" placeholder="guestory.kommo.com"></label>'
         . '<label data-for="kommo amocrm">Долгосрочный токен<input name="token" type="password" autocomplete="new-password" placeholder="' . pult_h($tokenHint('token')) . '">'
         . '<span class="hint">Берёт администратор CRM: Настройки → Интеграции → Создать интеграцию → Внешняя → «Ключи и доступы» → долгосрочный токен.</span></label>'
@@ -114,7 +125,7 @@ function pult_client_page(array $client, string $msg = '', bool $good = true): v
         . '<span class="hint">Куда отправлять заявку POST-запросом (JSON): Make, Zapier, n8n, своя CRM.</span></label>'
         . '<div data-for="kommo amocrm bitrix24">' . $stages . $users . $listsHint . '</div>'
         . '<div class="row"><button class="btn main" name="do" value="crm_save" type="submit">Сохранить</button></div>' . $tools . '</form>'
-        . $log . pult_client_capi($client) . pult_client_links($client) . '</div>' . $js);
+        . $log . ($isSite ? '' : pult_client_capi($client) . pult_client_links($client)) . '</div>' . $js);
 }
 
 /** Действия со страницы заказчика. */
