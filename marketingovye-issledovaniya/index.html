@@ -51,7 +51,7 @@
       <a href="/blog/">Блог</a>
       <a href="/kontakty/">Контакты</a>
       <a class="lang" href="/kz/marketingovye-issledovaniya/" hreflang="kk" aria-label="Қазақша нұсқасы">Қаз</a>
-      <a class="btn btn-sm" href="#lead">Обсудить проект</a>
+      <a class="btn btn-sm" href="#lead-form">Обсудить проект</a>
     </nav>
     <button class="burger" type="button" aria-controls="nav" aria-expanded="false" aria-label="Menu"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h16M4 16h16"/></svg></button>
   </div>
@@ -66,7 +66,7 @@
       <p class="hero-lead rv">Помогаем принимать решения на основе данных: анализируем рынок, конкурентов и клиентов, прежде чем вы вложите деньги в запуск или рекламу.</p>
       <div class="hero-cta rv">
         <div class="price"><span>Стоимость</span><b>по запросу</b><small>Стоимость работы агентства. Рекламный бюджет оплачивается отдельно.</small></div>
-        <a class="btn btn-lg" href="#lead">Обсудить проект <svg class="ic ic-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        <a class="btn btn-lg" href="#lead-form">Обсудить проект <svg class="ic ic-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
       </div>
     </div>
   </div>
@@ -110,7 +110,7 @@
       <p>Оставьте контакт — созвонимся, разберём текущую рекламу и предложим план.</p>
       <div class="clinks"><a class="clink" href="tel:+77769026669"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h3.5l1.5 4.5-2 1.5a11 11 0 0 0 6 6l1.5-2 4.5 1.5V19a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z"/></svg>+7 776 902 66 69</a><a class="clink" href="https://wa.me/77769026669" target="_blank" rel="noopener"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l1.2-4A8 8 0 1 1 8 18.8Z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1-1 .8c-1-.5-2-1.5-2.3-2.3l.8-1-1-2-1 .5Z"/></svg>WhatsApp</a><a class="clink" href="https://t.me/fandylol" target="_blank" rel="noopener"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 4 3 11l6 2.2L18 7l-7 7.5V20l3-3.5 4 3Z"/></svg>@fandylol</a><a class="clink" href="https://www.instagram.com/etozhefandy/" target="_blank" rel="noopener" aria-label="Instagram @etozhefandy"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="3.8"/><circle cx="17.2" cy="6.8" r=".7" fill="currentColor" stroke="none"/></svg>@etozhefandy</a></div>
     </div>
-    <form class="form rv" action="/api/send.php" method="post" data-ok="Заявка отправлена. Скоро свяжемся!" data-err="Не получилось отправить. Напишите нам в WhatsApp или Telegram — ответим там." data-sending="Отправляем…">
+    <form class="form rv" id="lead-form" action="/api/send.php" method="post" data-ok="Заявка отправлена. Скоро свяжемся!" data-err="Не получилось отправить. Напишите нам в WhatsApp или Telegram — ответим там." data-sending="Отправляем…">
       <input type="hidden" name="source" value="marketingovye-issledovaniya">
       <input type="hidden" name="lang" value="ru">
       <input type="hidden" name="ts" value="">
