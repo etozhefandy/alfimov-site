@@ -241,7 +241,7 @@ def header(c, alt_path):
       {blog_link}
       <a href="{url(c, 'kontakty')}">{e(ui['nav_contacts'])}</a>
       <a class="lang" href="{alt_path}" hreflang="{other_lang(c).LANG}" aria-label="{e(ui['lang_switch_label'])}">{e(ui['lang_switch'])}</a>
-      <a class="btn btn-sm" href="#lead">{e(ui['cta'])}</a>
+      <a class="btn btn-sm" href="#lead-form">{e(ui['cta'])}</a>
     </nav>
     <button class="burger" type="button" aria-controls="nav" aria-expanded="false" aria-label="Menu">{icon('menu')}</button>
   </div>
@@ -273,7 +273,7 @@ def lead_form(c, source, title=None, lead=None, num="→"):
       <p>{e(lead)}</p>
       <div class="clinks">{contact_links()}</div>
     </div>
-    <form class="form rv" action="/api/send.php" method="post" data-ok="{e(ui['form_ok'])}" data-err="{e(ui['form_err'])}" data-sending="{e(ui['form_sending'])}">
+    <form class="form rv" id="lead-form" action="/api/send.php" method="post" data-ok="{e(ui['form_ok'])}" data-err="{e(ui['form_err'])}" data-sending="{e(ui['form_sending'])}">
       <input type="hidden" name="source" value="{e(source)}">
       <input type="hidden" name="lang" value="{c.LANG}">
       <input type="hidden" name="ts" value="">
@@ -519,7 +519,7 @@ def build_home(c):
     <div class="hero-row">
       <p class="hero-lead rv">{e(h['hero_lead'])}</p>
       <div class="hero-cta rv">
-        <a class="btn btn-lg" href="#lead">{e(ui['cta'])} {icon('arrow', 'ic ic-sm')}</a>
+        <a class="btn btn-lg" href="#lead-form">{e(ui['cta'])} {icon('arrow', 'ic ic-sm')}</a>
         <a class="tlink" href="{'#cases' if c.CASES else '#approach'}">{e(h['cases_eyebrow'] if c.CASES else h['hero_cta_secondary'])} {icon('arrow-down', 'ic ic-sm')}</a>
       </div>
     </div>
@@ -592,7 +592,7 @@ def build_service(c, s):
       <p class="hero-lead rv">{e(s['lead'])}</p>
       <div class="hero-cta rv">
         <div class="price"><span>{e(ui['price_label'])}</span><b>{e(price_text(c, s['slug']))}</b><small>{e(ui['price_note'])}</small></div>
-        <a class="btn btn-lg" href="#lead">{e(ui['cta'])} {icon('arrow', 'ic ic-sm')}</a>
+        <a class="btn btn-lg" href="#lead-form">{e(ui['cta'])} {icon('arrow', 'ic ic-sm')}</a>
       </div>
     </div>
   </div>
