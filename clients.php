@@ -165,15 +165,19 @@ function pult_client_action(array $client, string $do, array $post): void
         $r = capi_send($slug, $ev, true);
         pult_client_page($client, $r['ok'] ? 'Meta приняла тестовое событие — оно появится в «Тестовых событиях» Events Manager через минуту.' : 'Не получилось: ' . ($r['error'] ?? ''), $r['ok']);
     }
-    $cfg = crm_config($slug);
-    if ($do === 'crm_check') {
-        $r = crm_check($cfg);
-        if ($r['ok']) { $cfg['lists'] = $r['lists']; crm_save($slug, $cfg); }
-        pult_client_page($client, $r['ok'] ? 'CRM отвечает, ключ подходит.' : 'Не подключилась: ' . $r['error'], $r['ok']);
-    }
-    if ($do === 'crm_test') {
+    if ($do === 'crm_check' || $do === 'crm_test') {
+        // Кнопки — в той же форме, что поля CRM (воронка, ответственный…): берём то, что сейчас в форме,
+        // а не то, что было сохранено раньше — иначе непонятно изменённое поле «не применяется».
+        [$cfg, $err] = pult_crm_from_form(crm_config($slug), $post);
+        if ($err) pult_client_page($client, $err, false);
+        crm_save($slug, $cfg);
+        if ($do === 'crm_check') {
+            $r = crm_check($cfg);
+            if ($r['ok']) { $cfg['lists'] = $r['lists']; crm_save($slug, $cfg); }
+            pult_client_page($client, $r['ok'] ? 'Сохранено, CRM отвечает, ключ подходит.' : 'Сохранено, но не подключилась: ' . $r['error'], $r['ok']);
+        }
         $r = crm_send($slug, crm_test_lead($slug, $client['name']), true);
-        pult_client_page($client, !empty($r['skipped']) ? 'CRM не подключена.' : ($r['ok'] ? 'Тестовая заявка создана в CRM' . (!empty($r['id']) ? ' (№' . $r['id'] . ')' : '') . '. Проверьте её там и удалите.' : 'Не получилось: ' . $r['error']), !empty($r['ok']));
+        pult_client_page($client, !empty($r['skipped']) ? 'Сохранено. CRM не подключена.' : ($r['ok'] ? 'Сохранено. Тестовая заявка создана в CRM' . (!empty($r['id']) ? ' (№' . $r['id'] . ')' : '') . '. Проверьте её там и удалите.' : 'Сохранено, но тест не получился: ' . $r['error']), !empty($r['ok']));
     }
     pult_client_page($client);
 }
