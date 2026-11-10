@@ -33,6 +33,12 @@ class AuditRulesTest(unittest.TestCase):
                               "a/index.html": page("Страница услуги агентства", links=["/"], desc=GOOD_DESC + " Услуга.")})
         self.assertEqual(found, set())
 
+    def test_llms_txt_link_not_broken(self):
+        # /llms.txt — PHP-маршрут на хостинге, не файл в dist/; ссылку на него (rel=alternate в <head>
+        # каждой страницы) аудит не должен считать битой.
+        found, _ = self.make({"index.html": page("Главная страница агентства", links=["/llms.txt"])})
+        self.assertEqual(found, set())
+
     def test_detects_problems(self):
         found, _ = self.make({
             "index.html": page("Одинаковый заголовок страницы", h1=2, links=["/nope/", "/b/"],
