@@ -323,6 +323,8 @@ def page(c, *, path, title, desc, body, schema, alt_path, noindex=False, og_type
     if image is None:
         card_title = re.sub(r"\s*[|—]\s*(ALFIMOV\.KZ|Alfimov)\s*$", "", title, flags=re.I).strip() or title
         image = enginekit.og_card(DIST, path, card_title, dark="#0c1011", accent="#1769ff", domain="ALFIMOV.KZ")
+    # Кнопка шапки ведёт к форме (#lead-form). На страницах без формы (политика) — к форме на «Контактах».
+    lead_href = "#lead-form" if 'id="lead-form"' in body else url(c, "kontakty") + "#lead-form"
     graph = {"@context": "https://schema.org", "@graph": [org_schema(), *schema]}
     graph_json = csp_hash(json.dumps(graph, ensure_ascii=False))
     o = other_lang(c)
@@ -373,12 +375,12 @@ def page(c, *, path, title, desc, body, schema, alt_path, noindex=False, og_type
 <script type="application/ld+json">{graph_json}</script>
 </head>
 <body{' class="dark-top"' if dark_top else ''}>
-{header(c, alt_path)}
+{header(c, alt_path).replace('href="#lead-form"', f'href="{lead_href}"')}
 <main>
 {body}
 </main>
 {footer(c)}
-<a class="mcta btn btn-lg" href="#lead-form" hidden>{e(c.UI['cta'])} {icon('arrow', 'ic ic-sm')}</a>
+<a class="mcta btn btn-lg" href="{lead_href}" hidden>{e(c.UI['cta'])} {icon('arrow', 'ic ic-sm')}</a>
 <script src="/assets/main.js?v={ASSET_VER}" defer></script>
 </body>
 </html>
