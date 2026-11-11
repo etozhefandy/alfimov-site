@@ -655,7 +655,7 @@ section[id] { scroll-margin-top: 72px; }
 
 /* сменяющееся слово заголовка (main.js .rot): все слова лежат в одной ячейке сетки — ширина всегда по самому
    длинному, видно одно; после него перенос строки (build.py), поэтому текст вокруг не сдвигается */
-.rot { display: inline-grid; }
+.rot, .js .type .tw.rot { display: inline-grid; }   /* .js .type .tw ставит inline-block — перебиваем, иначе слова встают в ряд */
 .rot .rw { grid-area: 1 / 1; justify-self: start; opacity: 0; transform: translateY(.3em); filter: blur(3px);
   transition: opacity .35s var(--ease), transform .4s var(--ease), filter .35s var(--ease); }
 .rot .rw.on { opacity: 1; transform: none; filter: none; }
