@@ -89,18 +89,22 @@
       var p = x.split("~"); return { w: p[0], t: parseFloat(p[1]) || 2.5 };
     });
     if (rlist.length > 1) {
-      var rw = document.createElement("span");
-      rw.className = "rw"; rw.textContent = rlist[0].w;
-      rot.textContent = ""; rot.appendChild(rw);
+      rot.textContent = "";
+      var rws = rlist.map(function (it, i) {
+        var sp = document.createElement("span");
+        sp.className = i ? "rw" : "rw on"; sp.textContent = it.w;
+        if (i) sp.setAttribute("aria-hidden", "true");
+        rot.appendChild(sp); return sp;
+      });
       var rk = 0;
       var rnext = function () {
-        rw.className = "rw out";
-        setTimeout(function () {
-          rk = (rk + 1) % rlist.length;
-          rw.textContent = rlist[rk].w;
-          rw.className = "rw"; void rw.offsetWidth; rw.className = "rw new";
-          setTimeout(rnext, rlist[rk].t * 1000);
-        }, 260);
+        var cur = rws[rk];
+        rk = (rk + 1) % rws.length;
+        var nx = rws[rk];
+        cur.className = "rw off";
+        nx.className = "rw"; void nx.offsetWidth; nx.className = "rw on";
+        setTimeout(function () { if (cur !== rws[rk]) cur.className = "rw"; }, 450);
+        setTimeout(rnext, rlist[rk].t * 1000);
       };
       setTimeout(rnext, rlist[0].t * 1000 + 1000);
     }
