@@ -581,8 +581,9 @@ section[id] { scroll-margin-top: 72px; }
   transform: translate3d(var(--px, 0px), var(--py, 0px), 0); transition: transform .8s var(--ease);
 }
 .hx-bg::before, .hx-bg::after { content: ""; position: absolute; height: 1px; width: 160px; background: #4d8bff; opacity: 0; }
-.hx-bg::before { top: 252px; animation: hx-run 9s linear infinite; }
-.hx-bg::after { top: 444px; width: 100px; animation: hx-run 13s linear 4s infinite; }
+/* бегут по верхней линии сетки — над текстом, чтобы не выглядеть подчёркиванием заголовка */
+.hx-bg::before { top: 64px; animation: hx-run 9s linear infinite; }
+.hx-bg::after { top: 64px; width: 100px; animation: hx-run 13s linear 4.5s infinite; }
 @keyframes hx-run { 0% { left: -10%; opacity: 0; } 10% { opacity: .9; } 70% { opacity: .9; } 100% { left: 100%; opacity: 0; } }
 /* акцентное слово заголовка подчёркивается, когда заголовок допечатался */
 .hx h1 em { background: linear-gradient(currentColor, currentColor) no-repeat 0 96% / 100% 3px; }
@@ -648,6 +649,13 @@ section[id] { scroll-margin-top: 72px; }
 .mcta.on { transform: none; }
 .mcta[hidden] { display: none; }
 @media (min-width: 720px) { .mcta { display: none !important; } }
+
+/* сменяющееся слово заголовка (main.js .rot) */
+.rot .rw { display: inline-block; }
+.rot .rw.out { animation: rw-out .26s var(--ease) forwards; }
+.rot .rw.new { animation: rw-in .4s var(--ease) both; }
+@keyframes rw-out { to { opacity: 0; transform: translateY(-.3em); filter: blur(3px); } }
+@keyframes rw-in { from { opacity: 0; transform: translateY(.3em); filter: blur(3px); } }
 
 @media (prefers-reduced-motion: reduce) {
   .hx-bg { transform: none; } .hx-bg::before, .hx-bg::after { display: none; }

@@ -81,6 +81,31 @@
   onScrollFrame();
   // Переход по ссылке-якорю (#lead-form и т.п.) не должен прятать шапку поверх формы — это нормально, шапка вернётся при прокрутке вверх.
 
+
+  // Сменяющееся слово заголовка: data-rot="слово~секунды|…" (build.py type_words). Стартует, когда заголовок допечатался.
+  var rot = document.querySelector(".rot[data-rot]");
+  if (rot && !calm) {
+    var rlist = rot.getAttribute("data-rot").split("|").map(function (x) {
+      var p = x.split("~"); return { w: p[0], t: parseFloat(p[1]) || 2.5 };
+    });
+    if (rlist.length > 1) {
+      var rw = document.createElement("span");
+      rw.className = "rw"; rw.textContent = rlist[0].w;
+      rot.textContent = ""; rot.appendChild(rw);
+      var rk = 0;
+      var rnext = function () {
+        rw.className = "rw out";
+        setTimeout(function () {
+          rk = (rk + 1) % rlist.length;
+          rw.textContent = rlist[rk].w;
+          rw.className = "rw"; void rw.offsetWidth; rw.className = "rw new";
+          setTimeout(rnext, rlist[rk].t * 1000);
+        }, 260);
+      };
+      setTimeout(rnext, rlist[0].t * 1000 + 1000);
+    }
+  }
+
   if (!calm && fine) {
     // Сетка первого экрана слегка следует за мышью.
     var hx = document.querySelector(".hx"), hxBg = document.querySelector(".hx-bg");

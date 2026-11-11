@@ -401,7 +401,7 @@ def faq_block(c, items, num):
 </section>"""
 
 
-def type_words(parts):
+def type_words(parts, rot=None):
     """Печатающийся заголовок (.type, style.css): каждое слово — свой <span> с индексом --i,
     чтобы текст появлялся по словам в порядке чтения, а не всей строкой/всеми строками сразу.
     parts — [(текст, em)], em оборачивает слово в <em> (акцент)."""
@@ -412,7 +412,14 @@ def type_words(parts):
         for word in text.split(" "):
             if not word:
                 continue
-            span = f'<span class="tw tw-i-{min(i, 40)}">{e(word)}</span>'
+            if rot and word == rot[0][0].split(" ")[0]:
+                # Слово-«карусель»: в HTML (и для Google) — первое слово списка, main.js по очереди меняет его на
+                # остальные; у каждого своё время на экране в секундах (content_*.HOME['hero_rot']).
+                data = "|".join(f"{w}~{t}" for w, t in rot)
+                span = f'<span class="tw tw-i-{min(i, 40)} rot" data-rot="{e(data)}">{e(word)}</span>'
+                rot = None
+            else:
+                span = f'<span class="tw tw-i-{min(i, 40)}">{e(word)}</span>'
             out.append(f"<em>{span}</em>" if em else span)
             i += 1
     return " ".join(out)
@@ -554,7 +561,7 @@ def build_home(c):
   <div class="wrap hx-grid">
     <div class="hx-copy">
       <p class="hero-kicker rv">{e(h['hero_kicker'])}</p>
-      <h1 class="type">{type_words([(h['hero_title_pre'], False), (h['hero_title_accent'], True), (h.get('hero_title_post', ''), False)])}</h1>
+      <h1 class="type">{type_words([(h['hero_title_pre'], False), (h['hero_title_accent'], True), (h.get('hero_title_post', ''), False)], h.get('hero_rot'))}</h1>
       <p class="hero-lead rv">{e(h['hero_lead'])}</p>
       <div class="hero-cta rv">
         <a class="btn btn-lg" href="#hero-form">{e(ui['cta'])} {icon('arrow', 'ic ic-sm')}</a>
