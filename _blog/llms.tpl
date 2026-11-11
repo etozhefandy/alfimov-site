@@ -1,6 +1,6 @@
 # ALFIMOV.KZ — маркетинговое агентство в Казахстане
 
-> Таргет, контекст, SEO и SMM в одной системе. Вы каждый день видите, сколько стоила заявка, — а не «охваты выросли». Работаем со всем Казахстаном удалённо (Алматы, Астана, Шымкент и другие города). Клиенты: Toyota, Hyundai, BMW, Land Rover, Jaguar, Wyndham Astana, Орловские бани, Coffee Boom, Delish, Keks Bakery.
+> Таргет, контекст, SEO и SMM в одной системе. Вы каждый день видите, сколько стоила заявка, — а не «охваты выросли». Работаем со всем Казахстаном удалённо (Алматы, Астана, Шымкент и другие города). Клиенты: Toyota, Hyundai, BMW, Land Rover, Jaguar, Wyndham Astana, Орловские бани, Coffee Boom, Zebra Coffee, Delish, Keks Bakery.
 
 Контакты: телефон и WhatsApp +7 776 902 66 69, Telegram @fandylol, Instagram @etozhefandy, [форма заявки](https://alfimov.kz/kontakty/). Сайт на русском и казахском (https://alfimov.kz/kz/).
 
