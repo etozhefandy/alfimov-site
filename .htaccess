@@ -38,6 +38,7 @@ ErrorDocument 404 /404.html
   # ссылки и позиции в Google
   RewriteRule ^blog/vedenie-instagram-cena-mesyac/?$ /blog/skolko-stoit-vedenie-instagram/ [L,R=301]
   RewriteRule ^blog/vedenie-socsetej-stoimost/?$ /blog/skolko-stoit-vedenie-instagram/ [L,R=301]
+  RewriteRule ^blog/skolko-stoit-target/?$ /blog/stoimost-targetirovannoj-reklamy-kazahstan/ [L,R=301]
   RewriteRule ^blog/([a-z0-9-]+)/$ _blog/router.php?route=article&slug=$1 [L]
   # Блог на казахском (static/_blog/lib.php: blog_path('kk')) — та же обложка PHP, без adres media: картинки общие
   RewriteRule ^kz/blog$ /kz/blog/ [L,R=301]
