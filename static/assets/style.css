@@ -1,6 +1,7 @@
 /* ALFIMOV.KZ — Marketing × Data × Technology.
-   Белый, почти чёрный, серые и один синий акцент. Иерархия — типографикой,
-   сеткой и отступами; тени и скругления — по минимуму. */
+   Белый, почти чёрный, серые и один синий акцент. Иерархия — типографикой и сеткой.
+   Редизайн 11.11.2026: заголовки жирным IBM Plex Sans вместо засечек, тёмный первый экран главной с формой,
+   плитки услуг, скругления мягче, появление блоков быстрее (раньше при прокрутке была заметная пустота). */
 :root {
   --bg: #ffffff;
   --soft: #f5f6f7;
@@ -15,16 +16,18 @@
   --dark-2: #161b1d;
   --dark-line: #262d31;
   --dark-muted: #8e969d;
-  --radius: 6px;
+  --radius: 10px;
+  --radius-lg: 18px;
+  --hx: #0a0d10;
   --wrap: 1280px;
   --gutter: 20px;
   --sec: 96px;
   --font: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-head: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-head: var(--font);
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --ease: cubic-bezier(.2, .7, .2, 1);
 }
-@media (min-width: 720px) { :root { --gutter: 40px; --sec: 136px; } }
+@media (min-width: 720px) { :root { --gutter: 40px; --sec: 112px; } }
 
 *, *::before, *::after { box-sizing: border-box; }
 html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
@@ -34,10 +37,10 @@ body {
 }
 img, svg { display: block; max-width: 100%; }
 a { color: inherit; }
-h1, h2, h3 { font-family: var(--font-head); margin: 0; text-wrap: balance; letter-spacing: -0.012em; line-height: 1.1; font-weight: 600; }
-h1 { font-size: clamp(40px, 7.2vw, 96px); letter-spacing: -0.02em; line-height: 1.02; font-weight: 600; }
-h2 { font-size: clamp(30px, 4.2vw, 56px); letter-spacing: -0.015em; line-height: 1.06; }
-h3 { font-size: 21px; letter-spacing: -0.005em; line-height: 1.25; }
+h1, h2, h3 { font-family: var(--font-head); margin: 0; text-wrap: balance; letter-spacing: -0.02em; line-height: 1.1; font-weight: 700; }
+h1 { font-size: clamp(38px, 5.8vw, 76px); letter-spacing: -0.035em; line-height: 1.02; }
+h2 { font-size: clamp(30px, 3.8vw, 50px); letter-spacing: -0.03em; line-height: 1.05; }
+h3 { font-size: 20px; letter-spacing: -0.01em; line-height: 1.25; font-weight: 600; }
 p { margin: 0 0 1em; }
 .muted { color: var(--muted); }
 .wrap { max-width: var(--wrap); margin: 0 auto; padding: 0 var(--gutter); }
@@ -47,7 +50,7 @@ section[id] { scroll-margin-top: 72px; }
 .ic-sm { width: 16px; height: 16px; }
 
 /* reveal: только при включённом JS, иначе всё видно сразу */
-.js .rv { opacity: 0; transform: translateY(14px); transition: opacity .7s var(--ease), transform .7s var(--ease); }
+.js .rv { opacity: 0; transform: translateY(10px); transition: opacity .4s var(--ease), transform .4s var(--ease); }
 .js .rv.in { opacity: 1; transform: none; }
 
 /* печатающийся заголовок (h1): слово — свой <span class="tw" style="--i:N"> (build.py), появляются по очереди.
@@ -55,8 +58,8 @@ section[id] { scroll-margin-top: 72px; }
    на каждой строке), а не по порядку чтения; по словам и перенос не мешает, и быстрее — не ждать. */
 .js .type .tw { display: inline-block; opacity: 0; transform: translateY(.35em); filter: blur(3px); }
 .js .type.in .tw {
-  animation: word-in .5s var(--ease) forwards;
-  animation-delay: calc(min(var(--i, 0), 10) * .06s);
+  animation: word-in .4s var(--ease) forwards;
+  animation-delay: calc(min(var(--i, 0), 10) * .035s);
 }
 @keyframes word-in { to { opacity: 1; transform: none; filter: blur(0); } }
 /* --i классом, не inline style="" (CSP script/style-src без unsafe-inline); число задаёт build.py (type_words) */
@@ -470,3 +473,186 @@ section[id] { scroll-margin-top: 72px; }
 .art-popup-more { font-size: 13px; color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; }
 .art-popup-more:hover { color: var(--blue); }
 @media (min-width: 720px) { .art-popup { left: auto; right: 24px; bottom: 24px; margin: 0; } }
+
+/* ======================================================= редизайн 11.11.2026 */
+
+/* шапка поверх тёмного первого экрана главной (body.dark-top) */
+.dark-top .hdr { background: rgba(10, 13, 16, .88); border-bottom-color: #1b2228; }
+.dark-top .hdr .logo { color: #f3f5f7; }
+.dark-top .nav > a, .dark-top .dd > a { color: #a3acb6; }
+.dark-top .nav > a:hover, .dark-top .dd > a:hover { color: #fff; }
+.dark-top .nav > .lang { color: #6f7984; }
+.dark-top .burger { color: #f3f5f7; }
+.dark-top .dd-menu { background: #12171c; border-color: #232c34; }
+.dark-top .dd-menu a { color: #c3cad1; }
+.dark-top .dd-menu a:hover { background: #1a2027; color: #fff; }
+@media (max-width: 1020px) {
+  .dark-top .nav { background: var(--hx); border-bottom-color: #1b2228; }
+  .dark-top .nav > a, .dark-top .dd > a { color: #f3f5f7; border-bottom-color: #1b2228; }
+}
+
+/* первый экран главной */
+.hx { background: var(--hx); color: #eef1f4; }
+.hx-grid { display: grid; gap: 40px; padding-top: 48px; padding-bottom: 56px; align-items: end; }
+@media (min-width: 960px) { .hx-grid { grid-template-columns: minmax(0, 1.35fr) minmax(0, .9fr); gap: 56px; padding-top: 88px; padding-bottom: 88px; } }
+.hx .hero-kicker { color: #6f7984; margin-bottom: 22px; }
+.hx h1 { max-width: 19ch; }
+.hx h1 em { font-style: normal; color: #4d8bff; }
+.hx .hero-lead { color: #a9b2bc; margin: 24px 0 32px; max-width: 34em; }
+.hx .tlink { color: #c9d0d7; border-bottom-color: #3a444e; }
+.hx .tlink:hover { border-color: #c9d0d7; }
+.hx-clients { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 40px; padding-top: 24px; padding-bottom: 28px; border-top: 1px solid #1b2228; }
+.hx-clients p { margin: 0; font-family: var(--font-mono); font-size: 12px; text-transform: uppercase; color: #4f5963; }
+.hx-clients ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 32px; }
+.hx-clients li { font-weight: 600; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: #8a949e; }
+
+/* карточка-форма (первый экран) */
+.form-card { background: #12171c; border: 1px solid #232c34; border-radius: var(--radius-lg); padding: 28px; gap: 14px; }
+.form-card-t { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; color: #fff; }
+.form-card-l { margin: -6px 0 6px; font-size: 14px; color: #8d97a1; }
+.form-card .fld span { color: #6f7984; }
+.form-card .fld input { color: #fff; border-bottom-color: #2c3740; font-size: 17px; }
+.form-card .btn { justify-self: stretch; }
+.form-card .consent { color: #6f7984; }
+.form-card .consent a { color: #a3acb6; }
+
+/* плитки услуг */
+.bento { display: grid; gap: 14px; grid-template-columns: 1fr; }
+@media (min-width: 640px) { .bento { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1020px) { .bento { grid-template-columns: repeat(4, 1fr); grid-auto-rows: minmax(190px, auto); } }
+.tile {
+  position: relative; display: flex; flex-direction: column; justify-content: space-between; gap: 18px; min-height: 160px;
+  padding: 24px 24px 56px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius-lg);
+  text-decoration: none; transition: border-color .2s ease, transform .25s var(--ease);
+}
+.tile:hover { border-color: var(--ink); transform: translateY(-2px); }
+.tile b { font-size: 21px; line-height: 1.2; letter-spacing: -0.015em; }
+.tile span { color: var(--ink-2); font-size: 15px; line-height: 1.45; }
+.tile-arrow { position: absolute; right: 22px; bottom: 22px; color: var(--blue); transition: transform .25s var(--ease); }
+.tile:hover .tile-arrow { transform: translateX(4px); }
+.tile.big { background: var(--hx); color: #fff; border-color: var(--hx); }
+.tile.big span { color: #9aa4ae; }
+.tile.big b { font-size: clamp(24px, 2.4vw, 32px); }
+.tile.big .tile-arrow, .tile.blue .tile-arrow { color: #fff; }
+.tile.blue { background: var(--blue); color: #fff; border-color: var(--blue); }
+.tile.blue span { color: #dbe6ff; }
+@media (min-width: 640px) { .tile.big, .tile.wide { grid-column: span 2; } }
+@media (min-width: 1020px) { .tile.big { grid-row: span 2; } }
+
+/* почему мы */
+.why { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+@media (min-width: 720px) { .why { grid-template-columns: repeat(3, 1fr); } }
+.why li { display: flex; flex-direction: column; gap: 10px; padding: 28px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius-lg); min-height: 170px; }
+.why b { font-size: 22px; letter-spacing: -0.02em; }
+.why span { color: var(--ink-2); }
+
+/* цена на странице услуги — отдельный спокойный блок ниже описания */
+.sec-tight-b { padding-top: 0; }
+.price-box { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 24px 40px; padding: 32px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--soft); }
+.price b { font-weight: 700; letter-spacing: -0.02em; }
+
+/* финальная форма — тёмный блок со скруглением */
+.final { padding: 0 0 var(--sec); border-top: 0; }
+.final-in { background: var(--hx); color: #eef1f4; border-radius: 24px; padding: 40px 24px; }
+.final > .final-in { width: calc(100% - 2 * var(--gutter)); max-width: calc(var(--wrap) - 2 * var(--gutter)); }
+@media (max-width: 719px) { .final > .final-in { width: calc(100% - 24px); } }
+@media (min-width: 720px) { .final-in { padding: 64px; } }
+.final-copy > p { color: #a9b2bc; }
+.final .fld span { color: #6f7984; }
+.final .fld input, .final .fld textarea { color: #fff; border-bottom-color: #2c3740; }
+.final .consent { color: #6f7984; }
+.final .consent a { color: #a3acb6; }
+.final .clink { color: #eef1f4; }
+.final .clink:hover { color: #7aa8ff; }
+.final .form-status.ok { color: #4cd38a; }
+.final .form-status.err { color: #ff7a79; }
+
+/* ======================================================= живые детали (11.11.2026)
+   Всё лёгкое: только CSS-переходы и пара обработчиков в main.js, без библиотек. При «уменьшить движение» в системе — выключено. */
+
+/* первый экран: тонкая сетка, по линии бежит синий отрезок («данные идут»); на ПК сетка чуть следует за мышью */
+.hx { position: relative; overflow: hidden; }
+.hx > .wrap { position: relative; z-index: 1; }
+.hx-bg {
+  position: absolute; inset: -60px; pointer-events: none;
+  background-image: linear-gradient(#151b21 1px, transparent 1px), linear-gradient(90deg, #151b21 1px, transparent 1px);
+  background-size: 64px 64px;
+  -webkit-mask-image: linear-gradient(200deg, #000 10%, transparent 75%); mask-image: linear-gradient(200deg, #000 10%, transparent 75%);
+  transform: translate3d(var(--px, 0px), var(--py, 0px), 0); transition: transform .8s var(--ease);
+}
+.hx-bg::before, .hx-bg::after { content: ""; position: absolute; height: 1px; width: 160px; background: #4d8bff; opacity: 0; }
+.hx-bg::before { top: 252px; animation: hx-run 9s linear infinite; }
+.hx-bg::after { top: 444px; width: 100px; animation: hx-run 13s linear 4s infinite; }
+@keyframes hx-run { 0% { left: -10%; opacity: 0; } 10% { opacity: .9; } 70% { opacity: .9; } 100% { left: 100%; opacity: 0; } }
+/* акцентное слово заголовка подчёркивается, когда заголовок допечатался */
+.hx h1 em { background: linear-gradient(currentColor, currentColor) no-repeat 0 96% / 100% 3px; }
+.js .hx h1.type em { background-size: 0 3px; }
+.js .hx h1.type.in em { animation: em-line .6s var(--ease) .55s forwards; }
+@keyframes em-line { to { background-size: 100% 3px; } }
+
+/* бренды — бегущая строка; на наведении останавливается */
+.hx-clients ul { flex-wrap: nowrap; }
+.marq { display: flex; flex: 1 1 280px; min-width: 0; overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); }
+.marq ul { flex-shrink: 0; padding-right: 32px; animation: marq 36s linear infinite; }
+.marq:hover ul { animation-play-state: paused; }
+.marq li { white-space: nowrap; }
+@keyframes marq { to { transform: translateX(-100%); } }
+
+/* форма первого экрана: подсветка рамки, линия поля «прорисовывается» при вводе */
+.form-card { transition: border-color .3s ease; }
+.form-card:focus-within { border-color: #2f5fbf; }
+.fld { position: relative; }
+.fld::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: var(--blue); transform: scaleX(0); transform-origin: left; transition: transform .35s var(--ease); }
+.fld:focus-within::after { transform: scaleX(1); }
+.btn:active { transform: scale(.98); }
+
+/* плитки услуг: появляются волной, на ПК слегка наклоняются за курсором (--rx/--ry ставит main.js) */
+.bento .tile:nth-child(2) { transition-delay: .05s; } .bento .tile:nth-child(3) { transition-delay: .1s; }
+.bento .tile:nth-child(4) { transition-delay: .15s; } .bento .tile:nth-child(5) { transition-delay: .2s; }
+.bento .tile:nth-child(6) { transition-delay: .25s; } .bento .tile:nth-child(7) { transition-delay: .3s; }
+.bento .tile:hover, .js .bento .tile.in:hover {
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-3px);
+  transition: transform .15s ease-out, border-color .2s ease; transition-delay: 0s; box-shadow: 0 18px 40px -24px rgba(10, 13, 16, .35);
+}
+.tile { will-change: transform; }
+.tile-arrow { transition: transform .25s var(--ease); }
+.tile:hover .tile-arrow { transform: translate(4px, -4px) rotate(-45deg); }
+
+/* «Почему мы»: синяя полоска сверху прорисовывается при появлении */
+.why li { position: relative; overflow: hidden; }
+.why li::before { content: ""; position: absolute; left: 0; top: 0; height: 3px; width: 100%; background: var(--blue); transform-origin: left; transition: transform .9s var(--ease) .25s; }
+.js .why li::before { transform: scaleX(0); }
+.js .why li.in::before { transform: scaleX(1); }
+.why li:nth-child(2)::before { transition-delay: .4s; } .why li:nth-child(3)::before { transition-delay: .55s; }
+
+/* «Как работаем»: точки шагов загораются по очереди */
+.flow li::after { transition: background-color .35s ease, border-color .35s ease; }
+.js .flow.in li::after { background: var(--blue); border-color: var(--blue); transition-delay: calc(var(--i, 0) * .3s + .4s); }
+
+/* цепочка в блоке «Автоматизация»: стрелки «перекачивают» по очереди */
+.pipe-arrow { display: inline-block; animation: pipe-pulse 4.8s ease-in-out infinite; }
+.pipe-arrow:nth-of-type(2) { animation-delay: .4s; } .pipe-arrow:nth-of-type(3) { animation-delay: .8s; }
+.pipe-arrow:nth-of-type(4) { animation-delay: 1.2s; } .pipe-arrow:nth-of-type(5) { animation-delay: 1.6s; }
+.pipe-arrow:nth-of-type(6) { animation-delay: 2s; } .pipe-arrow:nth-of-type(7) { animation-delay: 2.4s; }
+@keyframes pipe-pulse { 0%, 30%, 100% { opacity: .35; transform: none; } 12% { opacity: 1; transform: translateX(3px); } }
+
+/* шапка: полоска прочитанного снизу; при прокрутке вниз прячется, вверх — возвращается */
+.hdr { transition: transform .3s var(--ease); }
+.hdr.hide { transform: translateY(-100%); }
+.sprog { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--blue); transform: scaleX(var(--sp, 0)); transform-origin: left; pointer-events: none; }
+
+/* телефон: кнопка заявки внизу экрана, когда формы не видно */
+.mcta { position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 30; justify-content: center; box-shadow: 0 10px 30px -10px rgba(23, 105, 255, .6);
+  transform: translateY(calc(100% + 24px)); transition: transform .35s var(--ease); }
+.mcta.on { transform: none; }
+.mcta[hidden] { display: none; }
+@media (min-width: 720px) { .mcta { display: none !important; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .hx-bg { transform: none; } .hx-bg::before, .hx-bg::after { display: none; }
+  .js .hx h1.type em { background-size: 100% 3px; }
+  .marq ul { animation: none; } .marq { flex-wrap: wrap; } .marq ul[aria-hidden] { display: none; } .hx-clients ul { flex-wrap: wrap; }
+  .js .why li::before { transform: none; }
+  .bento .tile:hover { transform: none; }
+}

@@ -46,8 +46,8 @@ INSTAGRAM_URL = f"https://www.instagram.com/{INSTAGRAM}/"
 # предзагружен через preload), браузер весь показ страницы держит запасной Georgia и не подменяет её потом
 # «на лету» — не должно быть заметного скачка шрифта после печати заголовка. Текстовым шрифтам (они мельче,
 # подмена не бросается в глаза) оставлен обычный display=swap — так текст не ждёт загрузки шрифта вообще.
-FONT_URL_HEAD = "https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=optional"
-FONT_URL_BODY = "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+# С редизайна 11.11.2026 заголовки — тот же IBM Plex Sans (жирный), засечки Source Serif больше не грузим.
+FONT_URL_BODY = "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
 # CSP script-src без 'unsafe-inline': каждый инлайн-скрипт разрешён по точному хэшу его содержимого,
 # не по тегу. Хэши собираются по ходу сборки (csp_hash) и в конце прописываются в dist/.htaccess
 # вместо %%SCRIPT_HASHES%%. Текст скрипта всегда берётся из той же переменной, что идёт в HTML, —
@@ -245,6 +245,7 @@ def header(c, alt_path):
     </nav>
     <button class="burger" type="button" aria-controls="nav" aria-expanded="false" aria-label="Menu">{icon('menu')}</button>
   </div>
+  <div class="sprog" aria-hidden="true"></div>
 </header>"""
 
 
@@ -261,7 +262,7 @@ def contact_links():
     )
 
 
-def lead_form(c, source, title=None, lead=None, num="→"):
+def lead_form(c, source, title=None, lead=None, num="→", links=False):
     ui = c.UI
     title = title or c.HOME["final_title"]
     lead = lead or c.HOME["final_lead"]
@@ -271,7 +272,7 @@ def lead_form(c, source, title=None, lead=None, num="→"):
     <div class="final-copy rv">
       <h2>{e(title)}</h2>
       <p>{e(lead)}</p>
-      <div class="clinks">{contact_links()}</div>
+      {f'<div class="clinks">{contact_links()}</div>' if links else ''}
     </div>
     <form class="form rv" id="lead-form" action="/api/send.php" method="post" data-ok="{e(ui['form_ok'])}" data-err="{e(ui['form_err'])}" data-sending="{e(ui['form_sending'])}">
       <input type="hidden" name="source" value="{e(source)}">
@@ -318,10 +319,12 @@ def footer(c):
 </footer>"""
 
 
-def page(c, *, path, title, desc, body, schema, alt_path, noindex=False, og_type="website", image=None):
+def page(c, *, path, title, desc, body, schema, alt_path, noindex=False, og_type="website", image=None, dark_top=False):
     if image is None:
         card_title = re.sub(r"\s*[|—]\s*(ALFIMOV\.KZ|Alfimov)\s*$", "", title, flags=re.I).strip() or title
         image = enginekit.og_card(DIST, path, card_title, dark="#0c1011", accent="#1769ff", domain="ALFIMOV.KZ")
+    # Кнопка шапки ведёт к форме (#lead-form). На страницах без формы (политика) — к форме на «Контактах».
+    lead_href = "#lead-form" if 'id="lead-form"' in body else url(c, "kontakty") + "#lead-form"
     graph = {"@context": "https://schema.org", "@graph": [org_schema(), *schema]}
     graph_json = csp_hash(json.dumps(graph, ensure_ascii=False))
     o = other_lang(c)
@@ -364,21 +367,20 @@ def page(c, *, path, title, desc, body, schema, alt_path, noindex=False, og_type
 <link rel="manifest" href="/assets/brand/site.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="preload" as="style" href="{FONT_URL_HEAD}">
 <link rel="preload" as="style" href="{FONT_URL_BODY}">
-<link rel="stylesheet" href="{FONT_URL_HEAD}" media="print" class="js-async-css">
 <link rel="stylesheet" href="{FONT_URL_BODY}" media="print" class="js-async-css">
-<noscript><link rel="stylesheet" href="{FONT_URL_HEAD}"><link rel="stylesheet" href="{FONT_URL_BODY}"></noscript>
+<noscript><link rel="stylesheet" href="{FONT_URL_BODY}"></noscript>
 <link rel="stylesheet" href="/assets/style.css?v={ASSET_VER}">
 <script>{JS_CLASS_ADDER}</script>
 <script type="application/ld+json">{graph_json}</script>
 </head>
-<body>
-{header(c, alt_path)}
+<body{' class="dark-top"' if dark_top else ''}>
+{header(c, alt_path).replace('href="#lead-form"', f'href="{lead_href}"')}
 <main>
 {body}
 </main>
 {footer(c)}
+<a class="mcta btn btn-lg" href="{lead_href}" hidden>{e(c.UI['cta'])} {icon('arrow', 'ic ic-sm')}</a>
 <script src="/assets/main.js?v={ASSET_VER}" defer></script>
 </body>
 </html>
@@ -439,7 +441,6 @@ def service_rows(c, exclude=None):
         rows.append(
             f'<a class="row-link" href="{url(c, s["slug"])}"><span class="row-n">{n:02d}</span>'
             f'<span class="row-t">{e(s["name"])}</span><span class="row-d">{e(s["short"])}</span>'
-            f'<span class="row-p">{e(price_text(c, s["slug"], short=True))}</span>'
             f'{icon("arrow", "ic row-arrow")}</a>'
         )
     return f'<div class="rows rv">{"".join(rows)}</div>'
@@ -486,6 +487,39 @@ def home_blog_block(c, n):
     return f"<!--BLOG-HOME:{next(n)}-->" if c is content_ru else ""
 
 
+def hero_form(c):
+    """Короткая форма на первом экране главной (имя + телефон) — та же отправка, что у формы внизу."""
+    ui, h = c.UI, c.HOME
+    return f"""<form class="form form-card rv" id="hero-form" action="/api/send.php" method="post" data-ok="{e(ui['form_ok'])}" data-err="{e(ui['form_err'])}" data-sending="{e(ui['form_sending'])}">
+      <input type="hidden" name="source" value="home-hero">
+      <input type="hidden" name="lang" value="{c.LANG}">
+      <input type="hidden" name="ts" value="">
+      <div class="hp" aria-hidden="true"><label>Company<input type="text" name="company" tabindex="-1" autocomplete="off"></label></div>
+      <p class="form-card-t">{e(h['hero_form_title'])}</p>
+      <p class="form-card-l">{e(h['hero_form_lead'])}</p>
+      <label class="fld"><span>{e(ui['form_name'])}</span><input type="text" name="name" required maxlength="80" autocomplete="name"></label>
+      <label class="fld"><span>{e(ui['form_phone'])}</span><input type="tel" name="contact" required maxlength="18" autocomplete="tel" inputmode="tel" placeholder="+7 (___) ___-__-__" data-phone data-err="{e(ui['form_phone_err'])}"></label>
+      <button class="btn btn-lg" type="submit">{e(h['hero_form_btn'])} {icon('arrow', 'ic ic-sm')}</button>
+      <p class="form-status" role="status" aria-live="polite"></p>
+      <p class="consent">{e(ui['form_consent'])} <a href="{PRIVACY_PATH}">{e(ui.get('footer_privacy', ''))}</a></p>
+    </form>"""
+
+
+# Плитки услуг на главной: размеры по порядку c.SERVICES (первая — большая тёмная, четвёртая — широкая синяя).
+BENTO_SIZES = ["big", "", "", "wide blue", "", "", "wide"]
+
+
+def bento(c):
+    tiles = []
+    for i, s in enumerate(c.SERVICES):
+        size = BENTO_SIZES[i] if i < len(BENTO_SIZES) else ""
+        tiles.append(
+            f'<a class="tile {size} rv" href="{url(c, s["slug"])}"><b>{e(s["name"])}</b>'
+            f'<span>{e(s["short"])}</span>{icon("arrow", "ic tile-arrow")}</a>'
+        )
+    return f'<div class="bento">{"".join(tiles)}</div>'
+
+
 def build_home(c):
     h, ui = c.HOME, c.UI
     facts = "".join(f'<li><b>{e(a)}</b><span>{e(b)}</span></li>' for a, b in h["hero_facts"])
@@ -512,43 +546,41 @@ def build_home(c):
     )
 
     n = iter(f"{i:02d}" for i in range(1, 20))
+    clients = "".join(f"<li>{e(x)}</li>" for x in c.CLIENTS)
+    why = "".join(f'<li class="rv"><b>{e(a)}</b><span>{e(b)}</span></li>' for a, b in h["hero_facts"])
     body = f"""
-<section class="hero">
-  <div class="wrap">
-    <p class="hero-kicker rv">{e(h['hero_kicker'])}</p>
-    <h1 class="type">{type_words([(h['hero_title_pre'], False), (h['hero_title_accent'], True), (h.get('hero_title_post', ''), False)])}</h1>
-    <div class="hero-row">
+<section class="hx">
+  <div class="hx-bg" aria-hidden="true"></div>
+  <div class="wrap hx-grid">
+    <div class="hx-copy">
+      <p class="hero-kicker rv">{e(h['hero_kicker'])}</p>
+      <h1 class="type">{type_words([(h['hero_title_pre'], False), (h['hero_title_accent'], True), (h.get('hero_title_post', ''), False)])}</h1>
       <p class="hero-lead rv">{e(h['hero_lead'])}</p>
       <div class="hero-cta rv">
-        <a class="btn btn-lg" href="#lead-form">{e(ui['cta'])} {icon('arrow', 'ic ic-sm')}</a>
-        <a class="tlink" href="{'#cases' if c.CASES else '#approach'}">{e(h['cases_eyebrow'] if c.CASES else h['hero_cta_secondary'])} {icon('arrow-down', 'ic ic-sm')}</a>
+        <a class="btn btn-lg" href="#hero-form">{e(ui['cta'])} {icon('arrow', 'ic ic-sm')}</a>
+        <a class="tlink" href="#approach">{e(h['hero_cta_secondary'])} {icon('arrow-down', 'ic ic-sm')}</a>
       </div>
     </div>
-    <ul class="facts rv">{facts}</ul>
+    {hero_form(c)}
   </div>
+  {f'<div class="wrap hx-clients"><p>{e(h["clients_title"])}</p><div class="marq"><ul>{clients}</ul><ul aria-hidden="true">{clients}</ul></div></div>' if c.CLIENTS else ''}
 </section>
-{clients_strip(c)}
-<section class="sec" id="services">
+<section class="sec sec-soft" id="services">
   <div class="wrap">
     <div class="sec-head rv">{eyebrow(next(n), h['directions_eyebrow'])}<h2>{e(h['directions_title'])}</h2><p>{e(h['directions_lead'])}</p></div>
-    <ol class="dirs">{"".join(directions)}</ol>
-    {f'<a class="dir-all rv" href="{url(c, all_slug)}"><span>{e(all_q)}</span><b>{e(all_label)}</b>{icon("arrow")}</a>' if all_slug in visible else ''}
+    {bento(c)}
   </div>
 </section>
-<section class="sec sec-soft" id="approach">
+<section class="sec" id="approach">
   <div class="wrap">
     <div class="sec-head rv">{eyebrow(next(n), h['approach_eyebrow'])}<h2>{e(h['approach_title'])}</h2><p>{e(h['approach_lead'])}</p></div>
     {flow(h['approach'], h['approach_loop'])}
   </div>
 </section>
-<section class="sec" id="analytics">
+<section class="sec sec-soft" id="why">
   <div class="wrap">
-    <div class="sec-head rv">{eyebrow(next(n), h['analytics_eyebrow'])}<h2>{e(h['analytics_title'])}</h2><p>{e(h['analytics_lead'])}</p></div>
-    <div class="merge rv">
-      <ul class="merge-src">{sources}</ul>
-      <div class="merge-join" aria-hidden="true"><span></span></div>
-      <div class="merge-out"><h3>{e(h['analytics_result_title'])}</h3><ul>{result}</ul></div>
-    </div>
+    <div class="sec-head rv">{eyebrow(next(n), h['why_eyebrow'])}<h2>{e(h['why_title'])}</h2></div>
+    <ul class="why">{why}</ul>
   </div>
 </section>
 <section class="sec sec-dark" id="automation">
@@ -566,7 +598,7 @@ def build_home(c):
     path = url(c)
     alt = url(other_lang(c))
     return path, page(
-        c, path=path, title=h["meta_title"], desc=h["meta_desc"], body=body, alt_path=alt,
+        c, path=path, title=h["meta_title"], desc=h["meta_desc"], body=body, alt_path=alt, dark_top=True,
         schema=[
             {"@type": "WebSite", "@id": f"{SITE_URL}/#site", "url": f"{SITE_URL}/", "name": "ALFIMOV.KZ", "inLanguage": c.LANG},
             faq_schema(h["faq"]),
@@ -592,7 +624,6 @@ def build_service(c, s):
     <div class="hero-row">
       <p class="hero-lead rv">{e(s['lead'])}</p>
       <div class="hero-cta rv">
-        <div class="price"><span>{e(ui['price_label'])}</span><b>{e(price_text(c, s['slug']))}</b><small>{e(ui['price_note'])}</small></div>
         <a class="btn btn-lg" href="#lead-form">{e(ui['cta'])} {icon('arrow', 'ic ic-sm')}</a>
       </div>
     </div>
@@ -620,6 +651,14 @@ def build_service(c, s):
   <div class="wrap">
     <div class="sec-head rv">{eyebrow('04', s['name'])}<h2>{e(ui['steps_title'])}</h2></div>
     {flow(s['steps'])}
+  </div>
+</section>
+<section class="sec sec-tight-b">
+  <div class="wrap">
+    <div class="price-box rv">
+      <div class="price"><span>{e(ui['price_label'])}</span><b>{e(price_text(c, s['slug']))}</b><small>{e(ui['price_note'])}</small></div>
+      <a class="btn btn-lg" href="#lead-form">{e(ui['cta'])} {icon('arrow', 'ic ic-sm')}</a>
+    </div>
   </div>
 </section>
 {faq_block(c, s['faq'], '05')}
