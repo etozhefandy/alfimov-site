@@ -552,3 +552,18 @@ from visibility import HIDDEN_SLUGS  # noqa: E402
 
 SERVICES_ALL = SERVICES
 SERVICES = [s for s in SERVICES_ALL if s["slug"] not in HIDDEN_SLUGS]
+
+
+# --- Главная v3 (редизайн 11.11.2026: тёмный первый экран с формой, плитки услуг) -----
+# Тексты первого экрана — черновые, копирайтинг доработаем отдельно.
+HOME.update({
+    "hero_title_pre": "Приводим клиентов из рекламы и",
+    "hero_title_accent": "считаем",
+    "hero_title_post": "каждую заявку",
+    "hero_lead": "Таргет, контекст, SEO и SMM в одной системе. Вы каждый день видите, сколько стоила заявка, — а не «охваты выросли».",
+    "hero_form_title": "Разберём вашу рекламу",
+    "hero_form_lead": "Посмотрим кабинеты и цифры, скажем, где теряются деньги. Бесплатно.",
+    "hero_form_btn": "Жду звонка",
+    "why_eyebrow": "Почему мы",
+    "why_title": "Видно, за что вы платите",
+})

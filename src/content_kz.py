@@ -496,3 +496,17 @@ from visibility import HIDDEN_SLUGS  # noqa: E402
 
 SERVICES_ALL = SERVICES
 SERVICES = [s for s in SERVICES_ALL if s["slug"] not in HIDDEN_SLUGS]
+
+
+# --- Басты бет v3 (редизайн 11.11.2026) — мәтіндер уақытша, кейін нақтыланады ----------
+HOME.update({
+    "hero_title_pre": "Жарнамадан клиент әкелеміз және әр өтінімді",
+    "hero_title_accent": "санаймыз",
+    "hero_title_post": "",
+    "hero_lead": "Таргет, контекстік жарнама, SEO және SMM — бір жүйеде. Әр өтінім қанша тұрғанын күн сайын көресіз, «қамту өсті» деген есепті емес.",
+    "hero_form_title": "Жарнамаңызды талдап берейік",
+    "hero_form_lead": "Кабинеттер мен сандарды қараймыз, ақша қай жерде жоғалатынын айтамыз. Тегін.",
+    "hero_form_btn": "Қоңырау күтемін",
+    "why_eyebrow": "Неге біз",
+    "why_title": "Неге төлейтініңіз көрініп тұрады",
+})
