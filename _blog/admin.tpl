@@ -648,6 +648,7 @@ async function load(selectSlug) {
   }
   $("cats").innerHTML = [...new Set(articles.map(a => a.category).filter(Boolean))].map(c => `<option value="${esc(c)}">`).join("");
   renderList();
+  if (lastQueue.items) renderQueue(lastQueue);   // кнопкам у отклонённых нужен список статей (dupSlug)
   if (selectSlug) openArticle(articles.find(a => a.slug === selectSlug) || null);
   else if (selectSlug === null) showHome();
 }
@@ -693,6 +694,15 @@ function qStatus(it) {
   if (t.topic && t.topic.state !== "done") return "⏳ выбираю тему";
   return `текст ${Q_ICON[t.text.state]} · обложка ${Q_ICON[t.cover.state]}`;
 }
+// похожая статья у отклонённой: dup_slug с сервера, а у отклонённых до появления этих кнопок — по заголовку из
+// текста ошибки («Похоже на уже опубликованную статью «…»»). «Всё равно сохранить» у старых нет — их текст не сохранился.
+const dupSlug = it => {
+  if (it.dup_slug) return it.dup_slug;
+  const m = /статью «(.+?)»/.exec(it.error || "");
+  const norm = t => String(t || "").toLowerCase().replace(/\s+/g, " ").trim();
+  const a = m && articles.find(x => norm(x.title) === norm(m[1]));
+  return a ? a.slug : "";
+};
 let lastQueue = {};   // последний ответ очереди — для кнопок у статьи-дубля (data-qmerge)
 function renderQueue(d) {
   lastQueue = d;
@@ -719,7 +729,7 @@ function renderQueue(d) {
     <span class="st">${esc(qStatus(it))}</span>${it.lang === "kk" ? `<span class="hint">KZ</span>` : ""}${it.model ? `<span class="hint">${it.model.includes("sonnet") ? "Sonnet" : "Opus"}</span>` : ""}${it.origin !== "manual" ? `<span class="hint">${it.origin === "auto" ? "🤖" : "☑︎"}</span>` : ""}
     ${it.stage === "done" ? `<button class="btn" data-qopen="${esc(it.slug)}">Открыть</button>` : ""}
     ${it.stage === "queued" ? `<button class="btn" data-qcancel="${it.id}">Отменить</button>` : ""}
-    ${it.stage === "error" && it.dup_title ? `<span class="q-dup">${it.dup_slug ? `<button class="btn" data-qopen="${esc(it.dup_slug)}">Открыть похожую</button><button class="btn" data-qmerge="${it.id}">Дополнить похожую этой темой</button>` : ""}<button class="btn" data-qforce="${it.id}">Всё равно сохранить</button></span>` : ""}
+    ${it.stage === "error" && dupSlug(it) ? `<span class="q-dup"><button class="btn" data-qopen="${esc(dupSlug(it))}">Открыть похожую</button><button class="btn" data-qmerge="${it.id}">Дополнить похожую этой темой</button>${it.dup_title ? `<button class="btn" data-qforce="${it.id}">Всё равно сохранить</button>` : ""}</span>` : ""}
     ${it.stage === "error" ? `<button class="btn" data-qcancel="${it.id}">Убрать</button>` : ""}</li>`).join("");
   $("q-list").classList.toggle("hidden", !items.length);
   // кнопка смотрит на весь d.items (сервер хранит до 20), а не только на показанные 8 — иначе отклонённые
@@ -764,8 +774,9 @@ $("q-list").onclick = async e => {
   if (mg) {   // открыть похожую, вписать в «Переписать с комментарием», что добавить из новой темы, и запустить
     const it = (lastQueue.items || []).find(x => x.id === mg.dataset.qmerge);
     if (!it) return;
-    await load(it.dup_slug);
-    if (!current || current.slug !== it.dup_slug) { toast("Похожая статья не найдена — возможно, её удалили", true); return; }
+    const ds = dupSlug(it);
+    await load(ds);
+    if (!current || current.slug !== ds) { toast("Похожая статья не найдена — возможно, её удалили", true); return; }
     $("f-comment").value = `Дополни эту статью темой «${it.title || it.topic}», не меняя её главный смысл и адрес.`
       + (it.dup_outline ? ` Добавь то, чего здесь ещё нет, из разделов: ${it.dup_outline}.` : "")
       + (it.keywords && it.keywords.length ? ` Учти запросы: ${it.keywords.join(", ")}.` : "")
