@@ -245,6 +245,7 @@ def header(c, alt_path):
     </nav>
     <button class="burger" type="button" aria-controls="nav" aria-expanded="false" aria-label="Menu">{icon('menu')}</button>
   </div>
+  <div class="sprog" aria-hidden="true"></div>
 </header>"""
 
 
@@ -377,6 +378,7 @@ def page(c, *, path, title, desc, body, schema, alt_path, noindex=False, og_type
 {body}
 </main>
 {footer(c)}
+<a class="mcta btn btn-lg" href="#lead-form" hidden>{e(c.UI['cta'])} {icon('arrow', 'ic ic-sm')}</a>
 <script src="/assets/main.js?v={ASSET_VER}" defer></script>
 </body>
 </html>
@@ -546,6 +548,7 @@ def build_home(c):
     why = "".join(f'<li class="rv"><b>{e(a)}</b><span>{e(b)}</span></li>' for a, b in h["hero_facts"])
     body = f"""
 <section class="hx">
+  <div class="hx-bg" aria-hidden="true"></div>
   <div class="wrap hx-grid">
     <div class="hx-copy">
       <p class="hero-kicker rv">{e(h['hero_kicker'])}</p>
@@ -558,7 +561,7 @@ def build_home(c):
     </div>
     {hero_form(c)}
   </div>
-  {f'<div class="wrap hx-clients"><p>{e(h["clients_title"])}</p><ul>{clients}</ul></div>' if c.CLIENTS else ''}
+  {f'<div class="wrap hx-clients"><p>{e(h["clients_title"])}</p><div class="marq"><ul>{clients}</ul><ul aria-hidden="true">{clients}</ul></div></div>' if c.CLIENTS else ''}
 </section>
 <section class="sec sec-soft" id="services">
   <div class="wrap">

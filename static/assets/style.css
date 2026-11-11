@@ -566,3 +566,93 @@ section[id] { scroll-margin-top: 72px; }
 .final .clink:hover { color: #7aa8ff; }
 .final .form-status.ok { color: #4cd38a; }
 .final .form-status.err { color: #ff7a79; }
+
+/* ======================================================= живые детали (11.11.2026)
+   Всё лёгкое: только CSS-переходы и пара обработчиков в main.js, без библиотек. При «уменьшить движение» в системе — выключено. */
+
+/* первый экран: тонкая сетка, по линии бежит синий отрезок («данные идут»); на ПК сетка чуть следует за мышью */
+.hx { position: relative; overflow: hidden; }
+.hx > .wrap { position: relative; z-index: 1; }
+.hx-bg {
+  position: absolute; inset: -60px; pointer-events: none;
+  background-image: linear-gradient(#151b21 1px, transparent 1px), linear-gradient(90deg, #151b21 1px, transparent 1px);
+  background-size: 64px 64px;
+  -webkit-mask-image: linear-gradient(200deg, #000 10%, transparent 75%); mask-image: linear-gradient(200deg, #000 10%, transparent 75%);
+  transform: translate3d(var(--px, 0px), var(--py, 0px), 0); transition: transform .8s var(--ease);
+}
+.hx-bg::before, .hx-bg::after { content: ""; position: absolute; height: 1px; width: 160px; background: #4d8bff; opacity: 0; }
+.hx-bg::before { top: 252px; animation: hx-run 9s linear infinite; }
+.hx-bg::after { top: 444px; width: 100px; animation: hx-run 13s linear 4s infinite; }
+@keyframes hx-run { 0% { left: -10%; opacity: 0; } 10% { opacity: .9; } 70% { opacity: .9; } 100% { left: 100%; opacity: 0; } }
+/* акцентное слово заголовка подчёркивается, когда заголовок допечатался */
+.hx h1 em { background: linear-gradient(currentColor, currentColor) no-repeat 0 96% / 100% 3px; }
+.js .hx h1.type em { background-size: 0 3px; }
+.js .hx h1.type.in em { animation: em-line .6s var(--ease) .55s forwards; }
+@keyframes em-line { to { background-size: 100% 3px; } }
+
+/* бренды — бегущая строка; на наведении останавливается */
+.hx-clients ul { flex-wrap: nowrap; }
+.marq { display: flex; flex: 1 1 280px; min-width: 0; overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); }
+.marq ul { flex-shrink: 0; padding-right: 32px; animation: marq 36s linear infinite; }
+.marq:hover ul { animation-play-state: paused; }
+.marq li { white-space: nowrap; }
+@keyframes marq { to { transform: translateX(-100%); } }
+
+/* форма первого экрана: подсветка рамки, линия поля «прорисовывается» при вводе */
+.form-card { transition: border-color .3s ease; }
+.form-card:focus-within { border-color: #2f5fbf; }
+.fld { position: relative; }
+.fld::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: var(--blue); transform: scaleX(0); transform-origin: left; transition: transform .35s var(--ease); }
+.fld:focus-within::after { transform: scaleX(1); }
+.btn:active { transform: scale(.98); }
+
+/* плитки услуг: появляются волной, на ПК слегка наклоняются за курсором (--rx/--ry ставит main.js) */
+.bento .tile:nth-child(2) { transition-delay: .05s; } .bento .tile:nth-child(3) { transition-delay: .1s; }
+.bento .tile:nth-child(4) { transition-delay: .15s; } .bento .tile:nth-child(5) { transition-delay: .2s; }
+.bento .tile:nth-child(6) { transition-delay: .25s; } .bento .tile:nth-child(7) { transition-delay: .3s; }
+.bento .tile:hover, .js .bento .tile.in:hover {
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-3px);
+  transition: transform .15s ease-out, border-color .2s ease; transition-delay: 0s; box-shadow: 0 18px 40px -24px rgba(10, 13, 16, .35);
+}
+.tile { will-change: transform; }
+.tile-arrow { transition: transform .25s var(--ease); }
+.tile:hover .tile-arrow { transform: translate(4px, -4px) rotate(-45deg); }
+
+/* «Почему мы»: синяя полоска сверху прорисовывается при появлении */
+.why li { position: relative; overflow: hidden; }
+.why li::before { content: ""; position: absolute; left: 0; top: 0; height: 3px; width: 100%; background: var(--blue); transform-origin: left; transition: transform .9s var(--ease) .25s; }
+.js .why li::before { transform: scaleX(0); }
+.js .why li.in::before { transform: scaleX(1); }
+.why li:nth-child(2)::before { transition-delay: .4s; } .why li:nth-child(3)::before { transition-delay: .55s; }
+
+/* «Как работаем»: точки шагов загораются по очереди */
+.flow li::after { transition: background-color .35s ease, border-color .35s ease; }
+.js .flow.in li::after { background: var(--blue); border-color: var(--blue); transition-delay: calc(var(--i, 0) * .3s + .4s); }
+
+/* цепочка в блоке «Автоматизация»: стрелки «перекачивают» по очереди */
+.pipe-arrow { display: inline-block; animation: pipe-pulse 4.8s ease-in-out infinite; }
+.pipe-arrow:nth-of-type(2) { animation-delay: .4s; } .pipe-arrow:nth-of-type(3) { animation-delay: .8s; }
+.pipe-arrow:nth-of-type(4) { animation-delay: 1.2s; } .pipe-arrow:nth-of-type(5) { animation-delay: 1.6s; }
+.pipe-arrow:nth-of-type(6) { animation-delay: 2s; } .pipe-arrow:nth-of-type(7) { animation-delay: 2.4s; }
+@keyframes pipe-pulse { 0%, 30%, 100% { opacity: .35; transform: none; } 12% { opacity: 1; transform: translateX(3px); } }
+
+/* шапка: полоска прочитанного снизу; при прокрутке вниз прячется, вверх — возвращается */
+.hdr { transition: transform .3s var(--ease); }
+.hdr.hide { transform: translateY(-100%); }
+.sprog { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--blue); transform: scaleX(var(--sp, 0)); transform-origin: left; pointer-events: none; }
+
+/* телефон: кнопка заявки внизу экрана, когда формы не видно */
+.mcta { position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 30; justify-content: center; box-shadow: 0 10px 30px -10px rgba(23, 105, 255, .6);
+  transform: translateY(calc(100% + 24px)); transition: transform .35s var(--ease); }
+.mcta.on { transform: none; }
+.mcta[hidden] { display: none; }
+@media (min-width: 720px) { .mcta { display: none !important; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .hx-bg { transform: none; } .hx-bg::before, .hx-bg::after { display: none; }
+  .js .hx h1.type em { background-size: 100% 3px; }
+  .marq ul { animation: none; } .marq { flex-wrap: wrap; } .marq ul[aria-hidden] { display: none; } .hx-clients ul { flex-wrap: wrap; }
+  .js .why li::before { transform: none; }
+  .bento .tile:hover { transform: none; }
+}
