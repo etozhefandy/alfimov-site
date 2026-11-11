@@ -147,6 +147,7 @@ ol.steps { margin: 8px 0; padding-left: 20px; display: grid; gap: 6px; font-size
    у длинной ошибки nowrap выше раздвигал всю страницу вширь; переносим и уводим на свою строку */
 .qlist li.error { flex-wrap: wrap; }
 .qlist li.error .st { color: var(--bad); white-space: normal; overflow-wrap: break-word; flex-basis: 100%; }
+.qlist .q-dup { display: inline-flex; flex-wrap: wrap; gap: 8px; }
 .idea .pick { margin: 4px 0 0; width: 18px; height: 18px; flex: none; }
 #t-bulk { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin: 0 0 10px; }
 .idea .acts { display: flex; flex-direction: column; gap: 6px; flex: none; }
@@ -347,7 +348,7 @@ body:not(.view-edit) .mbar { display: none !important; }
 
       <div class="row new-foot">
         <label class="f inline">Объём<select id="g-words"><option value="1000">~1000 слов</option><option value="1500" selected>~1500 слов</option><option value="2000">~2000 слов</option><option value="2500">~2500 слов</option></select></label>
-        <label class="f inline">Модель<select id="g-model" title="Кто пишет статьи, поставленные отсюда; по умолчанию — из «Настроек»"></select></label>
+        <label class="f inline">Модель<select id="g-model" title="Кто пишет статьи, поставленные отсюда; по умолчанию — из «Настроек»">%%MODEL_OPTIONS%%</select></label>
         <label class="f inline">Язык<select id="g-lang" title="На каком языке написать эту статью"><option value="ru" selected>Русский</option><option value="kk">Қазақша</option></select></label>
         <label class="f inline">Ритм<select id="i-week"><option value="1">1 в неделю (вт)</option><option value="2" selected>2 в неделю (вт, чт)</option><option value="3">3 в неделю (пн, ср, пт)</option><option value="4">4 в неделю (пн, ср, пт, вс)</option><option value="5">5 в неделю (будни)</option><option value="6">6 в неделю (пн–сб)</option><option value="7">7 в неделю (каждый день)</option><option value="8">8 в неделю (каждый день, пн — дважды)</option><option value="9">9 в неделю (каждый день, пн и ср — дважды)</option><option value="10">10 в неделю (каждый день, пн/ср/пт — дважды)</option><option value="11">11 в неделю (каждый день, пн/вт/ср/пт — дважды)</option><option value="12">12 в неделю (каждый день, кроме сб/вс, — дважды)</option><option value="13">13 в неделю (каждый день, кроме вс, — дважды)</option><option value="14">14 в неделю (каждый день дважды — утром и вечером)</option></select></label>
         <span class="spacer"></span>
@@ -692,7 +693,9 @@ function qStatus(it) {
   if (t.topic && t.topic.state !== "done") return "⏳ выбираю тему";
   return `текст ${Q_ICON[t.text.state]} · обложка ${Q_ICON[t.cover.state]}`;
 }
+let lastQueue = {};   // последний ответ очереди — для кнопок у статьи-дубля (data-qmerge)
 function renderQueue(d) {
+  lastQueue = d;
   $("ap-on").checked = d.autopilot; $("ap-mode").value = d.image_mode;
   // пока «Применить» не нажали (активна) — опрос очереди не должен тихо затирать несохранённый выбор
   if ($("ap-apply").disabled) $("ap-week").value = String(d.per_week);
@@ -704,7 +707,7 @@ function renderQueue(d) {
   $("s-model").disabled = !!d.pending;
   $("s-model").title = d.pending ? "Сейчас пишется статья — поменяйте модель, когда очередь освободится" : "";
   $("q-buffer-status").textContent = d.autopilot
-    ? `Запас: ${d.ready} из ${d.buffer_target} готово` + (d.refilling ? " · пополняет" : d.ready >= d.buffer_target ? " · запас полный" : "")
+    ? `Запас: ${d.ready_count} из ${d.buffer_target} готово` + (d.refilling ? " · пополняет" : d.ready_count >= d.buffer_target ? " · запас полный" : "")
     : "";
   // рисовка обложек — отдельный тихий механизм (не через очередь выше), поэтому без этой строки его не видно
   $("q-cover-status").textContent = !d.covers_missing ? "" : d.covers_stuck
@@ -716,6 +719,7 @@ function renderQueue(d) {
     <span class="st">${esc(qStatus(it))}</span>${it.lang === "kk" ? `<span class="hint">KZ</span>` : ""}${it.model ? `<span class="hint">${it.model.includes("sonnet") ? "Sonnet" : "Opus"}</span>` : ""}${it.origin !== "manual" ? `<span class="hint">${it.origin === "auto" ? "🤖" : "☑︎"}</span>` : ""}
     ${it.stage === "done" ? `<button class="btn" data-qopen="${esc(it.slug)}">Открыть</button>` : ""}
     ${it.stage === "queued" ? `<button class="btn" data-qcancel="${it.id}">Отменить</button>` : ""}
+    ${it.stage === "error" && it.dup_title ? `<span class="q-dup">${it.dup_slug ? `<button class="btn" data-qopen="${esc(it.dup_slug)}">Открыть похожую</button><button class="btn" data-qmerge="${it.id}">Дополнить похожую этой темой</button>` : ""}<button class="btn" data-qforce="${it.id}">Всё равно сохранить</button></span>` : ""}
     ${it.stage === "error" ? `<button class="btn" data-qcancel="${it.id}">Убрать</button>` : ""}</li>`).join("");
   $("q-list").classList.toggle("hidden", !items.length);
   // кнопка смотрит на весь d.items (сервер хранит до 20), а не только на показанные 8 — иначе отклонённые
@@ -749,7 +753,27 @@ async function enqueue(body, btn) {
 }
 $("q-list").onclick = async e => {
   const o = e.target.closest("[data-qopen]"), c = e.target.closest("[data-qcancel]");
+  const f = e.target.closest("[data-qforce]"), mg = e.target.closest("[data-qmerge]");
   if (o) { await load(o.dataset.qopen); return; }
+  if (f) {   // статья уже написана — просто кладём её в план, без повторной проверки на дубль
+    busy(f, true, "Сохраняю…");
+    try { renderQueue(await api(`${BASE}/api/queue/${f.dataset.qforce}/force`, {method: "POST"})); await load(); toast("Сохранено в план — найдёте в «Статьях»"); }
+    catch (err) { toast(err.message, true); busy(f, false); }
+    return;
+  }
+  if (mg) {   // открыть похожую, вписать в «Переписать с комментарием», что добавить из новой темы, и запустить
+    const it = (lastQueue.items || []).find(x => x.id === mg.dataset.qmerge);
+    if (!it) return;
+    await load(it.dup_slug);
+    if (!current || current.slug !== it.dup_slug) { toast("Похожая статья не найдена — возможно, её удалили", true); return; }
+    $("f-comment").value = `Дополни эту статью темой «${it.title || it.topic}», не меняя её главный смысл и адрес.`
+      + (it.dup_outline ? ` Добавь то, чего здесь ещё нет, из разделов: ${it.dup_outline}.` : "")
+      + (it.keywords && it.keywords.length ? ` Учти запросы: ${it.keywords.join(", ")}.` : "")
+      + (it.notes ? ` Пожелания: ${it.notes}.` : "");
+    $("b-rewrite").click();
+    try { renderQueue(await api(`${BASE}/api/queue/${it.id}/cancel`, {method: "POST"})); } catch (err) {}
+    return;
+  }
   if (c) { try { renderQueue(await api(`${BASE}/api/queue/${c.dataset.qcancel}/cancel`, {method: "POST"})); } catch (err) { toast(err.message, true); } }
 };
 $("q-clear-errors").onclick = async () => {
