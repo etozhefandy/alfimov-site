@@ -35,6 +35,74 @@
     items.forEach(function (el) { el.classList.add("in"); });
   }
 
+
+  // Живые детали (style.css «живые детали»). Всё выключается при «уменьшить движение».
+  var calm = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var fine = window.matchMedia && matchMedia("(hover: hover) and (pointer: fine)").matches;
+
+  // Шапка: полоска прочитанного + прячется при прокрутке вниз, возвращается при прокрутке вверх.
+  var hdr = document.querySelector(".hdr");
+  var sprog = document.querySelector(".sprog");
+  var mcta = document.querySelector(".mcta");
+  var leadForm = document.getElementById("lead-form");
+  var heroForm = document.getElementById("hero-form");
+  var lastY = window.scrollY, ticking = false, formsVisible = {};
+  if (mcta && leadForm) {
+    mcta.hidden = false;
+    mcta.addEventListener("click", function () { if (window.clarity) clarity("event", "mcta_click"); });
+    if ("IntersectionObserver" in window) {
+      var fio = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) { formsVisible[en.target.id] = en.isIntersecting; });
+        onScrollFrame();
+      });
+      [leadForm, heroForm].forEach(function (f) { if (f) fio.observe(f); });
+    }
+  }
+  function onScrollFrame() {
+    ticking = false;
+    var y = window.scrollY, doc = document.documentElement;
+    var max = doc.scrollHeight - window.innerHeight;
+    if (sprog) sprog.style.setProperty("--sp", max > 0 ? Math.min(1, y / max).toFixed(4) : 0);
+    if (hdr && !calm) {
+      var menuOpen = nav && nav.classList.contains("open");
+      if (y > lastY + 6 && y > 200 && !menuOpen) hdr.classList.add("hide");
+      else if (y < lastY - 6 || y < 200) hdr.classList.remove("hide");
+    }
+    if (mcta && !mcta.hidden) {
+      var anyForm = formsVisible["lead-form"] || formsVisible["hero-form"];
+      var pop = document.querySelector(".art-popup.on");
+      mcta.classList.toggle("on", y > 500 && !anyForm && !pop);
+    }
+    lastY = y;
+  }
+  window.addEventListener("scroll", function () {
+    if (!ticking) { ticking = true; requestAnimationFrame(onScrollFrame); }
+  }, { passive: true });
+  onScrollFrame();
+  // Переход по ссылке-якорю (#lead-form и т.п.) не должен прятать шапку поверх формы — это нормально, шапка вернётся при прокрутке вверх.
+
+  if (!calm && fine) {
+    // Сетка первого экрана слегка следует за мышью.
+    var hx = document.querySelector(".hx"), hxBg = document.querySelector(".hx-bg");
+    if (hx && hxBg) {
+      hx.addEventListener("mousemove", function (ev) {
+        var r = hx.getBoundingClientRect();
+        hxBg.style.setProperty("--px", ((ev.clientX - r.left) / r.width - .5) * -24 + "px");
+        hxBg.style.setProperty("--py", ((ev.clientY - r.top) / r.height - .5) * -24 + "px");
+      });
+    }
+    // Плитки услуг чуть наклоняются за курсором.
+    document.querySelectorAll(".bento .tile").forEach(function (t) {
+      t.addEventListener("mousemove", function (ev) {
+        var r = t.getBoundingClientRect();
+        var x = (ev.clientX - r.left) / r.width - .5, y = (ev.clientY - r.top) / r.height - .5;
+        t.style.setProperty("--rx", (y * -5).toFixed(2) + "deg");
+        t.style.setProperty("--ry", (x * 6).toFixed(2) + "deg");
+      });
+      t.addEventListener("mouseleave", function () { t.style.removeProperty("--rx"); t.style.removeProperty("--ry"); });
+    });
+  }
+
   // Попап под статьёй блога (_blog/popup.php сайта кладёт разметку, здесь — когда её показать).
   // Один раз за вкладку: не чаще, чем за визит, и не раньше, чем человек начал читать.
   (function () {
