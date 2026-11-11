@@ -496,7 +496,10 @@ section[id] { scroll-margin-top: 72px; }
 .hx-grid { display: grid; gap: 40px; padding-top: 48px; padding-bottom: 56px; align-items: end; }
 @media (min-width: 960px) { .hx-grid { grid-template-columns: minmax(0, 1.35fr) minmax(0, .9fr); gap: 56px; padding-top: 88px; padding-bottom: 88px; } }
 .hx .hero-kicker { color: #6f7984; margin-bottom: 22px; }
-.hx h1 { max-width: 19ch; }
+.hx h1 { max-width: 22ch; }
+/* размер заголовка — от ширины колонки (cqi), чтобы «Приводим …» / «из рекламы и считаем» / «каждую заявку» влезали в 4 строки при любом экране */
+.hx-copy { container-type: inline-size; }
+@supports (font-size: 1cqi) { .hx h1 { font-size: clamp(38px, 9.2cqi, 76px); } }
 .hx h1 em { font-style: normal; color: #4d8bff; }
 .hx .hero-lead { color: #a9b2bc; margin: 24px 0 32px; max-width: 34em; }
 .hx .tlink { color: #c9d0d7; border-bottom-color: #3a444e; }
@@ -650,12 +653,13 @@ section[id] { scroll-margin-top: 72px; }
 .mcta[hidden] { display: none; }
 @media (min-width: 720px) { .mcta { display: none !important; } }
 
-/* сменяющееся слово заголовка (main.js .rot) */
-.rot .rw { display: inline-block; }
-.rot .rw.out { animation: rw-out .26s var(--ease) forwards; }
-.rot .rw.new { animation: rw-in .4s var(--ease) both; }
-@keyframes rw-out { to { opacity: 0; transform: translateY(-.3em); filter: blur(3px); } }
-@keyframes rw-in { from { opacity: 0; transform: translateY(.3em); filter: blur(3px); } }
+/* сменяющееся слово заголовка (main.js .rot): все слова лежат в одной ячейке сетки — ширина всегда по самому
+   длинному, видно одно; после него перенос строки (build.py), поэтому текст вокруг не сдвигается */
+.rot { display: inline-grid; }
+.rot .rw { grid-area: 1 / 1; justify-self: start; opacity: 0; transform: translateY(.3em); filter: blur(3px);
+  transition: opacity .35s var(--ease), transform .4s var(--ease), filter .35s var(--ease); }
+.rot .rw.on { opacity: 1; transform: none; filter: none; }
+.rot .rw.off { opacity: 0; transform: translateY(-.3em); }
 
 @media (prefers-reduced-motion: reduce) {
   .hx-bg { transform: none; } .hx-bg::before, .hx-bg::after { display: none; }

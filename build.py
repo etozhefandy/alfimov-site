@@ -416,7 +416,9 @@ def type_words(parts, rot=None):
                 # Слово-«карусель»: в HTML (и для Google) — первое слово списка, main.js по очереди меняет его на
                 # остальные; у каждого своё время на экране в секундах (content_*.HOME['hero_rot']).
                 data = "|".join(f"{w}~{t}" for w, t in rot)
-                span = f'<span class="tw tw-i-{min(i, 40)} rot" data-rot="{e(data)}">{e(word)}</span>'
+                # После слова — перенос строки: длина сменяющегося слова уходит в пустое место в конце строки,
+                # остальной заголовок не «ездит» (ширину под самое длинное слово держит .rot в style.css).
+                span = f'<span class="tw tw-i-{min(i, 40)} rot" data-rot="{e(data)}">{e(word)}</span><br class="rot-br">'
                 rot = None
             else:
                 span = f'<span class="tw tw-i-{min(i, 40)}">{e(word)}</span>'
