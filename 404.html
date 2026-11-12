@@ -48,7 +48,7 @@
       <a href="/blog/">Блог</a>
       <a href="/kontakty/">Контакты</a>
       <a class="lang" href="/kz/" hreflang="kk" aria-label="Қазақша нұсқасы">Қаз</a>
-      <a class="btn btn-sm" href="/kontakty/#lead-form">Обсудить проект</a>
+      <a class="btn btn-sm" href="#lead-form">Обсудить проект</a>
     </nav>
     <button class="burger" type="button" aria-controls="nav" aria-expanded="false" aria-label="Menu"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h16M4 16h16"/></svg></button>
   </div>
@@ -65,6 +65,28 @@
   </div>
 </section>
 <section class="sec"><div class="wrap"><div class="rows rv"><a class="row-link" href="/target-facebook-instagram/"><span class="row-n">01</span><span class="row-t">Таргет в Facebook и Instagram</span><span class="row-d">Реклама в Meta: заявки, продажи и сообщения в директ и WhatsApp.</span><svg class="ic row-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><a class="row-link" href="/target-tiktok/"><span class="row-n">02</span><span class="row-t">Таргет в TikTok</span><span class="row-d">Реклама в TikTok Ads: охват молодой аудитории, заявки и продажи.</span><svg class="ic row-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><a class="row-link" href="/smm/"><span class="row-n">03</span><span class="row-t">SMM-продвижение</span><span class="row-d">Ведение Instagram и TikTok: стратегия, контент, рост аудитории.</span><svg class="ic row-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><a class="row-link" href="/kontekstnaya-reklama/"><span class="row-n">04</span><span class="row-t">Контекстная реклама</span><span class="row-d">Google Ads и Яндекс Директ: заявки от тех, кто уже ищет ваш продукт.</span><svg class="ic row-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><a class="row-link" href="/seo-prodvizhenie/"><span class="row-n">05</span><span class="row-t">SEO-продвижение</span><span class="row-d">Вывод сайта в топ Google и Яндекса по запросам вашего бизнеса.</span><svg class="ic row-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><a class="row-link" href="/marketingovye-issledovaniya/"><span class="row-n">06</span><span class="row-t">Маркетинговые исследования</span><span class="row-d">Анализ рынка, конкурентов и аудитории перед запуском и ростом.</span><svg class="ic row-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a><a class="row-link" href="/kompleksnyj-marketing/"><span class="row-n">07</span><span class="row-t">Комплексный маркетинг</span><span class="row-d">Маркетинг под ключ: стратегия и все каналы в одной команде.</span><svg class="ic row-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div></div></section>
+
+<section class="final" id="lead">
+  <div class="wrap final-in">
+    <div class="final-copy rv">
+      <h2>Есть вопросы?</h2>
+      <p>Не нашли, что искали? Оставьте телефон — перезвоним, ответим на вопросы и подскажем, с чего начать рекламу.</p>
+      
+    </div>
+    <form class="form rv" id="lead-form" action="/api/send.php" method="post" data-ok="Заявка отправлена. Скоро свяжемся!" data-err="Не получилось отправить. Напишите нам в WhatsApp или Telegram — ответим там." data-sending="Отправляем…">
+      <input type="hidden" name="source" value="404">
+      <input type="hidden" name="lang" value="ru">
+      <input type="hidden" name="ts" value="">
+      <div class="hp" aria-hidden="true"><label>Company<input type="text" name="company" tabindex="-1" autocomplete="off"></label></div>
+      <label class="fld"><span>Имя</span><input type="text" name="name" required maxlength="80" autocomplete="name"></label>
+      <label class="fld"><span>Телефон</span><input type="tel" name="contact" required maxlength="18" autocomplete="tel" inputmode="tel" placeholder="+7 (___) ___-__-__" data-phone data-err="Проверьте номер: он введён не полностью или такого номера нет"></label>
+      <label class="fld"><span>Коротко о задаче (необязательно)</span><textarea name="message" rows="2" maxlength="1000"></textarea></label>
+      <button class="btn btn-lg" type="submit">Отправить заявку <svg class="ic ic-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      <p class="form-status" role="status" aria-live="polite"></p>
+      <p class="consent">Нажимая кнопку, вы соглашаетесь на обработку контактных данных для ответа на заявку. <a href="/politika-konfidencialnosti/">Политика конфиденциальности</a></p>
+    </form>
+  </div>
+</section>
 
 </main>
 
@@ -90,7 +112,7 @@
   </div>
   <div class="wrap ftr-bottom"><span>© 2026 ALFIMOV.KZ</span><span>Все права защищены.</span><a href="/politika-konfidencialnosti/">Политика конфиденциальности</a></div>
 </footer>
-<a class="mcta btn btn-lg" href="/kontakty/#lead-form" hidden>Обсудить проект <svg class="ic ic-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+<a class="mcta btn btn-lg" href="#lead-form" hidden>Обсудить проект <svg class="ic ic-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
 <script src="/assets/main.js?v=52a45cc4" defer></script>
 </body>
 </html>
