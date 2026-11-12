@@ -775,6 +775,7 @@ def build_404():
   </div>
 </section>
 <section class="sec"><div class="wrap">{service_rows(c)}</div></section>
+{lead_form(c, '404', 'Есть вопросы?', 'Не нашли, что искали? Оставьте телефон — перезвоним, ответим на вопросы и подскажем, с чего начать рекламу.')}
 """
     return page(c, path="/404.html", title="404 — ALFIMOV.KZ", desc=ui["not_found_text"], body=body, schema=[], alt_path="/kz/", noindex=True)
 
