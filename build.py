@@ -762,22 +762,30 @@ def build_privacy():
     return path, page(c, path=path, title=k["meta_title"], desc=k["meta_desc"], body=body, schema=schema, alt_path=None)
 
 
-def build_404():
-    c, ui = content_ru, content_ru.UI
-    kz = content_kz.UI
+NOT_FOUND_FORM = {
+    "ru": ("Есть вопросы?", "Не нашли, что искали? Оставьте телефон — перезвоним, ответим на вопросы и подскажем, с чего начать рекламу."),
+    "kk": ("Сұрақтарыңыз бар ма?", "Іздегеніңізді таппадыңыз ба? Телефоныңызды қалдырыңыз — қайта қоңырау шалып, сұрақтарға жауап береміз және жарнаманы неден бастау керектігін айтамыз."),
+}
+
+
+def build_404(c):
+    """Страница «не найдено» на языке сайта: /404.html (RU) и /kz/404.html (KZ) — какую показать, решает .htaccess по адресу."""
+    ui = c.UI
+    title, lead = NOT_FOUND_FORM[c.LANG]
+    path = url(c) + "404.html"
     body = f"""
 <section class="hero hero-svc">
   <div class="wrap">
     <p class="hero-kicker">404</p>
     <h1>{e(ui['not_found_title'])}</h1>
-    <p class="hero-lead">{e(ui['not_found_text'])}<br><span class="muted">{e(kz['not_found_text'])}</span></p>
-    <div class="hero-cta"><a class="btn btn-lg" href="/">{e(ui['not_found_btn'])}</a><a class="tlink" href="/kz/">{e(kz['not_found_btn'])} {icon('arrow', 'ic ic-sm')}</a></div>
+    <p class="hero-lead">{e(ui['not_found_text'])}</p>
+    <div class="hero-cta"><a class="btn btn-lg" href="{url(c)}">{e(ui['not_found_btn'])}</a></div>
   </div>
 </section>
 <section class="sec"><div class="wrap">{service_rows(c)}</div></section>
-{lead_form(c, '404', 'Есть вопросы?', 'Не нашли, что искали? Оставьте телефон — перезвоним, ответим на вопросы и подскажем, с чего начать рекламу.')}
+{lead_form(c, '404', title, lead)}
 """
-    return page(c, path="/404.html", title="404 — ALFIMOV.KZ", desc=ui["not_found_text"], body=body, schema=[], alt_path="/kz/", noindex=True)
+    return page(c, path=path, title="404 — ALFIMOV.KZ", desc=ui["not_found_text"], body=body, schema=[], alt_path=None, noindex=True)
 
 
 # ---------------------------------------------------------------- blog
@@ -1011,7 +1019,8 @@ def build():
         for p, doc in [build_home(c), *(build_service(c, s) for s in c.SERVICES), build_contacts(c)]:
             write(p, doc)
             paths.append(p)
-    write("/404.html", build_404())
+    write("/404.html", build_404(content_ru))
+    write("/kz/404.html", build_404(content_kz))
     p, doc = build_privacy()
     write(p, doc)
     paths.append(p)

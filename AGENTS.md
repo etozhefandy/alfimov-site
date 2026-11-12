@@ -1,6 +1,6 @@
 # alfimov-site — заметки для ИИ-агента
 
-Сайт = свои страницы и тексты + общий движок (`engine/`, git submodule → `~/Desktop/site-engine`) + пульт
+Сайт = свои страницы и тексты + общий движок (`engine/`, git submodule → `~/Desktop/sites/site-engine`) + пульт
 admin.alfimov.kz (`hub/` движка, но выкладывается только отсюда).
 
 ## ⚠️ Где чьё
@@ -11,11 +11,11 @@ admin.alfimov.kz (`hub/` движка, но выкладывается толь�
 | Тексты RU/KZ | `src/content_ru.py`, `src/content_kz.py` |
 | Лендинги заказчика Guestory | `src/lp_guestory.py`, `src/lp_render.py` |
 | Тексты ниши для ИИ-автора (кто пишет, стиль обложек, затравки) | `site/prompts.php` (этот репо) |
-| Блог, админка, ИИ-автор статей, очередь/автопилот, SEO-автопилот, CRM, пульт | **`~/Desktop/site-engine`** —
+| Блог, админка, ИИ-автор статей, очередь/автопилот, SEO-автопилот, CRM, пульт | **`~/Desktop/sites/site-engine`** —
   правь там, не здесь. `engine/` тут — только синхронизированная копия (submodule). См. его
   [AGENTS.md](https://github.com/etozhefandy/site-engine/blob/main/AGENTS.md) |
 
-Если задача про блог/админку/ИИ/SEO-автопилот — иди в `~/Desktop/site-engine`, делай там, потом синкай сюда
+Если задача про блог/админку/ИИ/SEO-автопилот — иди в `~/Desktop/sites/site-engine`, делай там, потом синкай сюда
 (ниже). Не правь `engine/static/...` прямо в этом репо напрямую — убьётся при следующем синке.
 
 ## Деплой (после правки своего или синка движка)

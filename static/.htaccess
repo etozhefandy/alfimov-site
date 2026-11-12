@@ -1,6 +1,10 @@
 Options -Indexes
 DirectoryIndex index.html
 ErrorDocument 404 /404.html
+# казахская версия сайта — своя страница «не найдено» на казахском (build.py: build_404)
+<If "%{REQUEST_URI} =~ m#^/kz/#">
+  ErrorDocument 404 /kz/404.html
+</If>
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
