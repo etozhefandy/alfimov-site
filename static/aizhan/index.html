@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Айжан — портфолио</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+  body{margin:0;}
+  .root{font-family:'Inter',system-ui,sans-serif;background:#0b0b0b;color:#e5e5e5;}
+  h1,h2,h3{font-family:'Space Grotesk',system-ui,sans-serif;margin:0;font-weight:700;}
+  a{color:#f5f5f5;text-decoration:underline;text-underline-offset:4px;}
+  a:hover{color:var(--accent);}
+  .wrap{max-width:1200px;margin:0 auto;padding:0 40px;box-sizing:border-box;}
+  .nav{display:flex;align-items:center;justify-content:space-between;padding:28px 40px;box-sizing:border-box;}
+  .logo{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:18px;letter-spacing:.08em;}
+  .menu-btn{background:none;border:1px solid #707070;border-radius:999px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#e5e5e5;}
+  .menu-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .placeholder{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#1a1a1a;border:1px dashed #3a3a3a;color:#c9c9c9;font-size:12px;letter-spacing:.12em;text-transform:uppercase;text-align:center;padding:16px;box-sizing:border-box;}
+  .hero-photo{position:relative;overflow:hidden;width:100%;height:clamp(320px,56vw,640px);background:#0b0b0b;}
+  .hero-photo-img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:bottom center;animation:photoDrift 16s ease-in-out infinite;}
+  @keyframes photoDrift{
+    0%{transform:translateY(-100%);}
+    18%{transform:translateY(0%);}
+    60%{transform:translateY(0%);}
+    82%{transform:translateY(-100%);}
+    100%{transform:translateY(-100%);}
+  }
+  .flow-ring{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+  .flow-ring text{font-family:'Space Grotesk',sans-serif;font-weight:700;}
+  .hero-title{padding:56px 40px 96px;box-sizing:border-box;}
+  .wordmark{font-size:clamp(56px,13vw,180px);line-height:0.92;letter-spacing:-0.02em;}
+  .eyebrow{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:18px;}
+  .hero-bio{font-size:18px;line-height:1.6;color:#e5e5e5;max-width:60ch;margin:24px 0 0;}
+  .stats-row{display:flex;flex-wrap:wrap;gap:40px;margin-top:40px;}
+  .stat{max-width:240px;}
+  .stat-num{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:clamp(26px,3vw,38px);color:var(--accent);display:block;}
+  .stat-label{font-size:14px;color:#9a9a9a;line-height:1.4;margin-top:6px;}
+  .cta-btn{display:inline-block;margin-top:40px;padding:16px 32px;border-radius:999px;background:var(--accent);color:#0b0b0b;font-weight:700;text-decoration:none;font-size:15px;letter-spacing:.02em;}
+  .cta-btn:hover{opacity:.85;color:#0b0b0b;}
+  .section{padding:clamp(72px,10vw,140px) 0;border-top:1px solid #1f1f1f;}
+  .two-col{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:64px;align-items:start;}
+  .two-col h2{font-size:clamp(32px,4vw,56px);line-height:1.05;}
+  .copy{font-size:17px;line-height:1.7;color:#9a9a9a;font-style:italic;max-width:48ch;margin:0;}
+  .copy + .copy{margin-top:18px;}
+  .section h2{font-size:clamp(28px,3.6vw,48px);line-height:1.1;}
+  .approach-quote{font-size:clamp(24px,3.2vw,40px);line-height:1.3;max-width:900px;font-weight:500;margin:28px 0 0;}
+  .approach-sub{font-size:16px;color:#9a9a9a;line-height:1.7;max-width:60ch;margin-top:20px;}
+  .service-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px;margin-top:56px;}
+  .service-card{border-top:1px solid #333;padding-top:20px;}
+  .service-num{font-family:'Space Grotesk',sans-serif;color:var(--accent);font-weight:700;font-size:14px;}
+  .service-card h3{font-size:19px;margin:14px 0 10px;}
+  .service-card p{font-size:14px;line-height:1.6;color:#9a9a9a;margin:0;}
+  .case{padding:40px 0;border-top:1px solid #1f1f1f;}
+  .case:first-child{border-top:none;padding-top:0;}
+  .case-head{display:flex;gap:20px;align-items:baseline;margin-bottom:20px;}
+  .case-num{font-family:'Space Grotesk',sans-serif;color:var(--accent);font-weight:700;font-size:15px;}
+  .case h3{font-size:clamp(22px,2.6vw,30px);}
+  .case-hook{color:#9a9a9a;font-style:italic;margin:6px 0 0;font-size:15px;}
+  .case-body p{font-size:16px;line-height:1.7;color:#cfcfcf;max-width:70ch;margin:0 0 10px;}
+  .case-stats{display:flex;flex-wrap:wrap;gap:28px;margin-top:20px;}
+  .case-stat{font-size:13px;color:#8a8a8a;}
+  .case-stat b{display:block;color:#f5f5f5;font-family:'Space Grotesk',sans-serif;font-size:20px;}
+  .case-note{font-size:12px;color:#707070;margin-top:16px;max-width:70ch;}
+  .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;margin-top:56px;}
+  .photo-card{position:relative;overflow:hidden;border-radius:4px;aspect-ratio:3/4;background:#1a1a1a;}
+  .photo-card img{width:100%;height:100%;object-fit:cover;display:block;}
+  .approach-photo{overflow:hidden;border-radius:4px;aspect-ratio:4/5;}
+  .approach-photo img{width:100%;height:100%;object-fit:cover;display:block;}
+  .idea-card{padding:24px;border:1px solid #242424;border-radius:4px;box-sizing:border-box;}
+  .idea-card h3{font-size:17px;margin:0 0 10px;}
+  .idea-card p{font-size:14px;color:#9a9a9a;line-height:1.6;margin:0;}
+  .steps{counter-reset:step;list-style:none;margin:48px 0 0;padding:0;}
+  .steps li{counter-increment:step;display:flex;gap:24px;padding:20px 0;border-top:1px solid #1f1f1f;font-size:18px;align-items:baseline;}
+  .steps li:first-child{border-top:none;}
+  .steps li::before{content:counter(step, decimal-leading-zero);font-family:'Space Grotesk',sans-serif;color:var(--accent);font-weight:700;min-width:40px;font-size:15px;}
+  .process-notes{margin-top:32px;display:flex;flex-direction:column;gap:10px;}
+  .process-notes p{margin:0;font-size:15px;color:#9a9a9a;line-height:1.6;max-width:60ch;}
+  .timeline{list-style:none;margin:48px 0 0;padding:0;display:flex;flex-direction:column;gap:28px;}
+  .timeline li{padding-left:24px;border-left:2px solid var(--accent);}
+  .timeline time{display:block;font-size:13px;color:var(--accent);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
+  .timeline p{margin:0;font-size:16px;color:#cfcfcf;line-height:1.6;max-width:60ch;}
+  .tools-line{font-size:16px;color:#cfcfcf;margin-top:24px;}
+  .contact-list{list-style:none;margin:40px 0 0;padding:0;display:flex;flex-direction:column;gap:14px;}
+  .contact-list a{font-size:22px;}
+  .footer{padding:48px 40px;display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;color:#9a9a9a;font-size:13px;border-top:1px solid #1f1f1f;box-sizing:border-box;}
+  @media (max-width:760px){
+    .two-col{grid-template-columns:1fr;gap:32px;}
+    .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;}
+    .service-grid{grid-template-columns:1fr;}
+    .case-head{flex-direction:column;gap:8px;}
+    .nav{padding:20px 24px;}
+    .hero-title{padding:40px 24px 64px;}
+    .wrap{padding:0 24px;}
+  }
+</style>
+</head>
+<body>
+<div class="root" style="--accent:#C9A27A; width:100%;">
+
+  <header class="nav">
+    <span class="logo">АЙЖАН</span>
+    <button class="menu-btn" aria-label="Открыть меню">
+      <svg width="16" height="12" viewBox="0 0 16 12" fill="none" aria-hidden="true">
+        <path d="M0 1H16" stroke="currentColor" stroke-width="1.5"></path>
+        <path d="M0 6H16" stroke="currentColor" stroke-width="1.5"></path>
+        <path d="M0 11H16" stroke="currentColor" stroke-width="1.5"></path>
+      </svg>
+    </button>
+  </header>
+
+  <div class="hero-photo">
+    <img class="hero-photo-img" src="img/hero.png" alt="Айжан">
+    <svg class="flow-ring" viewBox="0 0 1000 600" preserveAspectRatio="none" aria-hidden="true">
+      <path id="flowPathA" fill="none" d=""></path>
+      <path id="flowPathB" fill="none" d=""></path>
+      <text font-size="50" letter-spacing="2" fill="#C9A27A">
+        <textPath id="flowTextA" href="#flowPathA" startOffset="0%">ПОРТФОООООЛИО &#8226; ПОРТФОООООЛИО &#8226; <animate attributeName="startOffset" from="100%" to="0%" dur="22s" repeatCount="indefinite"></animate></textPath>
+      </text>
+      <text font-size="44" letter-spacing="2" fill="#f5f5f5">
+        <textPath id="flowTextB" href="#flowPathB" startOffset="0%">АЙЖААААААААН &#8226; АЙЖААААААААН &#8226; <animate attributeName="startOffset" from="100%" to="0%" dur="20s" repeatCount="indefinite"></animate></textPath>
+      </text>
+    </svg>
+  </div>
+
+  <div class="hero-title">
+    <h1 class="wordmark" id="wordmark">АЙЖАН</h1>
+    <span class="eyebrow" style="margin-top:20px;">SMM-стратег и проектный менеджер</span>
+    <p class="hero-bio">Придумываю рубрики, пишу сценарии Reels, веду съёмки и команду. Работаю на русском и казахском.</p>
+    <div class="stats-row">
+      <div class="stat">
+        <span class="stat-num">400 000+</span>
+        <span class="stat-label">органических просмотров для только что открывшегося клуба</span>
+      </div>
+      <div class="stat">
+        <span class="stat-num">×5</span>
+        <span class="stat-label">подписчиков за 3 месяца (100 → 538)</span>
+      </div>
+      <div class="stat">
+        <span class="stat-num">5 ниш</span>
+        <span class="stat-label">недвижимость, ритейл, гейминг, стартап, e-commerce</span>
+      </div>
+    </div>
+    <a class="cta-btn" href="#cases">Смотреть кейсы</a>
+  </div>
+
+  <section class="section">
+    <div class="wrap two-col">
+      <div>
+        <span class="eyebrow">Подход</span>
+        <p class="approach-quote">Я не начинаю с вопроса «что сегодня опубликовать».</p>
+        <p class="approach-sub">Я начинаю с другого: что мешает аудитории выбрать этот продукт, что она должна понять и в какой ситуации вспомнит о бренде.</p>
+      </div>
+      <div class="approach-photo">
+        <img src="img/approach.jpg" alt="Айжан">
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <span class="eyebrow">Что я делаю</span>
+      <h2>Из чего состоит работа</h2>
+      <div class="service-grid">
+        <div class="service-card">
+          <span class="service-num">01</span>
+          <h3>Стратегия и позиционирование</h3>
+          <p>Анализ рынка и аудитории, архетип бренда, контентная матрица.</p>
+        </div>
+        <div class="service-card">
+          <span class="service-num">02</span>
+          <h3>Идеи и сценарии</h3>
+          <p>Рубрики, Reels, сериальные форматы, адаптация трендов под бизнес.</p>
+        </div>
+        <div class="service-card">
+          <span class="service-num">03</span>
+          <h3>Продакшн</h3>
+          <p>Съёмки, мобильные видеографы, дизайнеры, контент-планы, согласования с клиентом.</p>
+        </div>
+        <div class="service-card">
+          <span class="service-num">04</span>
+          <h3>Аналитика</h3>
+          <p>Разбор публикаций, динамика подписчиков, ER, выводы для следующего цикла.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="cases">
+    <div class="wrap">
+      <span class="eyebrow">Кейсы</span>
+      <h2>Было &#8594; стало</h2>
+
+      <div class="case">
+        <div class="case-head">
+          <span class="case-num">01</span>
+          <div>
+            <h3>Colizeum Premium</h3>
+            <p class="case-hook">Единственный кейс с полным «было / стало» в цифрах &#8226; 26.12.2025 – 30.04.2026</p>
+          </div>
+        </div>
+        <div class="case-body">
+          <p>Выбрали виральные форматы и выстроили рубрики с нуля. Точкой роста стал розыгрыш с PGL.</p>
+          <div class="case-stats">
+            <div class="case-stat"><b>100 &#8594; 538</b>подписчиков (&times;5,38)</div>
+            <div class="case-stat"><b>+154</b>из них органика (общий прирост +438)</div>
+            <div class="case-stat"><b>400 000+</b>органических просмотров</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="case">
+        <div class="case-head">
+          <span class="case-num">02</span>
+          <div>
+            <h3>NAK</h3>
+            <p class="case-hook">От отчётов со стройки к бренду, которому доверяют</p>
+          </div>
+        </div>
+        <div class="case-body">
+          <p>Было: контент как освещение стройки, без коммуникационной стратегии.</p>
+          <p>Стало: архетип «благородного, помогающего бренда» и матрица рубрик — ЖК в формате «Орёл и решка», «Спасибо, NAK», NAK People, «Дружба строителей», социальные проекты. Контент выходит в срок при большом объёме, клиенту продан допуслуг.</p>
+          <p class="case-note">65 713 &#8594; 67 463 подписчиков (+1 750), 23 публикации — за один отчётный период.</p>
+        </div>
+      </div>
+
+      <div class="case">
+        <div class="case-head">
+          <span class="case-num">03</span>
+          <div>
+            <h3>QazaqFlowers</h3>
+            <p class="case-hook">Как продать доступную цену, чтобы её не боялись</p>
+          </div>
+        </div>
+        <div class="case-body">
+          <p>Проблема: в эконом-сегменте цветов покупатели боятся несвежести и «дешёвого» вида.</p>
+          <p>Решение: сначала красивый букет, потом цена. Эстетичная съёмка плюс ситуативные сюжеты — «когда нужен букет».</p>
+        </div>
+      </div>
+
+      <div class="case">
+        <div class="case-head">
+          <span class="case-num">04</span>
+          <div>
+            <h3>Luna Group</h3>
+            <p class="case-hook">Когда нельзя просто показывать квартиры &#8226; 8+ месяцев</p>
+          </div>
+        </div>
+        <div class="case-body">
+          <p>Тренды, юмор, персонажи («Еняшка против Киринки»), нативные интеграции — без прямой продажи в ленте.</p>
+          <p>Отдельная врезка объясняет разницу между черновой и предчистовой отделкой — это работа с возражением покупателя.</p>
+        </div>
+      </div>
+
+      <div class="case">
+        <div class="case-head">
+          <span class="case-num">05</span>
+          <div>
+            <h3>Qanfly (QuanFi)</h3>
+            <p class="case-hook">Запуск приложения, которое никто не знает</p>
+          </div>
+        </div>
+        <div class="case-body">
+          <p>Цепочка «жизненная ситуация &#8594; потребность &#8594; решение &#8594; продукт». Месяц 1 — ситуативные ролики, месяц 2 — переход к кинематографичной подаче. Все сценарии написаны мной полностью.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <span class="eyebrow">Мои идеи</span>
+      <h2>Идеи, которые сработали</h2>
+      <div class="grid">
+        <div class="idea-card">
+          <h3>«Спасибо, NAK»</h3>
+          <p>Жизнь семьи в ЖК глазами семилетнего ребёнка. Застройщик не хвалит себя — его благодарят.</p>
+        </div>
+        <div class="idea-card">
+          <h3>«Еняшка против Киринки»</h3>
+          <p>Сериальные персонажи для девелопера.</p>
+        </div>
+        <div class="idea-card">
+          <h3>«Орёл и решка»</h3>
+          <p>Знакомство с жилыми комплексами в формате развлекательной рубрики.</p>
+        </div>
+        <div class="idea-card">
+          <h3>NAK People</h3>
+          <p>Истории сотрудников со стажем 5+ лет, план на ~20 историй.</p>
+        </div>
+        <div class="idea-card">
+          <h3>«Дружба строителей»</h3>
+          <p>Юмор про стройку, который не создаёт впечатления нарушений техники безопасности.</p>
+        </div>
+        <div class="idea-card">
+          <h3>Ситуативные ролики для цветов</h3>
+          <p>Продаём повод, а не букет.</p>
+        </div>
+        <div class="idea-card">
+          <h3>Ситуация &#8594; решение для Qanfly</h3>
+          <p>Приложение входит в сюжет, а не в рекламный блок.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <span class="eyebrow">Процесс</span>
+      <h2>Как я веду проекты</h2>
+      <ol class="steps">
+        <li>Бриф и ограничения бренда</li>
+        <li>Стратегия и рубрикатор</li>
+        <li>Сценарии</li>
+        <li>Съёмки и команда</li>
+        <li>Согласование и публикация</li>
+        <li>Разбор результатов</li>
+      </ol>
+      <div class="process-notes">
+        <p>Веду несколько проектов параллельно.</p>
+        <p>Жёсткий контроль сроков и строгие рамки по формулировкам — как в истории про черновую и предчистовую отделку.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <span class="eyebrow">Опыт</span>
+      <h2>Путь</h2>
+      <ul class="timeline">
+        <li>
+          <time>2020 – 2024</time>
+          <p>Uni Flowers / FTD — цветочный бизнес: продажи, CRM, операционка.</p>
+        </li>
+        <li>
+          <time>С февраля 2024</time>
+          <p>MADA Consult — Account Manager &#8594; Marketer &#8594; Tracker. Стратегии на STP, JTBD, CJM.</p>
+        </li>
+        <li>
+          <time>Сейчас</time>
+          <p>Factum — SMM Project Manager (последние два месяца — проект NAK через Haktu).</p>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <span class="eyebrow">Инструменты</span>
+      <p class="tools-line">Notion &#8226; Google Workspace &#8226; LiveDune &#8226; Instagram &#8226; TikTok &#8226; Threads</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <span class="eyebrow">Вне кейсов</span>
+      <h2>Айжан за кадром</h2>
+      <div class="grid">
+        <div class="photo-card"><img src="img/gallery-1.jpg" alt="Айжан"></div>
+        <div class="photo-card"><img src="img/gallery-2.jpg" alt="Айжан"></div>
+        <div class="photo-card"><img src="img/gallery-3.jpg" alt="Айжан"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <span class="eyebrow">Отзывы</span>
+      <h2>Что говорят клиенты</h2>
+      <p class="copy" style="margin-top:28px;">[ Отзыв появится здесь — соберём после первых публикаций ]</p>
+    </div>
+  </section>
+
+  <section class="section" style="border-bottom:1px solid #1f1f1f;">
+    <div class="wrap">
+      <span class="eyebrow">Контакты</span>
+      <h2 style="font-size:clamp(36px,6vw,88px);">Давайте<br>познакомимся</h2>
+      <p class="hero-bio">Расскажите, какую задачу решает ваш бренд, и я предложу, с чего начать.</p>
+      <ul class="contact-list">
+        <li><a href="#">[ Telegram / WhatsApp появится позже ]</a></li>
+        <li><a href="#">[ Instagram ]</a></li>
+        <li><a href="#">[ почта ]</a></li>
+      </ul>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <span>© Айжан Жолдасбай, 2026</span>
+    <span>Черновик — часть контента реальная, часть ждёт материалы</span>
+  </footer>
+
+</div>
+<script>
+  var corners = {
+    TR: 'M900,1750 V90 C900,20 1000,-10 1150,-40 L2250,-360',
+    TL: 'M100,1750 V90 C100,20 0,-10 -150,-40 L-1250,-360',
+    BR: 'M900,-1150 V510 C900,580 1000,610 1150,640 L2250,960',
+    BL: 'M100,-1150 V510 C100,580 0,610 -150,640 L-1250,960'
+  };
+  var keys = Object.keys(corners);
+  function pick(){ return keys[Math.floor(Math.random()*keys.length)]; }
+  var a = pick();
+  var b = pick();
+  while (b === a) { b = pick(); }
+  document.getElementById('flowPathA').setAttribute('d', corners[a]);
+  document.getElementById('flowPathB').setAttribute('d', corners[b]);
+
+  function fitWordmark() {
+    var h1 = document.getElementById('wordmark');
+    var container = document.querySelector('.hero-title');
+    if (!h1 || !container) return;
+    var cs = window.getComputedStyle(h1);
+    var containerCs = window.getComputedStyle(container);
+    var fontSize = parseFloat(cs.fontSize);
+    var fontWeight = cs.fontWeight;
+    var fontFamily = cs.fontFamily;
+    var letterSpacing = parseFloat(cs.letterSpacing) || 0;
+    var padLeft = parseFloat(containerCs.paddingLeft) || 0;
+    var padRight = parseFloat(containerCs.paddingRight) || 0;
+    var availWidth = container.clientWidth - padLeft - padRight;
+    var canvas = fitWordmark._canvas || (fitWordmark._canvas = document.createElement('canvas'));
+    var ctx = canvas.getContext('2d');
+    ctx.font = fontWeight + ' ' + fontSize + 'px ' + fontFamily;
+    function measure(text) {
+      return ctx.measureText(text).width + letterSpacing * (text.length - 1);
+    }
+    var n = 1;
+    var text = 'АЙЖ' + 'А'.repeat(n) + 'Н';
+    while (measure(text) < availWidth && n < 60) {
+      n++;
+      text = 'АЙЖ' + 'А'.repeat(n) + 'Н';
+    }
+    if (measure(text) > availWidth && n > 1) {
+      n--;
+      text = 'АЙЖ' + 'А'.repeat(n) + 'Н';
+    }
+    h1.textContent = text;
+  }
+  fitWordmark();
+  if (document.fonts && document.fonts.ready) { document.fonts.ready.then(fitWordmark); }
+  var resizeTimer;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(fitWordmark, 100);
+  });
+</script>
+</body>
+</html>
