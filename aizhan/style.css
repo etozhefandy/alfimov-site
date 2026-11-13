@@ -1,5 +1,9 @@
 body{margin:0;}
-.root{font-family:'Inter',system-ui,sans-serif;background:#0b0b0b;color:#e5e5e5;}
+.root{font-family:'Inter',system-ui,sans-serif;background:#0b0b0b;color:#e5e5e5;--accent:#C9A27A;width:100%;}
+.hero-eyebrow{margin-top:20px;}
+.testimonial-copy{margin-top:28px;}
+.section-end{border-bottom:1px solid #1f1f1f;}
+.contact-heading{font-size:clamp(36px,6vw,88px);}
 h1,h2,h3{font-family:'Space Grotesk',system-ui,sans-serif;margin:0;font-weight:700;}
 a{color:#f5f5f5;text-decoration:underline;text-underline-offset:4px;}
 a:hover{color:var(--accent);}
