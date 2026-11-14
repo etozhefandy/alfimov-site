@@ -6,11 +6,31 @@ var corners = {
 };
 var keys = Object.keys(corners);
 function pick(){ return keys[Math.floor(Math.random()*keys.length)]; }
+function pickOtherThan(prev){
+  var next = pick();
+  while (next === prev) { next = pick(); }
+  return next;
+}
 var a = pick();
-var b = pick();
-while (b === a) { b = pick(); }
+var b = pickOtherThan(a);
 document.getElementById('flowPathA').setAttribute('d', corners[a]);
 document.getElementById('flowPathB').setAttribute('d', corners[b]);
+
+function scheduleReroll(durSeconds, beginOffsetSeconds, rerollFn) {
+  var firstDelay = (durSeconds - beginOffsetSeconds) * 1000;
+  setTimeout(function loop() {
+    rerollFn();
+    setTimeout(loop, durSeconds * 1000);
+  }, firstDelay);
+}
+scheduleReroll(22, 8, function () {
+  a = pickOtherThan(a);
+  document.getElementById('flowPathA').setAttribute('d', corners[a]);
+});
+scheduleReroll(20, 7, function () {
+  b = pickOtherThan(b);
+  document.getElementById('flowPathB').setAttribute('d', corners[b]);
+});
 
 function fitWordmark() {
   var h1 = document.getElementById('wordmark');
