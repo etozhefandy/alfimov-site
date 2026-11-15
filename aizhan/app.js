@@ -70,3 +70,78 @@ window.addEventListener('resize', function () {
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(fitWordmark, 100);
 });
+
+var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+var revealEls = document.querySelectorAll('.reveal');
+if (!reduceMotion && 'IntersectionObserver' in window && revealEls.length) {
+  var revealObserver = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('is-visible');
+        revealObserver.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+  revealEls.forEach(function (el) { revealObserver.observe(el); });
+} else {
+  revealEls.forEach(function (el) { el.classList.add('is-visible'); });
+}
+
+function formatThousands(n) {
+  return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+function animateCount(el) {
+  var text = el.textContent;
+  var match = text.match(/[\d\s]+/);
+  if (!match) return;
+  var raw = match[0];
+  var target = parseInt(raw.replace(/\s/g, ''), 10);
+  if (isNaN(target)) return;
+  var prefix = text.slice(0, match.index);
+  var suffix = text.slice(match.index + raw.length);
+  var duration = 1200;
+  var startTime = null;
+  function step(ts) {
+    if (!startTime) startTime = ts;
+    var p = Math.min((ts - startTime) / duration, 1);
+    var eased = 1 - Math.pow(1 - p, 3);
+    el.textContent = prefix + formatThousands(Math.round(eased * target)) + suffix;
+    if (p < 1) { requestAnimationFrame(step); } else { el.textContent = text; }
+  }
+  requestAnimationFrame(step);
+}
+var statNums = document.querySelectorAll('.stat-num');
+if (!reduceMotion && 'IntersectionObserver' in window && statNums.length) {
+  var statObserver = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (entry.isIntersecting) {
+        animateCount(entry.target);
+        statObserver.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.4 });
+  statNums.forEach(function (el) { statObserver.observe(el); });
+}
+
+var marqueeParallaxEls = document.querySelectorAll('.marquee-parallax');
+if (!reduceMotion && marqueeParallaxEls.length) {
+  var parallaxTicking = false;
+  function updateMarqueeParallax() {
+    var vh = window.innerHeight;
+    marqueeParallaxEls.forEach(function (el) {
+      var rect = el.parentElement.getBoundingClientRect();
+      var center = rect.top + rect.height / 2;
+      var offset = (center - vh / 2) * -0.06;
+      el.style.transform = 'translateX(' + offset.toFixed(1) + 'px)';
+    });
+    parallaxTicking = false;
+  }
+  window.addEventListener('scroll', function () {
+    if (!parallaxTicking) {
+      parallaxTicking = true;
+      requestAnimationFrame(updateMarqueeParallax);
+    }
+  }, { passive: true });
+  updateMarqueeParallax();
+}
