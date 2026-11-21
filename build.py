@@ -949,19 +949,21 @@ def page_lastmod(paths):
 
 def sitemap(paths):
     """Страницы с парой RU/KZ. Статьи блога в карту добавляет PHP на хостинге (_blog/sitemap.tpl)."""
+    have = set(paths)
     ru_paths = [p for p in paths if not p.startswith("/kz/")]
-    all_pairs = [p for ru in ru_paths for p in (ru, "/kz" + ru)]
+    # Пара /kz/… — только если такая страница есть (у политики конфиденциальности казахской версии нет;
+    # раньше карта всё равно давала Google несуществующий /kz/politika-konfidencialnosti/).
+    all_pairs = [p for ru in ru_paths for p in (ru, "/kz" + ru) if p in have]
     lastmod = page_lastmod(all_pairs)
     rows = []
     for ru in ru_paths:
         kz = "/kz" + ru
-        for p in (ru, kz):
-            rows.append(
-                f"<url><loc>{SITE_URL}{p}</loc><lastmod>{lastmod[p]}</lastmod>"
-                f'<xhtml:link rel="alternate" hreflang="ru-KZ" href="{SITE_URL}{ru}"/>'
-                f'<xhtml:link rel="alternate" hreflang="kk-KZ" href="{SITE_URL}{kz}"/>'
-                f'<xhtml:link rel="alternate" hreflang="x-default" href="{SITE_URL}{ru}"/></url>'
-            )
+        pair = kz in have
+        alt = (f'<xhtml:link rel="alternate" hreflang="ru-KZ" href="{SITE_URL}{ru}"/>'
+               f'<xhtml:link rel="alternate" hreflang="kk-KZ" href="{SITE_URL}{kz}"/>'
+               f'<xhtml:link rel="alternate" hreflang="x-default" href="{SITE_URL}{ru}"/>') if pair else ""
+        for p in ((ru, kz) if pair else (ru,)):
+            rows.append(f"<url><loc>{SITE_URL}{p}</loc><lastmod>{lastmod[p]}</lastmod>{alt}</url>")
     return (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n'
