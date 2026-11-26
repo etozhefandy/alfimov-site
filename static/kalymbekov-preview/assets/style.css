@@ -437,3 +437,25 @@ footer li{margin-bottom:8px;}
   transition:background .2s, transform .2s var(--ease);
 }
 .city-grid a:hover{background:rgba(255,255,255,.16);transform:translateY(-2px);}
+.city-grid.light a{background:#eee6d4;color:var(--navy);border-color:var(--line);}
+
+/* ---------- Utilities (replace former inline style="" attributes —
+   some hosting setups send a Content-Security-Policy that blocks inline
+   styles, so everything lives in this stylesheet instead) ---------- */
+.u-max260{max-width:260px;}
+.u-max760{max-width:760px;}
+.u-mt0{margin-top:0;}
+.u-mt14{margin-top:14px;}
+.u-mt18{margin-top:18px;}
+.u-mt28{margin-top:28px;}
+.u-center{text-align:center;}
+.u-justify-center{justify-content:center;}
+.u-mx-auto{margin:0 auto;}
+.u-mx-auto-10{margin:0 auto 10px;}
+.u-underline{text-decoration:underline;}
+.wrap-flush{padding-left:0;padding-right:0;}
+.btn-block{width:100%;}
+.muted-lede{color:var(--muted);font-size:16px;}
+.muted-wide{color:var(--muted);max-width:640px;}
+.price-box-solo{max-width:640px;margin:0 auto;}
+.price-wrap-solo{grid-template-columns:1fr;max-width:640px;margin:0 auto;}
