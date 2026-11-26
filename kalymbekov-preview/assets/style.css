@@ -353,6 +353,29 @@ p.sec-sub{color:var(--muted);max-width:640px;margin:0 0 40px;font-size:16px;}
 .cta-band .btn-primary{background:var(--navy);color:var(--white);}
 .cta-band .btn-primary:hover{background:var(--navy-dark);}
 
+/* ---------- Мобильные экраны: заголовки были рассчитаны на десктоп
+   и на узком экране становились непропорционально крупными ---------- */
+@media (max-width:640px){
+  .hero{padding:44px 0 56px;}
+  .eyebrow{font-size:12px;margin-bottom:10px;}
+  .hero h1{font-size:28px;line-height:1.28;margin:0 0 14px;}
+  .hero p.lead{font-size:16px;margin:0 0 22px;}
+  .hero-card{padding:20px;}
+
+  section{padding:48px 0;}
+  h2.sec-title{font-size:23px;margin:0 0 14px;padding-bottom:10px;}
+  p.sec-sub{font-size:15px;margin:0 0 28px;}
+
+  .situation-head{padding:36px 0 42px;}
+  .situation-head h1{font-size:25px;line-height:1.3;}
+  .situation-head p.lead{font-size:15.5px;}
+
+  .cta-band{padding:34px 0;}
+  .cta-band h2{font-size:21px;}
+
+  .price-box .price{font-size:24px;}
+}
+
 .faq-item{border-bottom:1px solid var(--line);padding:18px 0;}
 .faq-item summary{cursor:pointer;font-weight:600;font-size:16px;list-style:none;}
 .faq-item summary::-webkit-details-marker{display:none;}
